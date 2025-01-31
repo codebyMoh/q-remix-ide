@@ -11,7 +11,7 @@ npm install --legacy-peer-deps
 ```
 ```bash
 # Backend Setup
-cd Backend
+cd backend
 npm install --legacy-peer-deps
 ```
 
