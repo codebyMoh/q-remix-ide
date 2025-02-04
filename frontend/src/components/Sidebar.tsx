@@ -10,11 +10,12 @@ import Settings from "@/assets/svg/settings-up.svg"
 import SettingsD from "@/assets/svg/settings-down.svg"
 import Plugin from "@/assets/svg/plugin.svg"
 
+
 const Sidebar = () => {
   const [active, setActive] = useState("workspace"); 
 
   return (
-    <div className="w-20 bg-white flex flex-col gap-1 border-[#DEDEDE] items-center py-2 border-r ">
+    <div className="w-20 bg-white flex flex-col gap-1 border-[#DEDEDE] items-center p-2 border-r ">
       <div className="mb-2 mt-2">
         <Logo className="w-10 h-10 rounded-full" />
       </div>

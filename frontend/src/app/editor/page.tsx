@@ -1,9 +1,4 @@
-<<<<<<< HEAD
-import Editor from "@/app/editor/Editor";
 
-export default function Home() {
-  return <Editor />;
-=======
 "use client";
 import React from "react";
 import Editor from "@monaco-editor/react";
@@ -39,5 +34,4 @@ export default function EditorPage() {
       </div>
     </div>
   );
->>>>>>> 9d177a83dbb78b8b6613b2e3fedbcc0acf012602
 }
