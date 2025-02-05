@@ -14,7 +14,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex h-screen">
           <Sidebar />
           <ToggleWorkspace />
-          <div className="flex-1 flex flex-col overflow-auto">
+          <div className="flex-1 flex flex-col ">
             {children} 
           </div>
         </div>

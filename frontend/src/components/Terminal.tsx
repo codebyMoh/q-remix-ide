@@ -13,7 +13,7 @@ const Terminal = () => {
 
       <div className="flex items-center gap-4">
         {/* List of Transitions */}
-        <div className="whitespace-nowrap">
+        <div className="text-[#94969C] t font-medium leading-[var(--Lineheighttext-md)] ">
           List All the Transitions
         </div>
 
