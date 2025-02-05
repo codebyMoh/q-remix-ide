@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import Rectangle from "@/assets/svg/Rectangle.svg";
-
+import SmallRectangle from "@/assets/svg/smallRectangle.svg";
 const FeaturesShow = () => {
   const [selectedLanguage, setSelectedLanguage] = useState("EN");
 
@@ -18,6 +18,11 @@ const FeaturesShow = () => {
     ],
     []
   );
+  const plugins = [
+    { id: 1, text: "one plugin" },
+    { id: 2, text: "two plugin" },
+    { id: 3, text: "three plugin" },
+  ];
 
   return (
     <div className="w-full pt-[3.3rem] pl-[2rem] pr-[2rem] align-center">
@@ -43,7 +48,7 @@ const FeaturesShow = () => {
         </div>
 
         {/* Features display554 */}
-       
+
         <div className="flex w-full h-[313px] rounded-[10px] border-[1px] border-solid p-[10px] gap-[20px] mt-4">
           <div>
             <Rectangle />
@@ -56,6 +61,25 @@ const FeaturesShow = () => {
               </div>
             </div>
           </div>
+        </div>
+        <div>
+          <h1 className="font-semibold text-[22px] pt-[15px]">
+            Features Plugins
+          </h1>
+        </div>
+        {/* featured plugin */}
+        <div className="w-[632px] h-[523px] left-[808px] pt-[15px] opacity-100 flex gap-[20px]">
+          {plugins.map((plugin, index) => (
+            <div
+              key={index}
+              className="w-[170px] h-[167px] p-[10px_0px_0px_0px] gap-[10px] rounded-[10px] border border-t border-black/10"
+            >
+              <div className="pl-[10px]">
+                <SmallRectangle />
+                {/* <div>{plugin.text}</div> */}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import React from "react";
-import Header from "@/components/Header";
+//import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import ToggleWorkspace from "@/components/ToggleWorkspace"
 import { Urbanist } from "next/font/google";
@@ -16,17 +16,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex h-screen">
           <Sidebar />
           <ToggleWorkspace />
-          <Web3Workspace/>
-          <FeaturesShow/>
           <div className="flex-1 flex flex-col">
-            {/* <Header/> */}
             {children} 
           </div>
         </div>
-      {/* {/* <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-gray-900`}
-      >
-        {children} */}
       </body>
     </html>
   );
