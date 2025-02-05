@@ -1,32 +1,26 @@
 import React from "react";
-//import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
-import ToggleWorkspace from "@/components/ToggleWorkspace"
-import { Urbanist } from "next/font/google";
+import ToggleWorkspace from "@/components/ToggleWorkspace";
 import Web3Workspace from "@/components/Web3Workspace";
 import FeaturesShow from "@/components/FeaturesShow";
+import Footer from "@/components/Footer"; // Import Footer
+import BottomEditorSection from "@/components/BottomEditorSection"; // Import BottomEditorSection
 import "./globals.css";
-
-const urbanist = Urbanist({ subsets: ["latin"], weight: ["400", "600", "700"] });
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <div className="flex h-screen">
+      <body className="flex flex-col min-h-screen">
+        <div className="flex flex-1">
           <Sidebar />
           <ToggleWorkspace />
-          <Web3Workspace/>
-          <FeaturesShow/>
-          <div className="flex-1 flex flex-col">
-            {/* <Header/> */}
-            {children} 
-          </div>
+          <Web3Workspace />
+          <FeaturesShow />
+          <div className="flex-1 flex flex-col">{children}</div>
         </div>
-      {/* {/* <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-gray-900`}
-      >
-        {children} */}
+
+        <BottomEditorSection /> {/* This adds the bottom editor section */}
+        <Footer />
       </body>
     </html>
   );
