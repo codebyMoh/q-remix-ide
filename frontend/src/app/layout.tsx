@@ -3,8 +3,6 @@ import React from "react";
 import Sidebar from "@/components/Sidebar";
 import ToggleWorkspace from "@/components/ToggleWorkspace"
 import { Urbanist } from "next/font/google";
-import Web3Workspace from "@/components/Web3Workspace";
-import FeaturesShow from "@/components/FeaturesShow";
 import "./globals.css";
 
 const urbanist = Urbanist({ subsets: ["latin"], weight: ["400", "600", "700"] });
@@ -16,7 +14,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex h-screen">
           <Sidebar />
           <ToggleWorkspace />
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col overflow-auto">
             {children} 
           </div>
         </div>

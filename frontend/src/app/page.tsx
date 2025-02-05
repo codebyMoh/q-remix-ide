@@ -4,7 +4,7 @@ import Editor from "@monaco-editor/react";
 import Web3Workspace from "@/components/Web3Workspace";
 import FeaturesShow from "@/components/FeaturesShow";
 import Header from "@/components/Header";
-
+import Terminal from "@/components/Terminal";
 // Memoize Web3Workspace and FeaturesShow to avoid unnecessary re-renders
 const MemoizedWeb3Workspace = React.memo(Web3Workspace);
 const MemoizedFeaturesShow = React.memo(FeaturesShow);
@@ -44,7 +44,7 @@ contract MyContract {
         handleZoomOut={handleZoomOut}
         setActiveTab={setActiveTab}
       />
-      
+
       {/* Content Area */}
       <div className="flex-1">
         {activeTab === "home" ? (
@@ -81,6 +81,9 @@ contract MyContract {
             </div>
           </div>
         )}
+      </div>
+      <div className="w-full h-[60px]">
+        <Terminal />
       </div>
     </div>
   );
