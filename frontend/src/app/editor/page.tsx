@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import Editor from "@monaco-editor/react";
 
 export default function EditorPage() {
-  const [code, setCode] = useState(`// Write your Solidity contract here...
+  const [solidityCode, setSolidityCode] = useState(`// Write your Solidity contract here...
 pragma solidity ^0.8.0;
 
 contract HelloWorld {
@@ -17,7 +17,7 @@ contract HelloWorld {
       const response = await fetch("http://localhost:5000/api/editor/compile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceCode: code }),
+        body: JSON.stringify({ sourceCode: solidityCode }),
       });
       const result = await response.json();
 
@@ -25,8 +25,9 @@ contract HelloWorld {
         setError(result.error);
         setCompilationResult("");
       } else {
-        // Simulate reading the "greet" value
-        setCompilationResult("Hello World!");
+        // Format the JSON output for readability
+        const formattedResult = JSON.stringify(result, null, 2);
+        setCompilationResult(formattedResult);
         setError("");
       }
     } catch (err) {
@@ -54,7 +55,7 @@ contract HelloWorld {
           height={`calc(100vh - 64px)`}
           width="100%"
           defaultLanguage="solidity"
-          value={code}
+          value={solidityCode}
           theme="vs-dark"
           options={{
             fontSize: 14,
@@ -62,7 +63,7 @@ contract HelloWorld {
             scrollBeyondLastLine: false,
             automaticLayout: true,
           }}
-          onChange={(value) => setCode(value || "")}
+          onChange={(value) => setSolidityCode(value || "")}
         />
       </div>
 
@@ -76,7 +77,19 @@ contract HelloWorld {
       {compilationResult && (
         <div className="bg-gray-100 border border-gray-400 text-gray-700 px-4 py-2">
           <h2 className="font-bold">Compilation Result</h2>
-          <p>{compilationResult}</p>
+          <pre
+            style={{
+              backgroundColor: "#f5f5f5",
+              padding: "10px",
+              borderRadius: "5px",
+              maxHeight: "400px", // Fixed height
+              overflowY: "auto", // Enable vertical scrolling
+              whiteSpace: "pre-wrap", // Wrap long lines
+              wordBreak: "break-all", // Break long words
+            }}
+          >
+            {compilationResult}
+          </pre>
         </div>
       )}
     </div>
