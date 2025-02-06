@@ -22,6 +22,8 @@ contract MyContract {
     // Your contract code goes here
 }`);
   const [zoom, setZoom] = useState(1.0);
+  const [compilationResult, setCompilationResult] = useState(null);
+  const [error, setError] = useState("");
 
   // Terminal resizing
   const [terminalHeight, setTerminalHeight] = useState(150);
@@ -59,16 +61,34 @@ contract MyContract {
     setZoom((prev) => Math.max(prev - 0.1, 0.5));
   }, []);
 
-  const handleRun = useCallback(() => {
-    alert("Please select a .sol, .js, or .ts file to compile.");
-  }, []);
+  const handleCompile = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/editor/compile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceCode: code }),
+      });
+      const result = await response.json();
+
+      if (result.error) {
+        setError(result.error);
+        setCompilationResult(null);
+      } else {
+        setCompilationResult(result);
+        setError("");
+      }
+    } catch (err) {
+      setError("Failed to compile Solidity code");
+      setCompilationResult(null);
+    }
+  };
 
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
       <MemoizedHeader
         handleZoomIn={handleZoomIn}
-        handleRun={handleRun}
+        handleRun={handleCompile}
         handleZoomOut={handleZoomOut}
         setActiveTab={setActiveTab}
       />
@@ -122,7 +142,7 @@ contract MyContract {
                   height="100%"
                   width="100%"
                   defaultLanguage="solidity"
-                  defaultValue={code}
+                  value={code}
                   theme="vs-light"
                   options={{
                     fontSize: 14,
@@ -134,6 +154,20 @@ contract MyContract {
                 />
               </div>
             </div>
+
+            {/* Compilation Result */}
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2">
+                Error: {error}
+              </div>
+            )}
+
+            {compilationResult && (
+              <div className="bg-gray-100 border border-gray-400 text-gray-700 px-4 py-2">
+                <h2 className="font-bold">Compilation Result</h2>
+                <pre>{JSON.stringify(compilationResult, null, 2)}</pre>
+              </div>
+            )}
           </div>
         )}
       </div>
