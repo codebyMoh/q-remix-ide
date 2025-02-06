@@ -8,7 +8,7 @@ import M from "@/assets/svg/m.svg";
 import Search from "@/assets/svg/search.svg";
 import DownArrow from "@/assets/svg/downarrow.svg";
 import WorkSpaceArrow from "@/assets/svg/workspaceArrow.svg";
-import Header from "./Header";
+
 
 // Constants for static data
 const TAGS = [
@@ -103,7 +103,6 @@ const Web3Workspace = () => {
 
   return (
     <div>
-      <Header />
       <div className="w-[400px] p-8 flex flex-col gap-4 border-r border-[#DEDEDE]">
         {/* Header Section */}
         <div className="flex justify-between items-center">

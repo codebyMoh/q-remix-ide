@@ -1,10 +1,8 @@
 import React from "react";
 import Sidebar from "@/components/Sidebar";
-import ToggleWorkspace from "@/components/ToggleWorkspace";
-import Web3Workspace from "@/components/Web3Workspace";
-import FeaturesShow from "@/components/FeaturesShow";
-import Footer from "@/components/Footer"; // Import Footer
-import BottomEditorSection from "@/components/BottomEditorSection"; // Import BottomEditorSection
+import ToggleWorkspace from "@/components/ToggleWorkspace"
+import { Urbanist } from "next/font/google";
+import Footer from "@/components/Footer";
 import "./globals.css";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -14,13 +12,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-1">
           <Sidebar />
           <ToggleWorkspace />
-          <Web3Workspace />
-          <FeaturesShow />
-          <div className="flex-1 flex flex-col">{children}</div>
+          <div className="flex-1 flex flex-col ">
+            {children} 
+          </div>
+          <Footer/>
         </div>
-
-        <BottomEditorSection /> {/* This adds the bottom editor section */}
-        <Footer />
       </body>
     </html>
   );
