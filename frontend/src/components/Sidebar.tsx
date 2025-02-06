@@ -10,12 +10,12 @@ import Settings from "@/assets/svg/settings-up.svg";
 import SettingsD from "@/assets/svg/settings-down.svg";
 import Plugin from "@/assets/svg/plugin.svg";
 
-const Sidebar = () => {
+const Sidebar = ({onSectionChange }) => {
   const [active, setActive] = useState("workspace");
 
   return (
     <div className="w-20 bg-white flex flex-col gap-1 border-[#DEDEDE] items-center p-2 border-r ">
-      <div className="mb-2 mt-2">
+      <div className="mb-2 mt-2" onClick={() => onSectionChange("workspace")}>
         <Logo className="w-10 h-10 rounded-full" />
       </div>
       <div className="mb-6 w-full flex justify-center">
@@ -55,7 +55,9 @@ const Sidebar = () => {
           className={`p-2 rounded-lg ${
             active === "compile" ? "bg-[#FFEAEA]" : "hover:bg-gray-700"
           }`}
-          onClick={() => setActive("compile")}
+          onClick={() => {
+            setActive("compile"), onSectionChange("compiler");
+          }}
         >
           <Compile
             className={`w-8 h-8 ${
