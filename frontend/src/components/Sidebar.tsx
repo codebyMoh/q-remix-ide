@@ -15,7 +15,7 @@ const Sidebar = ({onSectionChange }) => {
 
   return (
     <div className="w-20 bg-white flex flex-col gap-1 border-[#DEDEDE] items-center p-2 border-r ">
-      <div className="mb-2 mt-2" onClick={() => onSectionChange("workspace")}>
+      <div className="mb-2 mt-2 cursor-pointer" onClick={() => onSectionChange("workspace")}>
         <Logo className="w-10 h-10 rounded-full" />
       </div>
       <div className="mb-6 w-full flex justify-center">
