@@ -83,10 +83,10 @@ contract MyContract {
               style={{ paddingBottom: `${terminalHeight}px` }}
             >
               <div className="flex w-full">
-                <div className="flex flex-row w-3/4">
+                
                   <MemoizedWeb3Workspace />
                   <MemoizedFeaturesShow />
-                </div>
+                
               </div>
             </div>
 

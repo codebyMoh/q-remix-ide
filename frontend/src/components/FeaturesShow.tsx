@@ -68,7 +68,7 @@ const FeaturesShow = () => {
           </h1>
         </div>
         {/* featured plugin */}
-        <div className="w-[632px] left-[808px] pt-[15px] opacity-100 flex gap-[20px]">
+        <div className="w-full  pt-[15px] opacity-100 flex gap-[20px]">
           {plugins.map((plugin, index) => (
             <div
               key={index}
