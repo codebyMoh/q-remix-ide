@@ -62,6 +62,9 @@ contract MyContract {
   const handleRun = useCallback(() => {
     alert("Please select a .sol, .js, or .ts file to compile.");
   }, []);
+  const toggleHeight = () => {
+    setTerminalHeight(prevHeight => (prevHeight === 90 ? 150 : 90));
+  };
 
   return (
     <div className="flex flex-col h-screen">
@@ -105,7 +108,7 @@ contract MyContract {
                 className="cursor-row-resize bg-white-300 hover:bg-white-400 w-full h-1"
               />
               {/* Terminal Component */}
-              <Terminal />
+              <Terminal  toggleHeight={toggleHeight}/>
             </div>
           </div>
         ) : (

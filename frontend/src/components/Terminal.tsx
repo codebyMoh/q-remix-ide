@@ -3,11 +3,11 @@ import TerminalDownArrow from "@/assets/svg/TerminaldownArrow.svg";
 import Search from "@/assets/svg/search.svg";
 import AlertOctagon from "@/assets/svg/alert-octagon.svg";
 
-const Terminal = () => {
+const Terminal = ({toggleHeight}) => {
   return (
     <div className="gap-4 border flex items-center p-[10px]  justify-between">
       {/* Arrow icon */}
-      <div>
+      <div onClick={toggleHeight} className="cursor-pointer">
         <TerminalDownArrow />
       </div>
 
