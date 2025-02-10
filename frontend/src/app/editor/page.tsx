@@ -7,7 +7,11 @@ export default function EditorPage() {
 pragma solidity ^0.8.0;
 
 contract HelloWorld {
-    string public greet = "Hello World!";
+    string public message;
+
+    constructor() {
+        message = "Hello, World!";
+    }
 }`);
   const [compilationResult, setCompilationResult] = useState("");
   const [error, setError] = useState("");
@@ -25,7 +29,6 @@ contract HelloWorld {
         setError(result.error);
         setCompilationResult("");
       } else {
-        // Format the JSON output for readability
         const formattedResult = JSON.stringify(result, null, 2);
         setCompilationResult(formattedResult);
         setError("");
@@ -82,10 +85,10 @@ contract HelloWorld {
               backgroundColor: "#f5f5f5",
               padding: "10px",
               borderRadius: "5px",
-              maxHeight: "400px", // Fixed height
-              overflowY: "auto", // Enable vertical scrolling
-              whiteSpace: "pre-wrap", // Wrap long lines
-              wordBreak: "break-all", // Break long words
+              maxHeight: "400px",
+              overflowY: "auto",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-all",
             }}
           >
             {compilationResult}
