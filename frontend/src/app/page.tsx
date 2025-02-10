@@ -61,26 +61,11 @@ contract MyContract {
     setZoom((prev) => Math.max(prev - 0.1, 0.5));
   }, []);
 
-  const handleCompile = async () => {
-    try {
-      const response = await fetch("http://localhost:5000/api/editor/compile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceCode: code }),
-      });
-      const result = await response.json();
-
-      if (result.error) {
-        setError(result.error);
-        setCompilationResult(null);
-      } else {
-        setCompilationResult(result);
-        setError("");
-      }
-    } catch (err) {
-      setError("Failed to compile Solidity code");
-      setCompilationResult(null);
-    }
+  const handleRun = useCallback(() => {
+    alert("Please select a .sol, .js, or .ts file to compile.");
+  }, []);
+  const toggleHeight = () => {
+    setTerminalHeight(prevHeight => (prevHeight === 90 ? 150 : 90));
   };
 
   return (
@@ -88,7 +73,7 @@ contract MyContract {
       {/* Header */}
       <MemoizedHeader
         handleZoomIn={handleZoomIn}
-        handleRun={handleCompile}
+        handleRun={handleRun}
         handleZoomOut={handleZoomOut}
         setActiveTab={setActiveTab}
       />
@@ -103,10 +88,10 @@ contract MyContract {
               style={{ paddingBottom: `${terminalHeight}px` }}
             >
               <div className="flex w-full">
-                <div className="flex flex-row w-3/4">
+                
                   <MemoizedWeb3Workspace />
                   <MemoizedFeaturesShow />
-                </div>
+                
               </div>
             </div>
 
@@ -125,7 +110,7 @@ contract MyContract {
                 className="cursor-row-resize bg-white-300 hover:bg-white-400 w-full h-1"
               />
               {/* Terminal Component */}
-              <Terminal />
+              <Terminal  toggleHeight={toggleHeight}/>
             </div>
           </div>
         ) : (

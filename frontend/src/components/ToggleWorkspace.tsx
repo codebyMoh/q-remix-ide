@@ -1,7 +1,5 @@
 "use client";
-import React, { useState } from "react";
-import Image from "next/image";
-import Workspace from "@/assets/svg/workspace.svg";
+import React, { useState, useEffect } from "react";
 import GreenTick from "@/assets/svg/greentick.svg";
 import RightArrow from "@/assets/svg/right-arrow.svg";
 import Menu from "@/assets/svg/hamburger.svg";
@@ -15,7 +13,19 @@ import GitLink from "@/assets/svg/git-link.svg";
 import ChevronDown from "@/assets/svg/chevron-down.svg";
 import Code from "@/assets/svg/code.svg";
 import Readme from "@/assets/svg/readme.svg";
+import JsfileIcon from "@/assets/svg/file_type_js.svg";
+import JsonfileIcon from "@/assets/svg/file_type_json.svg";
+import SolidityfileIcon from "@/assets/svg/file_type_solidity.svg";
+import TsfileIcon from "@/assets/svg/file_type_typescript.svg";
+
 import { Urbanist } from "next/font/google";
+import {
+  initDB,
+  saveFile,
+  loadFile,
+  deleteFile,
+  listFiles,
+} from "@/utils/IndexDB";
 
 const urbanist = Urbanist({
   subsets: ["latin"],
@@ -23,34 +33,111 @@ const urbanist = Urbanist({
 });
 
 const ToggleWorkspace = () => {
-  const [selectedWorkspace, setSelectedWorkspace] = useState("Default Workspace");
+  const [selectedWorkspace, setSelectedWorkspace] =
+    useState("Default Workspace");
   const [isExpanded, setIsExpanded] = useState(true);
+  const [folders, setFolders] = useState([]);
+  const [showNewFolderInput, setShowNewFolderInput] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [selectedFolder, setSelectedFolder] = useState(null);
+  const [showNewFileInput, setShowNewFileInput] = useState(false);
+  const [newFileName, setNewFileName] = useState("");
+  const [expandedFolders, setExpandedFolders] = useState({});
 
-  const folders = [
-    { name: "Folder Name", type: "folder" },
-    { name: "Folder Name", type: "folder" },
-    { name: "Folder Name", type: "folder" },
-    { name: "pages", type: "code" },
-    { name: "Readme.txt", type: "file" },
-  ];
+  useEffect(() => {
+    async function initialize() {
+      await initDB();
+      const storedFiles = await listFiles();
+      console.log(storedFiles, "storedFiles");
+      setFolders(storedFiles); // Load full folder objects with files
+    }
+    initialize();
+  }, []);
 
-  // Function to return the correct icon based on the folder type
+  const createFolder = async () => {
+    if (newFolderName.trim()) {
+      const newFolder = { name: newFolderName, type: "folder", files: [] };
+      await saveFile(newFolderName, newFolder);
+      setFolders([...folders, newFolder]);
+      setNewFolderName("");
+      setShowNewFolderInput(false);
+    }
+  };
+
+  const toggleFolder = (folderName) => {
+    setExpandedFolders((prev) => ({
+      ...prev,
+      [folderName]: !prev[folderName],
+    }));
+  };
+
+  const createFile = async () => {
+    if (newFileName.trim() && selectedFolder !== null) {
+      const newFolders = [...folders];
+      const newFile = { name: newFileName, type: "file" };
+      newFolders[selectedFolder].files.push(newFile);
+
+      // Save updated folder structure to IndexDB
+      await saveFile(
+        newFolders[selectedFolder].name,
+        newFolders[selectedFolder]
+      );
+
+      setFolders(newFolders);
+      setNewFileName("");
+      setShowNewFileInput(false);
+      setSelectedFolder(null);
+    }
+  };
+
+  const handleFolderClick = (index) => {
+    setSelectedFolder(index);
+    toggleFolder(folders[index].name);
+  };
+
+  const handleFileKeyPress = (e) => {
+    if (e.key === "Enter") {
+      createFile();
+    } else if (e.key === "Escape") {
+      setShowNewFileInput(false);
+      setNewFileName("");
+      setSelectedFolder(null);
+    }
+  };
+
+  const handleFolderKeyPress = (e) => {
+    if (e.key === "Enter") {
+      createFolder();
+    } else if (e.key === "Escape") {
+      setShowNewFolderInput(false);
+      setNewFolderName("");
+    }
+  };
+
   const getIconForType = (type) => {
-    switch (type) {
+    console.log("type",type)
+    const extension = type.split(".").pop();
+    switch (extension) {
       case "folder":
         return <Folder className="w-5 h-5 text-gray-500" />;
       case "code":
         return <Code className="w-5 h-5 text-gray-500" />;
-      case "file":
+      case "md":
         return <Readme className="w-5 h-5 text-gray-500" />;
+      case "sol":
+        return <SolidityfileIcon className="w-5 h-5 text-gray-500"/>
+      case "js":
+        return <JsfileIcon className="w-5 h-5 text-gray-500"/>
+      case "json":
+        return <JsonfileIcon  className="w-5 h-5 text-gray-500"/>
+      case "ts":
+        return <TsfileIcon className="w-5 h-5 text-gray-500"/>
       default:
-        return null;
+        return <Readme className="w-5 h-5 text-gray-500" />;
     }
   };
-
   return (
     <div className="relative flex">
-      {/* Sidebar */}
       <div
         className={`${
           isExpanded ? "w-80 px-4" : "w-0 px-0"
@@ -58,7 +145,6 @@ const ToggleWorkspace = () => {
           urbanist.className
         }`}
       >
-        {/* File Explorer Header */}
         <div className="mb-2 flex items-center justify-between">
           <span className={`${isExpanded ? "opacity-100" : "opacity-0"}`}>
             File Explorer
@@ -69,7 +155,6 @@ const ToggleWorkspace = () => {
                 isExpanded ? "opacity-100" : "opacity-0"
               }`}
             />
-            {/* Toggle Button */}
             <button
               onClick={() => setIsExpanded(!isExpanded)}
               className="transition-all"
@@ -83,16 +168,13 @@ const ToggleWorkspace = () => {
           </div>
         </div>
 
-        {/* Sidebar Navigation */}
         {isExpanded && (
           <div className="flex flex-col gap-3 mt-5">
-            {/* Menu + Workspaces Header */}
             <div className="flex items-center gap-2">
               <Menu className="w-6 h-6 translate-y-2" />
               <span className="text-gray-600 leading-none">Workspaces</span>
             </div>
 
-            {/* Workspace Dropdown */}
             <div className="relative">
               <button className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg flex items-center justify-between">
                 <span>{selectedWorkspace}</span>
@@ -100,10 +182,23 @@ const ToggleWorkspace = () => {
               </button>
             </div>
 
-            {/* Action Buttons (SVGs) in a Row */}
             <div className="flex gap-4 justify-center items-center w-full mt-4">
-              <File className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
-              <Folder className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
+              <File
+                onClick={() => {
+                  if (selectedFolder !== null) {
+                    setShowNewFileInput(true);
+                  }
+                }}
+                className={`w-6 h-6 ${
+                  selectedFolder !== null
+                    ? "text-gray-600 cursor-pointer hover:text-gray-900"
+                    : "text-gray-300"
+                }`}
+              />
+              <Folder
+                onClick={() => setShowNewFolderInput(true)}
+                className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900"
+              />
               <Upload className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
               <FolderImport className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
               <Box className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
@@ -113,25 +208,70 @@ const ToggleWorkspace = () => {
 
             <hr className="border-t border-[#DEDEDE] w-full my-3" />
 
-            {/* Folder List */}
             <div className="mt-3">
               {folders.map((folder, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg"
-                >
-                  {/* Use the getIconForType function to render the correct icon */}
-                  {getIconForType(folder.type)}
-
-                  <span className="text-sm">{folder.name}</span>
+                <div key={index}>
+                  <div
+                    className={`flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg cursor-pointer ${
+                      selectedFolder === index ? "bg-gray-100" : ""
+                    }`}
+                    onClick={() => handleFolderClick(index)}
+                  >
+                    <ChevronDown
+                      className={`w-4 h-4 text-gray-500 transition-transform ${
+                        expandedFolders[folder.name] ? "rotate-180" : ""
+                      }`}
+                    />
+                    {getIconForType(folder.type)}
+                    <span className="text-sm">{folder.name}</span>
+                  </div>
+                  {expandedFolders[folder.name] && (
+                    <div className="pl-8">
+                      {folder.files.map((file, fileIndex) => (
+                        <div
+                          key={fileIndex}
+                          className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg"
+                        >
+                          {getIconForType(file.name)}
+                          <span className="text-xs">{file.name}</span>
+                        </div>
+                      ))}
+                      {showNewFileInput && selectedFolder === index && (
+                        <div className="flex items-center gap-2 p-2">
+                          <Readme className="w-5 h-5 text-gray-500" />
+                          <input
+                            type="text"
+                            value={newFileName}
+                            onChange={(e) => setNewFileName(e.target.value)}
+                            onKeyDown={handleFileKeyPress}
+                            className="text-xs p-1 border border-gray-300 rounded-md focus:outline-none focus:border-gray-500"
+                            autoFocus
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
+
+              {showNewFolderInput && (
+                <div className="flex items-center gap-2 p-2">
+                  <Folder className="w-5 h-5 text-gray-500" />
+                  <input
+                    type="text"
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    onKeyDown={handleFolderKeyPress}
+                    className="text-sm p-1 border border-gray-300 rounded-md focus:outline-none focus:border-gray-500"
+                    autoFocus
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}
       </div>
 
-      {/* Show Arrow When Collapsed */}
       {!isExpanded && (
         <button
           onClick={() => setIsExpanded(true)}
