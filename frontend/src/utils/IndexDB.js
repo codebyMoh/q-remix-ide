@@ -50,7 +50,7 @@ export async function listFiles() {
     store.openCursor().onsuccess = (event) => {
       const cursor = event.target.result;
       if (cursor) {
-        files.push(cursor.value.filename);
+        files.push(cursor.value.content);
         cursor.continue();
       } else {
         resolve(files);
