@@ -48,7 +48,6 @@ const ToggleWorkspace = () => {
     async function initialize() {
       await initDB();
       const storedFiles = await listFiles();
-      console.log(storedFiles, "storedFiles");
       setFolders(storedFiles); // Load full folder objects with files
     }
     initialize();
@@ -115,8 +114,9 @@ const ToggleWorkspace = () => {
   };
 
   const getIconForType = (type) => {
-    console.log("type",type)
-    const extension = type.split(".").pop();
+
+    const extension = type?.split(".").pop() || "unknown";
+
     switch (extension) {
       case "folder":
         return <Folder className="w-5 h-5 text-gray-500" />;
@@ -209,7 +209,7 @@ const ToggleWorkspace = () => {
             <hr className="border-t border-[#DEDEDE] w-full my-3" />
 
             <div className="mt-3">
-              {folders.map((folder, index) => (
+              {folders?.map((folder, index) => (
                 <div key={index}>
                   <div
                     className={`flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg cursor-pointer ${
@@ -227,7 +227,7 @@ const ToggleWorkspace = () => {
                   </div>
                   {expandedFolders[folder.name] && (
                     <div className="pl-8">
-                      {folder.files.map((file, fileIndex) => (
+                      {folder?.files?.map((file, fileIndex) => (
                         <div
                           key={fileIndex}
                           className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg"
