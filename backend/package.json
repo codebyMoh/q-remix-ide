@@ -15,6 +15,7 @@
     "dotenv": "^16.4.7",
     "ethers": "^6.13.5",
     "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
     "mongoose": "^8.9.5",
     "solc": "^0.8.28",
     "web3": "^4.16.0"
@@ -22,8 +23,10 @@
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
+    "@types/morgan": "^1.9.9",
     "@types/node": "^22.13.1",
     "eslint": "^9.19.0",
+    "morgan": "^1.10.0",
     "nodemon": "^3.1.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3"

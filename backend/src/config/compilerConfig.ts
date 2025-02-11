@@ -1,4 +1,5 @@
-import solc from 'solc';
+
+const solc = require('solc');
 
 export const compileSolidity = (sourceCode: string) => {
     const input = {
@@ -11,7 +12,7 @@ export const compileSolidity = (sourceCode: string) => {
         settings: {
             outputSelection: {
                 '*': {
-                    '*': ['*'],
+                    '*': ['abi','evm.bytecode'],
                 },
             },
         },
