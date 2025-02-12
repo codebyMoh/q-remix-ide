@@ -55,7 +55,7 @@ contract HelloWorld {
       {/* Editor Container */}
       <div className="flex-1">
         <Editor
-          height={`calc(100vh - 64px)`}
+          height={"calc(100vh - 64px)"}
           width="100%"
           defaultLanguage="solidity"
           value={solidityCode}

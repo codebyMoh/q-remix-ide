@@ -25,13 +25,17 @@ contract MyContract {
   const [compilationResult, setCompilationResult] = useState(null);
   const [error, setError] = useState("");
 
-  // Terminal resizing
+  // Terminal resizing state and refs
   const [terminalHeight, setTerminalHeight] = useState(150);
   const terminalRef = useRef(null);
   const isDraggingRef = useRef(false);
+  // New state for dynamic handle color behavior
+  const [isResizing, setIsResizing] = useState(false);
+  const [isResizerHovered, setIsResizerHovered] = useState(false);
 
   const handleMouseDown = useCallback((e) => {
     e.preventDefault();
+    setIsResizing(true);
     isDraggingRef.current = true;
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
@@ -49,6 +53,7 @@ contract MyContract {
 
   const handleMouseUp = useCallback(() => {
     isDraggingRef.current = false;
+    setIsResizing(false);
     document.removeEventListener("mousemove", handleMouseMove);
     document.removeEventListener("mouseup", handleMouseUp);
   }, []);
@@ -127,10 +132,14 @@ contract MyContract {
                 transition: "height 0.1s linear",
               }}
             >
-              {/* Drag Handle */}
+              {/* Drag Handle with dynamic color behavior */}
               <div
                 onMouseDown={handleMouseDown}
-                className="cursor-row-resize bg-white-300 hover:bg-white-400 w-full h-1"
+                onMouseEnter={() => setIsResizerHovered(true)}
+                onMouseLeave={() => setIsResizerHovered(false)}
+                className={`cursor-row-resize w-full h-1 ${
+                  isResizing || isResizerHovered ? "bg-red-500" : "bg-white-300"
+                }`}
               />
               {/* Terminal Component */}
               <Terminal toggleHeight={toggleHeight} />

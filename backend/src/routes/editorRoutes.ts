@@ -1,14 +1,20 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { compileCode } from '../controllers/editorController';
+import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
 
-
-router.post('/compile', (req, res) => {
-    compileCode(req, res).catch((error) => {
-        console.error('Unhandled error in compileCode:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    });
+const compileLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
 });
+
+router.post(
+  '/compile',
+  compileLimiter,
+  (req: Request, res: Response, next: NextFunction) => {
+    compileCode(req, res).catch(next); // Handle promise rejection
+  }
+);
 
 export default router;
