@@ -1,0 +1,37 @@
+/* globals.css */
+.rainbowkit-modal-container {
+  z-index: 10000 !important;
+  position: fixed !important;
+  inset: 0 !important;
+}
+
+/* Fix for mobile viewport */
+@supports (-webkit-touch-callout: none) {
+  .rainbowkit-modal-container {
+    position: absolute !important;
+  }
+}
+
+/* RainbowKit Modal Fix */
+.rainbowkit-modal-container {
+  position: fixed !important;
+  z-index: 10000 !important;
+  inset: 0 !important;
+}
+
+@supports (-webkit-touch-callout: none) {
+  .rainbowkit-modal-container {
+    position: absolute !important;
+  }
+}
+
+/* Mobile Viewport Fix */
+@viewport {
+  width: device-width;
+  zoom: 1.0;
+}
+
+/* Prevent Layout Shift */
+body {
+  overflow-y: scroll !important;
+}
