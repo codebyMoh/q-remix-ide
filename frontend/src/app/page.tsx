@@ -1,12 +1,10 @@
 "use client";
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import Editor from "@monaco-editor/react";
 import Web3Workspace from "@/components/Web3Workspace";
 import FeaturesShow from "@/components/FeaturesShow";
 import Header from "@/components/Header";
-import Terminal from "@/components/Terminal";
 
-// Memoized components to avoid unnecessary re-renders
 const MemoizedWeb3Workspace = React.memo(Web3Workspace);
 const MemoizedFeaturesShow = React.memo(FeaturesShow);
 const MemoizedHeader = React.memo(Header);
@@ -25,39 +23,6 @@ contract MyContract {
   const [compilationResult, setCompilationResult] = useState(null);
   const [error, setError] = useState("");
 
-  // Terminal resizing state and refs
-  const [terminalHeight, setTerminalHeight] = useState(150);
-  const terminalRef = useRef(null);
-  const isDraggingRef = useRef(false);
-  // New state for dynamic handle color behavior
-  const [isResizing, setIsResizing] = useState(false);
-  const [isResizerHovered, setIsResizerHovered] = useState(false);
-
-  const handleMouseDown = useCallback((e) => {
-    e.preventDefault();
-    setIsResizing(true);
-    isDraggingRef.current = true;
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-  }, []);
-
-  const handleMouseMove = useCallback((e) => {
-    if (!isDraggingRef.current) return;
-    const screenHeight = window.innerHeight;
-    const newHeight = Math.min(
-      Math.max(screenHeight - e.clientY, 60),
-      screenHeight * 0.6
-    ); // Min 60px, Max 60% of screen
-    setTerminalHeight(newHeight);
-  }, []);
-
-  const handleMouseUp = useCallback(() => {
-    isDraggingRef.current = false;
-    setIsResizing(false);
-    document.removeEventListener("mousemove", handleMouseMove);
-    document.removeEventListener("mouseup", handleMouseUp);
-  }, []);
-
   const handleZoomIn = useCallback(() => {
     setZoom((prev) => Math.min(prev + 0.1, 2.0));
   }, []);
@@ -66,7 +31,6 @@ contract MyContract {
     setZoom((prev) => Math.max(prev - 0.1, 0.5));
   }, []);
 
-  // Function to compile Solidity code
   const handleCompile = async () => {
     try {
       const response = await fetch("http://localhost:5000/api/editor/compile", {
@@ -89,18 +53,12 @@ contract MyContract {
     }
   };
 
-  // Update handleRun to trigger Solidity compilation
   const handleRun = useCallback(() => {
     handleCompile();
   }, [code]);
 
-  const toggleHeight = () => {
-    setTerminalHeight((prevHeight) => (prevHeight === 90 ? 150 : 90));
-  };
-
   return (
-    <div className="flex flex-col h-screen">
-      {/* Header */}
+    <div className="flex flex-col h-full">
       <MemoizedHeader
         handleZoomIn={handleZoomIn}
         handleRun={handleRun}
@@ -108,42 +66,11 @@ contract MyContract {
         setActiveTab={setActiveTab}
       />
 
-      {/* Content Area */}
       <div className="flex-1 relative overflow-hidden">
         {activeTab === "home" ? (
-          <div className="flex flex-col h-full">
-            {/* Scrollable workspace and features */}
-            <div
-              className="flex-1 overflow-auto"
-              style={{ paddingBottom: `${terminalHeight}px` }}
-            >
-              <div className="flex w-full">
-                <MemoizedWeb3Workspace />
-                <MemoizedFeaturesShow />
-              </div>
-            </div>
-
-            {/* Terminal Positioned Below These Components */}
-            <div
-              ref={terminalRef}
-              className="w-full bg-white text-black absolute bottom-0 left-0"
-              style={{
-                height: `${terminalHeight}px`,
-                transition: "height 0.1s linear",
-              }}
-            >
-              {/* Drag Handle with dynamic color behavior */}
-              <div
-                onMouseDown={handleMouseDown}
-                onMouseEnter={() => setIsResizerHovered(true)}
-                onMouseLeave={() => setIsResizerHovered(false)}
-                className={`cursor-row-resize w-full h-1 ${
-                  isResizing || isResizerHovered ? "bg-red-500" : "bg-white-300"
-                }`}
-              />
-              {/* Terminal Component */}
-              <Terminal toggleHeight={toggleHeight} />
-            </div>
+          <div className="flex w-full h-full">
+            <MemoizedWeb3Workspace />
+            <MemoizedFeaturesShow />
           </div>
         ) : (
           <div className="flex flex-col h-full">
@@ -172,7 +99,6 @@ contract MyContract {
               </div>
             </div>
 
-            {/* Compilation Result */}
             {error && (
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2">
                 Error: {error}

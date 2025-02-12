@@ -89,7 +89,7 @@ const Terminal = ({ toggleHeight }) => {
   }, []);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col z-50">
       {/* Terminal Header (matching your old design) */}
       <div className="flex items-center justify-between gap-4 border-b p-[10px] bg-white">
         <div onClick={toggleHeight} className="cursor-pointer">
