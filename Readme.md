@@ -30,12 +30,12 @@ npm install [package-name] --legacy-peer-deps
 
 
 ## Artifacts
-#cd to backend directory
-#Run a contract to generate artifacts
+### cd to backend directory
+### Run a contract to generate artifacts
  ```bash
  node compile.js
  ```
-#Automate using chokidar
+### Automate using chokidar
  ```bash
  node watch.js
  ```
