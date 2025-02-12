@@ -29,7 +29,7 @@ npm install [package-name] --legacy-peer-deps
 **Note:** This approach helps avoid potential "Conflicting peer dependencies" errors during project setup and package installation.
 
 
-## Artifacts
+## To Run Artifacts*
 ### cd to backend directory
 ### Run a contract to generate artifacts
  ```bash
