@@ -1,12 +1,22 @@
-import app from './app';
+// src/server.js
+import fastify, { FastifyRequest, FastifyReply } from 'fastify';
+
+const server = fastify({ logger: true });
 
 const PORT = process.env.PORT || 5000;
 
-app.get('/', (req, res) => {
-    res.send('Backend server is running!');
+server.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+    return { message: 'Backend server is running!' };
 });
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+const start = async () => {
+  try {
+    await server.listen({ port: Number(PORT), host: '0.0.0.0' });
+    console.log(`Backend server is running on port ${PORT}`);
+  } catch (err) {
+    server.log.error(err);
+    process.exit(1);
+  }
+};
 
+start();
