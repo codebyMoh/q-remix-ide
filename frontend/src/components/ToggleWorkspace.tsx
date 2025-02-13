@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import GreenTick from "@/assets/svg/greentick.svg";
 import RightArrow from "@/assets/svg/right-arrow.svg";
 import Menu from "@/assets/svg/hamburger.svg";
@@ -17,12 +17,15 @@ import JsfileIcon from "@/assets/svg/file_type_js.svg";
 import JsonfileIcon from "@/assets/svg/file_type_json.svg";
 import SolidityfileIcon from "@/assets/svg/file_type_solidity.svg";
 import TsfileIcon from "@/assets/svg/file_type_typescript.svg";
+import { MdDeleteOutline } from "react-icons/md";
+import { MdDriveFileRenameOutline } from "react-icons/md";
 
 import { Urbanist } from "next/font/google";
 import {
   initDB,
   saveFile,
-  loadFile,
+  renameFolder,
+  renameFile,
   deleteFile,
   listFiles,
 } from "@/utils/IndexDB";
@@ -43,6 +46,10 @@ const ToggleWorkspace = () => {
   const [showNewFileInput, setShowNewFileInput] = useState(false);
   const [newFileName, setNewFileName] = useState("");
   const [expandedFolders, setExpandedFolders] = useState({});
+  const [hoveredFolder, setHoveredFolder] = useState(null);
+  const [hoveredFile, setHoveredFile] = useState(null);
+  const folderInputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     async function initialize() {
@@ -53,11 +60,45 @@ const ToggleWorkspace = () => {
     initialize();
   }, []);
 
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        folderInputRef.current &&
+        !folderInputRef.current.contains(event.target)
+      ) {
+        setShowNewFolderInput(false);
+        setNewFolderName("");
+      }
+      if (
+        fileInputRef.current &&
+        !fileInputRef.current.contains(event.target)
+      ) {
+        setShowNewFileInput(false);
+        setNewFileName("");
+        setSelectedFolder(null);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const createFolder = async () => {
     if (newFolderName.trim()) {
+      const folderExists = folders.some(
+        (folder) => folder.name === newFolderName
+      );
+      if (folderExists) {
+        alert("A folder with this name already exists!");
+        return;
+      }
       const newFolder = { name: newFolderName, type: "folder", files: [] };
       await saveFile(newFolderName, newFolder);
-      setFolders([...folders, newFolder]);
+      // setFolders([...folders, newFolder]);
+      const updatedFolders = await listFiles();
+      setFolders(updatedFolders);
       setNewFolderName("");
       setShowNewFolderInput(false);
     }
@@ -72,21 +113,46 @@ const ToggleWorkspace = () => {
 
   const createFile = async () => {
     if (newFileName.trim() && selectedFolder !== null) {
-      const newFolders = [...folders];
+      const folderName = folders[selectedFolder].name;
       const newFile = { name: newFileName, type: "file" };
-      newFolders[selectedFolder].files.push(newFile);
+      const updatedFolder = { ...folders[selectedFolder] };
 
-      // Save updated folder structure to IndexDB
-      await saveFile(
-        newFolders[selectedFolder].name,
-        newFolders[selectedFolder]
+      // Check if file already exists
+      const fileExists = updatedFolder.files.some(
+        (file) => file.name === newFileName
       );
+      if (fileExists) {
+        alert("A file with this name already exists!");
+        return;
+      }
+      updatedFolder.files.push(newFile);
+      updatedFolder.files.sort((a, b) => a.name.localeCompare(b.name));
 
-      setFolders(newFolders);
+      await saveFile(folderName, updatedFolder);
+
+      const updatedFolders = await listFiles();
+      setFolders(updatedFolders);
+
       setNewFileName("");
       setShowNewFileInput(false);
       setSelectedFolder(null);
     }
+  };
+  const handleDeleteFolder = async (folderName) => {
+    await deleteFile(folderName);
+    const updatedFolders = await listFiles();
+    setFolders(updatedFolders);
+  };
+
+  const handleDeleteFile = async (folderIndex, fileName) => {
+    const updatedFolder = { ...folders[folderIndex] };
+    updatedFolder.files = updatedFolder.files.filter(
+      (file) => file.name !== fileName
+    );
+
+    await saveFile(updatedFolder.name, updatedFolder);
+    const updatedFolders = await listFiles();
+    setFolders(updatedFolders);
   };
 
   const handleFolderClick = (index) => {
@@ -114,28 +180,28 @@ const ToggleWorkspace = () => {
   };
 
   const getIconForType = (type) => {
-
     const extension = type?.split(".").pop() || "unknown";
 
     switch (extension) {
       case "folder":
         return <Folder className="w-5 h-5 text-gray-500" />;
       case "code":
-        return <Code className="w-5 h-5 text-gray-500" />;
+        return <Code className="w-[16px] h-[16px] text-gray-500" />;
       case "md":
-        return <Readme className="w-5 h-5 text-gray-500" />;
+        return <Readme className="w-[16px] h-[16px] text-gray-500" />;
       case "sol":
-        return <SolidityfileIcon className="w-5 h-5 text-gray-500"/>
+        return <SolidityfileIcon className="w-[16px] h-[16px] text-gray-500" />;
       case "js":
-        return <JsfileIcon className="w-5 h-5 text-gray-500"/>
+        return <JsfileIcon className="w-[16px] h-[16px] text-gray-500" />;
       case "json":
-        return <JsonfileIcon  className="w-5 h-5 text-gray-500"/>
+        return <JsonfileIcon className="w-[16px] h-[16px] text-gray-500" />;
       case "ts":
-        return <TsfileIcon className="w-5 h-5 text-gray-500"/>
+        return <TsfileIcon className="w-[16px] h-[16px] text-gray-500" />;
       default:
-        return <Readme className="w-5 h-5 text-gray-500" />;
+        return <Readme className="w-[16px] h-[16px] text-gray-500" />;
     }
   };
+
   return (
     <div className="relative flex">
       <div
@@ -187,6 +253,10 @@ const ToggleWorkspace = () => {
                 onClick={() => {
                   if (selectedFolder !== null) {
                     setShowNewFileInput(true);
+                    setExpandedFolders((prev) => ({
+                      ...prev,
+                      [folders[selectedFolder].name]: true, // Expands the folder
+                    }));
                   }
                 }}
                 className={`w-6 h-6 ${
@@ -208,36 +278,66 @@ const ToggleWorkspace = () => {
 
             <hr className="border-t border-[#DEDEDE] w-full my-3" />
 
-            <div className="mt-3">
+            <div className="mt-3" >
               {folders?.map((folder, index) => (
                 <div key={index}>
                   <div
-                    className={`flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg cursor-pointer ${
+                    className={`flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg cursor-pointer justify-between ${
                       selectedFolder === index ? "bg-gray-100" : ""
                     }`}
                     onClick={() => handleFolderClick(index)}
+                    onMouseEnter={() => setHoveredFolder(index)}
+                    onMouseLeave={() => setHoveredFolder(null)}
                   >
-                    <ChevronDown
-                      className={`w-4 h-4 text-gray-500 transition-transform ${
-                        expandedFolders[folder.name] ? "rotate-180" : ""
-                      }`}
-                    />
-                    {getIconForType(folder.type)}
-                    <span className="text-sm">{folder.name}</span>
+                    <div className="flex gap-[5px]">
+                      <ChevronDown
+                        className={`w-4 h-4 text-gray-500 transition-transform ${
+                          expandedFolders[folder.name] ? "rotate-180" : ""
+                        }`}
+                      />
+
+                      {getIconForType(folder.type)}
+                      <span className="text-sm">{folder.name}</span>
+                    </div>
+                    {hoveredFolder === index && (
+                      <div className="flex gap-[4px]">
+                        <MdDriveFileRenameOutline />
+                        <MdDeleteOutline
+                          onClick={() => handleDeleteFolder(folder.name)}
+                        />
+                      </div>
+                    )}
                   </div>
                   {expandedFolders[folder.name] && (
-                    <div className="pl-8">
+                    <div className="pl-8 cursor-pointer">
                       {folder?.files?.map((file, fileIndex) => (
                         <div
                           key={fileIndex}
-                          className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg"
+                          className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg justify-between"
+                          onMouseEnter={() => setHoveredFile(file.name)}
+                          onMouseLeave={() => setHoveredFile(null)}
                         >
-                          {getIconForType(file.name)}
-                          <span className="text-xs">{file.name}</span>
+                          <div className="flex gap-[5px]">
+                            {getIconForType(file.name)}
+                            <span className="text-xs">{file.name}</span>
+                          </div>
+                          {hoveredFile === file.name && (
+                            <div className="flex gap-[4px]">
+                              <MdDriveFileRenameOutline />
+                              <MdDeleteOutline
+                                onClick={() =>
+                                  handleDeleteFile(index, file.name)
+                                }
+                              />
+                            </div>
+                          )}
                         </div>
                       ))}
                       {showNewFileInput && selectedFolder === index && (
-                        <div className="flex items-center gap-2 p-2">
+                        <div
+                          className="flex items-center gap-2 p-2"
+                          ref={fileInputRef}
+                        >
                           <Readme className="w-5 h-5 text-gray-500" />
                           <input
                             type="text"
@@ -255,7 +355,10 @@ const ToggleWorkspace = () => {
               ))}
 
               {showNewFolderInput && (
-                <div className="flex items-center gap-2 p-2">
+                <div
+                  className="flex items-center gap-2 p-2"
+                  ref={folderInputRef}
+                >
                   <Folder className="w-5 h-5 text-gray-500" />
                   <input
                     type="text"
