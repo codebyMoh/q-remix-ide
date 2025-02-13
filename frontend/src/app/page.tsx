@@ -6,6 +6,7 @@ import FeaturesShow from "@/components/FeaturesShow";
 import Header from "@/components/Header";
 import FileTabs from "@/components/FileTabs";
 import { useEditor } from "@/context/EditorContext";
+import config from "@/config";
 
 const MemoizedWeb3Workspace = React.memo(Web3Workspace);
 const MemoizedFeaturesShow = React.memo(FeaturesShow);
@@ -38,13 +39,13 @@ contract MyContract {
   const handleCompile = async () => {
     try {
       const sourceCode = activeTab === "editor" && currentFile ? currentFile.content : code;
-      const response = await fetch("http://localhost:5000/api/editor/compile", {
+      const response = await fetch(`${config.backendUrl}${config.routes.compile}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sourceCode }),
       });
       const result = await response.json();
-
+  
       if (result.error) {
         setError(result.error);
         setCompilationResult(null);
