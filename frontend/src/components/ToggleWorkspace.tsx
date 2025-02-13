@@ -19,6 +19,7 @@ import SolidityfileIcon from "@/assets/svg/file_type_solidity.svg";
 import TsfileIcon from "@/assets/svg/file_type_typescript.svg";
 import { MdDeleteOutline } from "react-icons/md";
 import { MdDriveFileRenameOutline } from "react-icons/md";
+import { FaRegFile } from "react-icons/fa";
 
 import { Urbanist } from "next/font/google";
 import {
@@ -277,8 +278,7 @@ const ToggleWorkspace = () => {
             </div>
 
             <hr className="border-t border-[#DEDEDE] w-full my-3" />
-
-            <div className="mt-3" >
+            <div className="mt-3 overflow-y-auto max-h-[400px]">
               {folders?.map((folder, index) => (
                 <div key={index}>
                   <div
@@ -300,13 +300,30 @@ const ToggleWorkspace = () => {
                       <span className="text-sm">{folder.name}</span>
                     </div>
                     {hoveredFolder === index && (
-                      <div className="flex gap-[4px]">
+                      <div className="flex gap-[5px]">
+                        <FaRegFile className="w-[10px]"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (
+                              selectedFolder === null ||
+                              selectedFolder !== index
+                            ) {
+                              setSelectedFolder(index); // Set the selected folder
+                            }
+                            setShowNewFileInput(true);
+                            setExpandedFolders((prev) => ({
+                              ...prev,
+                              [folders[index].name]: true, // Expands the folder
+                            }));
+                          }}
+                        />
+
                         <MdDriveFileRenameOutline />
                         <MdDeleteOutline
                           onClick={() => handleDeleteFolder(folder.name)}
                         />
                       </div>
-                    )}
+                     )} 
                   </div>
                   {expandedFolders[folder.name] && (
                     <div className="pl-8 cursor-pointer">
