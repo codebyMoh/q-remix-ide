@@ -29,13 +29,18 @@ npm install [package-name] --legacy-peer-deps
 **Note:** This approach helps avoid potential "Conflicting peer dependencies" errors during project setup and package installation.
 
 
-## To Run Artifacts*
-### cd to backend directory
-### Run a contract to generate artifacts
- ```bash
- node compile.js
- ```
-### Automate using chokidar
- ```bash
- node watch.js
- ```
+## Run Backend
+
+```bash
+cd backend
+
+npm run start
+```
+
+## Run frontend
+
+```bash
+cd frontend
+
+npm run dev
+```

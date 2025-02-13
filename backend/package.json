@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "main": "jest.config.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "concurrently \"npm run backend\" \"npm run compile\" \"npm run watch\"",
+    "backend": "npx ts-node src/server.ts",
+    "watch": "node watch.js",
+    "compile": "node compile.js"
   },
   "keywords": [],
   "author": "",
@@ -12,6 +15,7 @@
     "axios": "^1.7.9",
     "body-parser": "^1.20.3",
     "cors": "^2.8.5",
+    "crypto": "^1.0.1",
     "dotenv": "^16.4.7",
     "ethers": "^6.13.5",
     "express": "^4.21.2",

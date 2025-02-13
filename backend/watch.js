@@ -9,7 +9,7 @@ const watcher = chokidar.watch('./contracts', {
 
 watcher.on('all', (event, path) => {
   console.log(`File ${path} has been ${event}`);
-  exec('node compile.js', (error, stdout, stderr) => {
+  exec('npm run compile', (error, stdout, stderr) => {
     if (error) {
       console.error(`Error: ${error.message}`);
       return;
