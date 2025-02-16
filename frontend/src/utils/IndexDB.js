@@ -58,3 +58,38 @@ export async function listFiles() {
     };
   });
 }
+export async function renameFile(oldFilename, newFilename) {
+  const db = await initDB();
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  const store = tx.objectStore(STORE_NAME);
+  const file = await store.get(oldFilename);
+  
+  if (!file) throw new Error("File not found");
+  
+  await store.put({ filename: newFilename, content: file.content });
+  await store.delete(oldFilename);
+  
+  return tx.complete;
+}
+
+export async function renameFolder(oldFolder, newFolder) {
+  const db = await initDB();
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  const store = tx.objectStore(STORE_NAME);
+  
+  return new Promise((resolve) => {
+    store.openCursor().onsuccess = async (event) => {
+      const cursor = event.target.result;
+      if (cursor) {
+        if (cursor.value.filename.startsWith(oldFolder + "/")) {
+          const newFilename = cursor.value.filename.replace(oldFolder + "/", newFolder + "/");
+          await store.put({ filename: newFilename, content: cursor.value.content });
+          await store.delete(cursor.value.filename);
+        }
+        cursor.continue();
+      } else {
+        resolve();
+      }
+    };
+  });
+}
