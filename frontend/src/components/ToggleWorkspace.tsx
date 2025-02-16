@@ -203,6 +203,97 @@ const ToggleWorkspace = () => {
     }
   };
 
+  // Add these state variables at the top of your component:
+  const [isRenamingFolder, setIsRenamingFolder] = useState(null);
+  const [isRenamingFile, setIsRenamingFile] = useState({
+    folderIndex: null,
+    fileName: null,
+  });
+  const [newRenameFolderValue, setNewRenameFolderValue] = useState("");
+  const [newRenameFileValue, setNewRenameFileValue] = useState("");
+  const renameInputRef = useRef(null);
+
+  // Add these handlers in your component:
+  const handleStartFolderRename = (e, index, folderName) => {
+    e.stopPropagation();
+    setIsRenamingFolder(index);
+    setNewRenameFolderValue(folderName);
+  };
+  const handleFolderRename = async (oldFolderName) => {
+    if (newRenameFolderValue.trim() && newRenameFolderValue !== oldFolderName) {
+      // Check if folder with new name already exists
+      const folderExists = folders.some(
+        (folder) => folder.name === newRenameFolderValue
+      );
+
+      if (folderExists) {
+        alert("A folder with this name already exists!");
+        setIsRenamingFolder(null);
+        return;
+      }
+
+      try {
+        // Get the folder data
+        const folderToRename = folders.find(
+          (folder) => folder.name === oldFolderName
+        );
+        if (!folderToRename) {
+          throw new Error("Folder not found");
+        }
+
+        // Create new folder object with updated name
+        const updatedFolder = {
+          ...folderToRename,
+          name: newRenameFolderValue,
+        };
+
+        // Delete old folder and save new one
+        await deleteFile(oldFolderName);
+        await saveFile(newRenameFolderValue, updatedFolder);
+
+        // Update expanded folders state with new name
+        setExpandedFolders((prev) => {
+          const newState = { ...prev };
+          if (oldFolderName in newState) {
+            newState[newRenameFolderValue] = newState[oldFolderName];
+            delete newState[oldFolderName];
+          }
+          return newState;
+        });
+
+        // Refresh folder list
+        const updatedFolders = await listFiles();
+        setFolders(updatedFolders);
+      } catch (error) {
+        console.error("Error renaming folder:", error);
+        alert("Failed to rename folder");
+      }
+    }
+    setIsRenamingFolder(null);
+  };
+
+  const handleStartFileRename = (e, folderIndex, fileName) => {
+    e.stopPropagation();
+    setIsRenamingFile({ folderIndex, fileName });
+    setNewRenameFileValue(fileName);
+  };
+
+  const handleFileRename = async (folderIndex, oldFileName) => {
+    if (newRenameFileValue.trim() && newRenameFileValue !== oldFileName) {
+      const updatedFolder = { ...folders[folderIndex] };
+      const fileIndex = updatedFolder.files.findIndex(
+        (file) => file.name === oldFileName
+      );
+      if (fileIndex !== -1) {
+        updatedFolder.files[fileIndex].name = newRenameFileValue;
+        await saveFile(updatedFolder.name, updatedFolder);
+        const updatedFolders = await listFiles();
+        setFolders(updatedFolders);
+      }
+    }
+    setIsRenamingFile({ folderIndex: null, fileName: null });
+  };
+
   return (
     <div className="relative flex">
       <div
@@ -295,35 +386,61 @@ const ToggleWorkspace = () => {
                           expandedFolders[folder.name] ? "rotate-180" : ""
                         }`}
                       />
-
-                      {getIconForType(folder.type)}
-                      <span className="text-sm">{folder.name}</span>
+                      {isRenamingFolder === index ? (
+                        <div className="flex gap-[5px]" ref={renameInputRef}>
+                          {getIconForType(folder.type)}
+                          <input
+                            type="text"
+                            value={newRenameFolderValue}
+                            onChange={(e) =>
+                              setNewRenameFolderValue(e.target.value)
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter")
+                                handleFolderRename(folder.name);
+                              if (e.key === "Escape") setIsRenamingFolder(null);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-sm p-1 border border-gray-300 rounded-md focus:outline-none focus:border-gray-500"
+                            autoFocus
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          {getIconForType(folder.type)}
+                          <span className="text-sm">{folder.name}</span>
+                        </>
+                      )}
                     </div>
-                    {hoveredFolder === index && (
+                    {hoveredFolder === index && !isRenamingFolder && (
                       <div className="flex gap-[5px]">
-                        <FaRegFile className="w-[10px]"
+                        <FaRegFile
+                          className="w-[10px]"
                           onClick={(e) => {
-                            e.stopPropagation()
+                            e.stopPropagation();
                             if (
                               selectedFolder === null ||
                               selectedFolder !== index
                             ) {
-                              setSelectedFolder(index); // Set the selected folder
+                              setSelectedFolder(index);
                             }
                             setShowNewFileInput(true);
                             setExpandedFolders((prev) => ({
                               ...prev,
-                              [folders[index].name]: true, // Expands the folder
+                              [folders[index].name]: true,
                             }));
                           }}
                         />
-
-                        <MdDriveFileRenameOutline />
+                        <MdDriveFileRenameOutline
+                          onClick={(e) =>
+                            handleStartFolderRename(e, index, folder.name)
+                          }
+                        />
                         <MdDeleteOutline
                           onClick={() => handleDeleteFolder(folder.name)}
                         />
                       </div>
-                     )} 
+                    )}
                   </div>
                   {expandedFolders[folder.name] && (
                     <div className="pl-8 cursor-pointer">
@@ -335,19 +452,55 @@ const ToggleWorkspace = () => {
                           onMouseLeave={() => setHoveredFile(null)}
                         >
                           <div className="flex gap-[5px]">
-                            {getIconForType(file.name)}
-                            <span className="text-xs">{file.name}</span>
+                            {isRenamingFile.folderIndex === index &&
+                            isRenamingFile.fileName === file.name ? (
+                              <div
+                                className="flex gap-[5px]"
+                                ref={renameInputRef}
+                              >
+                                {getIconForType(file.name)}
+                                <input
+                                  type="text"
+                                  value={newRenameFileValue}
+                                  onChange={(e) =>
+                                    setNewRenameFileValue(e.target.value)
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter")
+                                      handleFileRename(index, file.name);
+                                    if (e.key === "Escape")
+                                      setIsRenamingFile({
+                                        folderIndex: null,
+                                        fileName: null,
+                                      });
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-xs p-1 border border-gray-300 rounded-md focus:outline-none focus:border-gray-500"
+                                  autoFocus
+                                />
+                              </div>
+                            ) : (
+                              <>
+                                {getIconForType(file.name)}
+                                <span className="text-xs">{file.name}</span>
+                              </>
+                            )}
                           </div>
-                          {hoveredFile === file.name && (
-                            <div className="flex gap-[4px]">
-                              <MdDriveFileRenameOutline />
-                              <MdDeleteOutline
-                                onClick={() =>
-                                  handleDeleteFile(index, file.name)
-                                }
-                              />
-                            </div>
-                          )}
+                          {hoveredFile === file.name &&
+                            !isRenamingFile.fileName && (
+                              <div className="flex gap-[4px]">
+                                <MdDriveFileRenameOutline
+                                  onClick={(e) =>
+                                    handleStartFileRename(e, index, file.name)
+                                  }
+                                />
+                                <MdDeleteOutline
+                                  onClick={() =>
+                                    handleDeleteFile(index, file.name)
+                                  }
+                                />
+                              </div>
+                            )}
                         </div>
                       ))}
                       {showNewFileInput && selectedFolder === index && (
