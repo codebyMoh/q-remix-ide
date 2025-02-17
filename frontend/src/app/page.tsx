@@ -81,7 +81,7 @@ contract MyContract {
       />
       <div className="flex-1 relative overflow-hidden">
         {activeTab === "home" ? (
-          <div className="flex w-full h-full">
+          <div className="flex w-full h-full overflow-auto">
             <MemoizedWeb3Workspace />
             <MemoizedFeaturesShow />
           </div>
