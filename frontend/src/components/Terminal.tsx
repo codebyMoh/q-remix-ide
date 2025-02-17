@@ -22,9 +22,9 @@ const Terminal = ({ toggleHeight }) => {
         foreground: "#000000",
       },
       convertEol: true,
-      rows: 10,          // Set initial number of rows
-      cols: 100,         // Set initial number of columns
-      scrollback: 1000,  // Increase scrollback buffer
+      rows: 10,
+      cols: 100,
+      scrollback: 1000,
     });
 
     fitAddonRef.current = new FitAddon();
@@ -32,7 +32,6 @@ const Terminal = ({ toggleHeight }) => {
 
     if (terminalContainerRef.current) {
       xtermRef.current.open(terminalContainerRef.current);
-      // Initial fit
       setTimeout(() => {
         fitAddonRef.current.fit();
       }, 0);
@@ -76,20 +75,16 @@ const Terminal = ({ toggleHeight }) => {
     // Enhanced resize handler
     const handleResize = () => {
       if (fitAddonRef.current && terminalContainerRef.current) {
-        // Get the container's dimensions
         const { width, height } = terminalContainerRef.current.getBoundingClientRect();
-        
-        // Only fit if we have valid dimensions
         if (width > 0 && height > 0) {
-          setTimeout(() => {
+          requestAnimationFrame(() => {
             fitAddonRef.current.fit();
             xtermRef.current.scrollToBottom();
-          }, 0);
+          });
         }
       }
     };
 
-    // Add resize observer for container size changes
     const resizeObserver = new ResizeObserver(handleResize);
     if (terminalContainerRef.current) {
       resizeObserver.observe(terminalContainerRef.current);
@@ -108,7 +103,8 @@ const Terminal = ({ toggleHeight }) => {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-none items-center justify-between gap-4 border-b p-[10px] bg-white">
+      {/* Terminal Header */}
+      <div className="flex items-center justify-between gap-4 border-b p-[10px] bg-white">
         <div onClick={toggleHeight} className="cursor-pointer">
           <TerminalDownArrow />
         </div>
@@ -131,10 +127,9 @@ const Terminal = ({ toggleHeight }) => {
       </div>
       <div
         ref={terminalContainerRef}
-        className="flex-1 overflow-hidden"
-        style={{ 
-          height: "calc(100% - 53px)",
-          minHeight: "100px",
+        className="flex-1 overflow-auto"
+        style={{
+          minHeight: 0, // Important for flex child scrolling
         }}
       />
     </div>

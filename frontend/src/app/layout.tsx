@@ -124,24 +124,25 @@ export default function RootLayout({
                     )}
                   </div>
 
-                  {/* Main Content + Terminal */}
-                  <div className="flex-1 flex flex-col relative">
-                    {/* Main Content Area */}
-                    <div
+                  {/* Main Content + Terminal Container */}
+                  <div className="flex-1 flex flex-col h-screen overflow-hidden">
+                    {/* Main Content Area - Fixed height */}
+                    <div 
                       className="flex-1 overflow-auto"
-                      style={{ paddingBottom: `${terminalHeight}px` }}
+                      style={{ 
+                        height: `calc(100vh - ${terminalHeight}px)`,
+                      }}
                     >
-                      {/* Render the page content */}
                       {children}
                     </div>
 
                     {/* Terminal at the bottom */}
                     <div
                       ref={terminalRef}
-                      className="w-full bg-white text-black absolute bottom-0 left-0"
+                      className="w-full bg-white text-black flex flex-col"
                       style={{
                         height: `${terminalHeight}px`,
-                        transition: "height 0.1s linear",
+                        transition: "height 0.2s ease-in-out",
                       }}
                     >
                       {/* The draggable bar */}
