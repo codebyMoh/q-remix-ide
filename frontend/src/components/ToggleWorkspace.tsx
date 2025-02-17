@@ -354,10 +354,6 @@ const ToggleWorkspace = () => {
                     : "text-gray-300"
                 }`}
               />
-              <Folder
-                onClick={() => setShowNewFolderInput(true)}
-                className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900"
-              />
               <Folder onClick={() => setShowNewFolderInput(true)} className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
               <Upload className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
               <FolderImport className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
