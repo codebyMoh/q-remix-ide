@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useMemo } from "react";
-import Rectangle from "@/assets/svg/Rectangle.svg";
-import SmallRectangle from "@/assets/svg/smallRectangle.svg";
+import { Rectangle, SmallRectangle } from "@/assets/index";
 const FeaturesShow = () => {
   const [selectedLanguage, setSelectedLanguage] = useState("EN");
 

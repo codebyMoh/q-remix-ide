@@ -1,12 +1,13 @@
 import React, { useState } from "react";
-import Play from "@/assets/svg/play.svg";
-import Robot from "@/assets/svg/robot.svg";
-import ToggleOff from "@/assets/svg/toggle-off.svg";
-import ZoomOut from "@/assets/svg/zoom-out.svg";
-import ZoomIn from "@/assets/svg/zoom-in.svg";
-import HomeIcon from "@/assets/svg/home.svg";
-import Cross from "@/assets/svg/cross.svg";
-
+import {
+  Play,
+  Robot,
+  ToggleOff,
+  ZoomOut,
+  ZoomIn,
+  HomeIcon,
+  Cross,
+} from "@/assets/index";
 // Icons array for iteration
 const icons = [Play, Robot, ToggleOff, ZoomOut, ZoomIn];
 

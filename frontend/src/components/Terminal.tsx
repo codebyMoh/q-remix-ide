@@ -3,9 +3,7 @@ import { Terminal as XTerminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
 
-import TerminalDownArrow from "@/assets/svg/TerminaldownArrow.svg";
-import Search from "@/assets/svg/search.svg";
-import AlertOctagon from "@/assets/svg/alert-octagon.svg";
+import { TerminalDownArrow, Search, AlertOctagon  } from "@/assets/index";
 
 const Terminal = ({ toggleHeight }) => {
   const terminalContainerRef = useRef(null);
@@ -62,7 +60,9 @@ const Terminal = ({ toggleHeight }) => {
       if (command === "clear") {
         xtermRef.current.clear();
       } else if (command === "help") {
-        xtermRef.current.writeln("Available commands: help, clear, echo [message]");
+        xtermRef.current.writeln(
+          "Available commands: help, clear, echo [message]"
+        );
       } else if (command.startsWith("echo ")) {
         xtermRef.current.writeln(command.slice(5));
       } else if (command.length > 0) {
@@ -75,7 +75,8 @@ const Terminal = ({ toggleHeight }) => {
     // Enhanced resize handler
     const handleResize = () => {
       if (fitAddonRef.current && terminalContainerRef.current) {
-        const { width, height } = terminalContainerRef.current.getBoundingClientRect();
+        const { width, height } =
+          terminalContainerRef.current.getBoundingClientRect();
         if (width > 0 && height > 0) {
           requestAnimationFrame(() => {
             fitAddonRef.current.fit();

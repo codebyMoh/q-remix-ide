@@ -1,8 +1,7 @@
 "use client";
 import React, { useState } from "react";
-import GreenTick from "@/assets/svg/greentick.svg";
-import RightArrow from "@/assets/svg/right-arrow.svg";
-import DownArrow from "@/assets/svg/downIcon.svg";
+
+import { GreenTick, RightArrow, DownArrow } from "@/assets/index";
 
 import { Urbanist } from "next/font/google";
 
@@ -202,7 +201,9 @@ const SolidiyCompiler = () => {
                       Use configuration file
                     </label>
                     <div className="flex justify-between items-center mt-2">
-                      <div className="text-[13px] pl-[20px]">compiler_config.json</div>
+                      <div className="text-[13px] pl-[20px]">
+                        compiler_config.json
+                      </div>
                       <button className="border p-[5px] text-[12px] rounded bg-gray-200">
                         Change
                       </button>

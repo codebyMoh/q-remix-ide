@@ -1,37 +1,25 @@
-
-
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import GreenTick from "@/assets/svg/greentick.svg";
-import RightArrow from "@/assets/svg/right-arrow.svg";
-import Menu from "@/assets/svg/hamburger.svg";
-import File from "@/assets/svg/file.svg";
-import Folder from "@/assets/svg/folder.svg";
-import Upload from "@/assets/svg/upload.svg";
-import FolderImport from "@/assets/svg/folder-import.svg";
-import Box from "@/assets/svg/box.svg";
-import Link from "@/assets/svg/link.svg";
-import GitLink from "@/assets/svg/git-link.svg";
-import ChevronDown from "@/assets/svg/chevron-down.svg";
-import Code from "@/assets/svg/code.svg";
+import {
+  GreenTick,
+  RightArrow,
+  Menu,
+  File,
+  Folder,
+  Upload,
+  FolderImport,
+  Box,
+  Link,
+  GitLink,
+  ChevronDown,
+} from "@/assets/index";
+
 import Readme from "@/assets/svg/readme.svg";
-import JsfileIcon from "@/assets/svg/file_type_js.svg";
-import JsonfileIcon from "@/assets/svg/file_type_json.svg";
-import SolidityfileIcon from "@/assets/svg/file_type_solidity.svg";
-import TsfileIcon from "@/assets/svg/file_type_typescript.svg";
 import { MdDeleteOutline } from "react-icons/md";
 import { MdDriveFileRenameOutline } from "react-icons/md";
 import { FaRegFile } from "react-icons/fa";
-
 import { Urbanist } from "next/font/google";
-import {
-  initDB,
-  saveFile,
-  renameFolder,
-  renameFile,
-  deleteFile,
-  listFiles,
-} from "@/utils/IndexDB";
+import useFileWorkspace from "@/hooks/useFileWorkspace.tsx";
 
 const urbanist = Urbanist({
   subsets: ["latin"],
@@ -39,20 +27,41 @@ const urbanist = Urbanist({
 });
 
 const ToggleWorkspace = () => {
-  const [selectedWorkspace, setSelectedWorkspace] = useState("Default Workspace");
-  const [isExpanded, setIsExpanded] = useState(true);
-  const [folders, setFolders] = useState<any[]>([]);
-  const [showNewFolderInput, setShowNewFolderInput] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
-  const [selectedFolder, setSelectedFolder] = useState<number | null>(null);
-  const [showNewFileInput, setShowNewFileInput] = useState(false);
-  const [newFileName, setNewFileName] = useState("");
-  const [expandedFolders, setExpandedFolders] = useState({});
-  const [hoveredFolder, setHoveredFolder] = useState(null);
-  const [hoveredFile, setHoveredFile] = useState(null);
-  const folderInputRef = useRef(null);
-  const fileInputRef = useRef(null);
-
+  const {
+    selectedWorkspace,
+    isExpanded,
+    setIsExpanded,
+    folders,
+    setFolders,
+    showNewFolderInput,
+    setShowNewFolderInput,
+    newFolderName,
+    setNewFolderName,
+    handleDeleteFolder,
+    handleDeleteFile,
+    handleFolderClick,
+    handleFileKeyPress,
+    handleFolderKeyPress,
+    getIconForType,
+    selectedFolder,
+    setSelectedFolder,
+    initDB,
+    saveFile,
+    deleteFile,
+    listFiles,
+    showNewFileInput,
+    setShowNewFileInput,
+    expandedFolders,
+    setExpandedFolders,
+    hoveredFolder,
+    setHoveredFolder,
+    hoveredFile,
+    setHoveredFile,
+    folderInputRef,
+    fileInputRef,
+    newFileName,
+    setNewFileName,
+  } = useFileWorkspace();
   useEffect(() => {
     async function initialize() {
       await initDB();
@@ -86,135 +95,6 @@ const ToggleWorkspace = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
-  const createFolder = async () => {
-    if (newFolderName.trim()) {
-      const folderExists = folders.some(
-        (folder) => folder.name === newFolderName
-      );
-      if (folderExists) {
-        alert("A folder with this name already exists!");
-        return;
-      }
-      const newFolder = { name: newFolderName, type: "folder", files: [] };
-      await saveFile(newFolderName, newFolder);
-      // setFolders([...folders, newFolder]);
-      const updatedFolders = await listFiles();
-      setFolders(updatedFolders);
-      setNewFolderName("");
-      setShowNewFolderInput(false);
-    }
-  };
-
-  const toggleFolder = (folderName: string) => {
-    setExpandedFolders((prev) => ({
-      ...prev,
-      [folderName]: !prev[folderName],
-    }));
-  };
-
-  const createFile = async () => {
-    if (newFileName.trim() && selectedFolder !== null) {
-      const folderName = folders[selectedFolder].name;
-      const newFile = { name: newFileName, type: "file" };
-      const updatedFolder = { ...folders[selectedFolder] };
-
-      // Check if file already exists
-      const fileExists = updatedFolder.files.some(
-        (file) => file.name === newFileName
-      );
-      if (fileExists) {
-        alert("A file with this name already exists!");
-        return;
-      }
-      updatedFolder.files.push(newFile);
-      updatedFolder.files.sort((a, b) => a.name.localeCompare(b.name));
-
-      await saveFile(folderName, updatedFolder);
-
-      const updatedFolders = await listFiles();
-      setFolders(updatedFolders);
-
-      setNewFileName("");
-      setShowNewFileInput(false);
-      setSelectedFolder(null);
-    }
-  };
-  const handleDeleteFolder = async (folderName) => {
-    await deleteFile(folderName);
-    const updatedFolders = await listFiles();
-    setFolders(updatedFolders);
-  };
-
-  const handleDeleteFile = async (folderIndex, fileName) => {
-    const updatedFolder = { ...folders[folderIndex] };
-    updatedFolder.files = updatedFolder.files.filter(
-      (file) => file.name !== fileName
-    );
-
-    await saveFile(updatedFolder.name, updatedFolder);
-    const updatedFolders = await listFiles();
-    setFolders(updatedFolders);
-  };
-
-  const handleFileClick = async (file: any) => {
-    const content = await loadFile(file.name);
-    const selectedFile = {
-      name: file.name,
-      content: content || file.content,
-      language: file.name.endsWith('.sol') ? 'solidity' : 'text'
-    };
-    setCurrentFile(selectedFile);
-    if (!contextFiles.find((f: any) => f.name === file.name)) {
-      setFiles([...contextFiles, selectedFile]);
-    }
-  };
-
-  const handleFolderClick = (index: number) => {
-    setSelectedFolder(index);
-    toggleFolder(folders[index].name);
-  };
-
-  const handleFileKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      createFile();
-    } else if (e.key === "Escape") {
-      setShowNewFileInput(false);
-      setNewFileName("");
-      setSelectedFolder(null);
-    }
-  };
-
-  const handleFolderKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      createFolder();
-    } else if (e.key === "Escape") {
-      setShowNewFolderInput(false);
-      setNewFolderName("");
-    }
-  };
-
-  const getIconForType = (type) => {
-    const extension = type?.split(".").pop() || "unknown";
-    switch (extension) {
-      case "folder":
-        return <Folder className="w-5 h-5 text-gray-500" />;
-      case "code":
-        return <Code className="w-[16px] h-[16px] text-gray-500" />;
-      case "md":
-        return <Readme className="w-[16px] h-[16px] text-gray-500" />;
-      case "sol":
-        return <SolidityfileIcon className="w-[16px] h-[16px] text-gray-500" />;
-      case "js":
-        return <JsfileIcon className="w-[16px] h-[16px] text-gray-500" />;
-      case "json":
-        return <JsonfileIcon className="w-[16px] h-[16px] text-gray-500" />;
-      case "ts":
-        return <TsfileIcon className="w-[16px] h-[16px] text-gray-500" />;
-      default:
-        return <Readme className="w-[16px] h-[16px] text-gray-500" />;
-    }
-  };
 
   // Add these state variables at the top of your component:
   const [isRenamingFolder, setIsRenamingFolder] = useState(null);
@@ -312,16 +192,29 @@ const ToggleWorkspace = () => {
       <div
         className={`${
           isExpanded ? "w-80 px-4" : "w-0 px-0"
-        } bg-white flex flex-col border-r border-[#DEDEDE] py-4 transition-all duration-300 overflow-hidden ${urbanist.className}`}
+        } bg-white flex flex-col border-r border-[#DEDEDE] py-4 transition-all duration-300 overflow-hidden ${
+          urbanist.className
+        }`}
       >
         <div className="mb-2 flex items-center justify-between">
           <span className={`${isExpanded ? "opacity-100" : "opacity-0"}`}>
             File Explorer
           </span>
           <div className="flex items-center gap-2">
-            <GreenTick className={`w-5 h-5 text-green-500 transition-opacity ${isExpanded ? "opacity-100" : "opacity-0"}`} />
-            <button onClick={() => setIsExpanded(!isExpanded)} className="transition-all">
-              <RightArrow className={`w-5 h-5 text-gray-500 transition-transform ${isExpanded ? "rotate-180" : "rotate-0"}`} />
+            <GreenTick
+              className={`w-5 h-5 text-green-500 transition-opacity ${
+                isExpanded ? "opacity-100" : "opacity-0"
+              }`}
+            />
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="transition-all"
+            >
+              <RightArrow
+                className={`w-5 h-5 text-gray-500 transition-transform ${
+                  isExpanded ? "rotate-180" : "rotate-0"
+                }`}
+              />
             </button>
           </div>
         </div>
@@ -354,7 +247,10 @@ const ToggleWorkspace = () => {
                     : "text-gray-300"
                 }`}
               />
-              <Folder onClick={() => setShowNewFolderInput(true)} className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
+              <Folder
+                onClick={() => setShowNewFolderInput(true)}
+                className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900"
+              />
               <Upload className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
               <FolderImport className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
               <Box className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
