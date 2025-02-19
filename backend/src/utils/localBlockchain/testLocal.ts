@@ -2,7 +2,7 @@ import { JsonRpcProvider } from '@ethersproject/providers';
 import "@nomicfoundation/hardhat-ethers";
 import { ethers } from 'hardhat';
 import { RemixDeploymentService } from './../../services/blockchain/deployService';
-import { DeploymentInput } from './../../utils/types/deployment';
+import { DeploymentInput } from './../types/deployment';
 
 // Mock the deployment store for testing
 jest.mock('../../stores/DeploymentStores', () => ({
