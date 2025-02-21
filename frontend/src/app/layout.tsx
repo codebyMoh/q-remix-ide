@@ -56,7 +56,9 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [activeSection, setActiveSection] = useState<string | null>("workspace");
+  const [activeSection, setActiveSection] = useState<string | null>(
+    "workspace"
+  );
   const [terminalHeight, setTerminalHeight] = useState(150);
 
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -69,8 +71,8 @@ export default function RootLayout({
     if (!isDraggingRef.current) return;
     const screenHeight = window.innerHeight;
     const newHeight = Math.min(
-      Math.max(screenHeight - e.clientY, 60),
-      screenHeight * 0.6
+      Math.max(screenHeight - e.clientY, 90),
+      screenHeight * 0.73
     );
     setTerminalHeight(newHeight);
   }, []);
@@ -93,8 +95,14 @@ export default function RootLayout({
     [handleMouseMove, handleMouseUp]
   );
 
+  const [savedTerminalHeight, setSavedTerminalHeight] = useState(150);
   const toggleHeight = () => {
-    setTerminalHeight((prevHeight) => (prevHeight === 90 ? 150 : 90));
+    if (terminalHeight === 90) {
+      setTerminalHeight(savedTerminalHeight);
+    } else {
+      setSavedTerminalHeight(terminalHeight);
+      setTerminalHeight(90);
+    }
   };
 
   const handleActiveSectionChange = (section: string) => {
@@ -127,9 +135,9 @@ export default function RootLayout({
                   {/* Main Content + Terminal Container */}
                   <div className="flex-1 flex flex-col h-screen overflow-hidden">
                     {/* Main Content Area - Fixed height */}
-                    <div 
+                    <div
                       className="flex-1 overflow-auto"
-                      style={{ 
+                      style={{
                         height: `calc(100vh - ${terminalHeight}px)`,
                       }}
                     >
