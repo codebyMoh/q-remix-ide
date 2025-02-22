@@ -3,8 +3,11 @@ import React, { useState, useMemo } from "react";
 import { Rectangle, SmallRectangle } from "@/assets/index";
 import Carousel from "react-multi-carousel";
 import "react-multi-carousel/lib/styles.css";
+import { ChevronRight } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 const FeaturesShow = () => {
   const [selectedLanguage, setSelectedLanguage] = useState("EN");
+  const [scrollState, setScrollState] = useState(0);
 
   // Memoize languages array to prevent unnecessary recalculations
   const languages = useMemo(
@@ -23,13 +26,8 @@ const FeaturesShow = () => {
     { id: 1, text: "one plugin" },
     { id: 2, text: "two plugin" },
     { id: 3, text: "three plugin" },
-  //   { id: 4, text: "four plugin" },
-  //  { id: 5, text: "five plugin" },
-    // { id: 6, text: "six plugin"},
-    // { id: 7, text: "seven plugin" },
-    // { id: 8, text: "eight plugin" },
-    // { id: 9, text: "nine plugin"},
-    // { id: 10, text: "ten plugin"}
+    { id: 4, text: "four plugin" },
+    { id: 5, text: "five plugin" },
   ];
   const features = [
     {
@@ -66,7 +64,29 @@ const FeaturesShow = () => {
       slidesToSlide: 1,
     },
   };
+  const handleNext = () => {
+    setScrollState((prev) => {
+      if (prev === 2) return 0;
+      return prev + 1;
+    });
+  };
 
+  const handlePrev = () => {
+    setScrollState((prev) => {
+      if (prev === 0) return 2;
+      return prev - 1;
+    });
+  };
+  const getTransformValue = () => {
+    switch (scrollState) {
+      case 1:
+        return "translateX(-40%)"; 
+      case 2:
+        return "translateX(-80%)"; 
+      default:
+        return "translateX(0)"; 
+    }
+  };
   return (
     <div className="w-full max-w-full overflow-y-auto overflow-x-hidden pt-[3.3rem] px-8">
       <div className="max-w-full">
@@ -114,7 +134,7 @@ const FeaturesShow = () => {
                 className="h-[313px] flex rounded-lg border border-solid gap-5"
               >
                 <div className="flex-shrink-0 p-[10px]">
-                  <Rectangle/>
+                  <Rectangle />
                 </div>
                 <div className="flex flex-col justify-center">
                   <h3 className="font-semibold">{data.featuredName}</h3>
@@ -129,21 +149,42 @@ const FeaturesShow = () => {
 
         {/* Features Plugins */}
         <div>
-          <h2 className="font-semibold text-[22px] pt-6">Features Plugins</h2>
+          <h2 className="font-semibold text-[22px] pt-[0.7rem] ml-[9px]">Features Plugins</h2>
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-5 pt-4">
-          {plugins.map((plugin, index) => (
+        <div className="relative mt-[10px]">
+          <div className="overflow-hidden">
             <div
-              key={index}
-              className="h-[167px] p-4 rounded-lg border border-black/10"
+              className="flex gap-4 transition-transform duration-500 ease-in-out ml-[9px]"
+              style={{ transform: getTransformValue() }}
             >
-              <div>
-                <SmallRectangle />
-                <div className="mt-2">{plugin.text}</div>
-              </div>
+              {plugins.map((plugin, index) => (
+                <div
+                  key={index}
+                  className="h-[167px] p-4 rounded-lg border border-black/10 flex-shrink-0"
+                  style={{ width: "calc((100% - 32px) / 3)" }} 
+                >
+                  <div>
+                    <SmallRectangle />
+                    <div className="mt-2 text-sm font-medium text-[#94969C]">{plugin.text}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+
+          {/* Navigation Buttons */}
+          <button
+            onClick={handlePrev}
+            className="absolute bottom-4 right-16 bg-white p-2 rounded-full shadow-lg hover:bg-gray-100"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <button
+            onClick={handleNext}
+            className="absolute bottom-4 right-4 bg-white p-2 rounded-full shadow-lg hover:bg-gray-100"
+          >
+            <ChevronRight className="w-6 h-6" />
+          </button>
         </div>
       </div>
     </div>
