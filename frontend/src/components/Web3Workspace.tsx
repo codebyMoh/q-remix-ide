@@ -1,15 +1,14 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import Linkedin from "@/assets/svg/in.svg";
-import Insta from "@/assets/svg/insta.svg";
-import X from "@/assets/svg/x.svg";
-import Send from "@/assets/svg/send.svg";
-import M from "@/assets/svg/m.svg";
-import Search from "@/assets/svg/search.svg";
-import DownArrow from "@/assets/svg/downarrow.svg";
-import WorkSpaceArrow from "@/assets/svg/workspaceArrow.svg";
 
-
+import {  Insta,
+  X,
+  Send,
+  DownArrow,
+  Search,
+  M,
+  WorkSpaceArrow} from "@/assets/index"
 // Constants for static data
 const TAGS = [
   "Start Coding",
