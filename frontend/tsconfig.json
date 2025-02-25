@@ -19,10 +19,15 @@
         "name": "next"
       }
     ],
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    // "paths": {
+    //   "@/*": ["./src/*"]
+      
+    // }
+  "paths": {
+    "@/*": ["./src/*"],
+    "@libs/*": ["../libs/*"]
+}
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/editor/Editor.js"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/editor/Editor.js", "src/app/compiler/compiler-abstract.js"],
   "exclude": ["node_modules"]
 }
