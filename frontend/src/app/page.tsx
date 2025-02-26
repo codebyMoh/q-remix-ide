@@ -5,12 +5,12 @@ import Web3Workspace from "@/components/Web3Workspace";
 import FeaturesShow from "@/components/FeaturesShow";
 import Header from "@/components/Header";
 import FileTabs from "@/components/FileTabs";
-import { useEditor } from "@/context/EditorContext";
 import config from "@/config";
+import useEditor from "../hooks/useEditor";
 
 const MemoizedWeb3Workspace = React.memo(Web3Workspace);
 const MemoizedFeaturesShow = React.memo(FeaturesShow);
-const MemoizedHeader = React.memo(Header);
+// const MemoizedHeader = React.memo(Header);
 
 export default function HomePage() {
   // "home" view shows Web3Workspace/FeaturesShow; "editor" view shows the code editor with tabs.
@@ -71,13 +71,15 @@ contract MyContract {
     }
   };
 
+  const {files} = useEditor();
+  console.log("page.tsx",files)
   return (
     <div className="flex flex-col h-full">
-      <MemoizedHeader
+      <Header
         handleZoomIn={handleZoomIn}
-        handleRun={handleRun}
         handleZoomOut={handleZoomOut}
         setActiveTab={setActiveTab}
+
       />
       <div className="flex-1 relative overflow-hidden">
         {activeTab === "home" ? (

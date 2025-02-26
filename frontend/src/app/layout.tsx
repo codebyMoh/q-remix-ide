@@ -12,7 +12,7 @@ import { sepolia } from "viem/chains";
 import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import { metaMaskWallet } from "@rainbow-me/rainbowkit/wallets";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
+import useEditor from "../hooks/useEditor";
 /* 3) Import your components */
 import Sidebar from "@/components/Sidebar";
 import FileExplorer from "@/components/FileExplorer";
@@ -108,7 +108,8 @@ export default function RootLayout({
   const handleActiveSectionChange = (section: string) => {
     setActiveSection(section);
   };
-
+  
+  const {onFileSelect} = useEditor();
   return (
     <html lang="en" className="light">
       <body className={urbanist.className}>
@@ -128,8 +129,8 @@ export default function RootLayout({
                     ) : activeSection === "deploy-run" ? (
                       <ToggleDeployAndRun />
                     ) : (
-                      <FileExplorer/>
-                    )}
+                      <FileExplorer onFileSelect={onFileSelect}/>
+                    )} 
                   </div>
 
                   {/* Main Content + Terminal Container */}
