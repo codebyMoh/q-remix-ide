@@ -32,14 +32,6 @@ const useEditor = () => {
   const activeFile = openFiles.find((f) => f.id === activeFileId);
 
 
-useEffect(() => {
-  console.log("Updated openFiles:", openFiles);
-}, [openFiles]);
-
-useEffect(() => {
-  console.log("Updated activeFileId:", activeFileId);
-}, [activeFileId]);
-
   return {
     files: openFiles,
     activeFileId: activeFileId,
