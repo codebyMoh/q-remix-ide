@@ -1,4 +1,3 @@
-// src/utils/worker.js
 export class WorkerWrapper {
     constructor(worker) {
       this.worker = new Worker(worker)

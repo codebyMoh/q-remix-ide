@@ -1,6 +1,7 @@
 import wrapper from 'solc/wrapper';
 
-// Load compiler ONCE when worker initializes
+// Load compiler ONCE when worker initializes.
+// Rn the compiler version is loading statically, we can make it dynamic by just making the "importScripts" dynamic.
 importScripts('https://binaries.soliditylang.org/bin/soljson-v0.8.19+commit.7dd6d404.js');
 const compiler = wrapper((self as any).Module);
 

@@ -110,7 +110,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en">
+    <html lang="en" className="light">
       <body className={urbanist.className}>
         {/* 6) Wrap everything in Wagmi + RainbowKit + QueryClient providers */}
         <WagmiConfig config={config}>
