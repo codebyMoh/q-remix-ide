@@ -9,8 +9,6 @@ import {
   Cross,
 } from "@/assets/index";
 import { X } from "lucide-react";
-import useEditor from "../hooks/useEditor";
-import type { FileSystemNode } from "../types";
 
 // Icons array for iteration
 const icons = [Play, Robot, ToggleOff, ZoomOut, ZoomIn];
@@ -27,13 +25,13 @@ const Header: React.FC<HeaderProps> = ({
   handleRun,
   handleZoomOut,
   setActiveTab,
+  files,
+  activeFileId,
+  onFileSelect,
+  onCloseFile
 }) => {
-  // Get data directly from useEditor hook
-  const { files, activeFileId, onFileSelect, onCloseFile } = useEditor();
-  
+
   const [showHome, setShowHome] = useState(true);
-  console.log("Header render with files:", files);
-  console.log("Type of files:", typeof files, Array.isArray(files));
   return (
     <div className="h-[38px] flex items-center px-4">
       <div className="flex items-center space-x-3">

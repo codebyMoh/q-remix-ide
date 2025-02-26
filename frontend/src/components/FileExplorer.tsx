@@ -30,11 +30,15 @@ import {
 import { MdDeleteOutline } from "react-icons/md";
 import { MdDriveFileRenameOutline } from "react-icons/md";
 import { FaRegFile } from "react-icons/fa";
+import { useEditor } from "../context/EditorContext";
+
+
 interface FileExplorerProps {
   onFileSelect: (file: FileSystemNode | null) => void;
 }
 
-const FileExplorer: React.FC<FileExplorerProps> = ({ onFileSelect }) => {
+const FileExplorer: React.FC<FileExplorerProps> = () => {
+  const { onFileSelect } = useEditor();
   const [allNodes, setAllNodes] = useState<FileSystemNode[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     new Set()
@@ -178,7 +182,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ onFileSelect }) => {
       onFileSelect(node);
     }
   };
-  const getIconForType = (name,type) => {
+  const getIconForType = (name, type) => {
     const extension = name?.split(".").pop() || "unknown";
     switch (extension) {
       case "folder":
@@ -202,10 +206,12 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ onFileSelect }) => {
 
   const renderNode = (node: FileSystemNode, level: number = 0) => {
     const isExpanded = expandedFolders.has(node.id);
-    const childNodes = sortNodes(allNodes.filter((n) => n.parentId === node.id));
+    const childNodes = sortNodes(
+      allNodes.filter((n) => n.parentId === node.id)
+    );
     const indent = level * 16;
     const isSelected = selectedNode === node.id;
-  
+
     return (
       <div key={node.id}>
         <div
@@ -223,15 +229,19 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ onFileSelect }) => {
               }}
               className="p-1 hover:bg-gray-200 rounded"
             >
-              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              {isExpanded ? (
+                <ChevronDown size={16} />
+              ) : (
+                <ChevronRight size={16} />
+              )}
             </button>
           )}
           {node.type === "folder" ? (
             <Folder className="text-blue-500 w-[22px]" />
           ) : (
-           <> {getIconForType(node.name, node.type)}</>
+            <> {getIconForType(node.name, node.type)}</>
           )}
-  
+
           {editingNode === node.id ? (
             <input
               type="text"
@@ -254,7 +264,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ onFileSelect }) => {
               <span className="ml-1 select-none text-[14px] font-[Urbanist] font-medium leading-[16.8px] tracking-[0%] text-[#94969C]">
                 {node.name}
               </span>
-  
+
               {/* Buttons wrapper with group-hover to show on hover */}
               <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 {node.type === "folder" && (
@@ -289,7 +299,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ onFileSelect }) => {
                 >
                   <MdDriveFileRenameOutline size={14} />
                 </button>
-  
+
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -303,14 +313,13 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ onFileSelect }) => {
             </div>
           )}
         </div>
-  
+
         {node.type === "folder" &&
           isExpanded &&
           childNodes.map((child) => renderNode(child, level + 1))}
       </div>
     );
   };
-  
 
   if (isLoading) {
     return (
