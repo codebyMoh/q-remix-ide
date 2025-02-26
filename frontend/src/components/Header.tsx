@@ -8,19 +8,39 @@ import {
   HomeIcon,
   Cross,
 } from "@/assets/index";
+import { X } from "lucide-react";
+import useEditor from "../hooks/useEditor";
+import type { FileSystemNode } from "../types";
+
 // Icons array for iteration
 const icons = [Play, Robot, ToggleOff, ZoomOut, ZoomIn];
 
-const Header = ({ handleZoomIn, handleRun, handleZoomOut, setActiveTab }) => {
-  const [showHome, setShowHome] = useState(true);
+interface HeaderProps {
+  handleZoomIn: () => void;
+  handleZoomOut: () => void;
+  handleRun?: () => void;
+  setActiveTab: (tab: string) => void;
+}
 
+const Header: React.FC<HeaderProps> = ({
+  handleZoomIn,
+  handleRun,
+  handleZoomOut,
+  setActiveTab,
+}) => {
+  // Get data directly from useEditor hook
+  const { files, activeFileId, onFileSelect, onCloseFile } = useEditor();
+  
+  const [showHome, setShowHome] = useState(true);
+  console.log("Header render with files:", files);
+  console.log("Type of files:", typeof files, Array.isArray(files));
   return (
     <div className="h-[38px] flex items-center px-4">
       <div className="flex items-center space-x-3">
         {/* Render Main Icons */}
         {icons.map((Icon, index) => {
           let onClickHandler;
-
+          
           // Attach handlers based on the icon
           if (Icon === Play) {
             onClickHandler = handleRun;
@@ -29,7 +49,7 @@ const Header = ({ handleZoomIn, handleRun, handleZoomOut, setActiveTab }) => {
           } else if (Icon === ZoomIn) {
             onClickHandler = handleZoomIn;
           }
-
+          
           return (
             <Icon
               key={index}
@@ -38,7 +58,7 @@ const Header = ({ handleZoomIn, handleRun, handleZoomOut, setActiveTab }) => {
             />
           );
         })}
-
+        
         {/* Conditionally Show Home Text & Icons */}
         {showHome && (
           <div className="flex items-center space-x-1 cursor-pointer">
@@ -47,13 +67,41 @@ const Header = ({ handleZoomIn, handleRun, handleZoomOut, setActiveTab }) => {
             <button
               onClick={() => {
                 setShowHome(false);
-                setActiveTab();
+                setActiveTab("editor");
               }}
             >
               <Cross />
             </button>
           </div>
         )}
+        
+        {/* Display open files as tabs */}
+        {files && files.length > 0 && files.map((file) => (
+          <div
+            key={file.id}
+            className={`
+            flex items-center px-3 py-1 border-r cursor-pointer group
+            ${
+              activeFileId === file.id
+                ? "bg-white text-gray-900"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }
+          `}
+            onClick={() => onFileSelect(file)}
+          >
+            <span className="truncate max-w-[150px]">{file.name}</span>
+            <button
+              className="ml-2 p-1 rounded-sm opacity-0 group-hover:opacity-100 hover:bg-gray-300"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCloseFile(file.id);
+              }}
+              title="Close"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );
