@@ -26,12 +26,12 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   // Handler for selecting/opening a file
   const handleFileSelect = (file: FileSystemNode | null) => {
     if (!file || file.type !== "file") return;
-    
+
     // Add file to openFiles if it's not already open
     if (!openFiles.find((f) => f.id === file.id)) {
       setOpenFiles((prev) => [...prev, file]);
     }
-    
+
     // Set as active file
     setActiveFileId(file.id);
   };
@@ -40,7 +40,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const handleCloseFile = (fileId: string) => {
     // Remove file from openFiles
     setOpenFiles((prev) => prev.filter((f) => f.id !== fileId));
-    
+
     // If the closed file was active, set a new active file
     if (activeFileId === fileId) {
       const remainingFiles = openFiles.filter((f) => f.id !== fileId);
@@ -56,13 +56,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const activeFile = openFiles.find((f) => f.id === activeFileId) || null;
 
   // Debug logging
-  useEffect(() => {
-    console.log("Updated contect openFiles:", openFiles);
-  }, [openFiles]);
-
-  useEffect(() => {
-    console.log("Updated context activeFileId:", activeFileId);
-  }, [activeFileId]);
+  useEffect(() => {}, [openFiles, activeFileId]);
 
   // Provide context values
   const contextValue: EditorContextProps = {

@@ -9,6 +9,14 @@ import {
   Cross,
 } from "@/assets/index";
 import { X } from "lucide-react";
+import {
+  JsfileIcon,
+  JsonfileIcon,
+  SolidityfileIcon,
+  TsfileIcon,
+  Readme,
+  Code,
+} from "@/assets/index";
 
 // Icons array for iteration
 const icons = [Play, Robot, ToggleOff, ZoomOut, ZoomIn];
@@ -19,6 +27,25 @@ interface HeaderProps {
   handleRun?: () => void;
   setActiveTab: (tab: string) => void;
 }
+  const getIconForType = (name) => {
+    const extension = name?.split(".").pop() || "unknown";
+    switch (extension) {
+      case "code":
+        return <Code className="w-[16px] h-[16px] text-gray-500" />;
+      case "md":
+        return <Readme className="w-[16px] h-[16px] text-gray-500" />;
+      case "sol":
+        return <SolidityfileIcon className="w-[16px] h-[16px] text-gray-500" />;
+      case "js":
+        return <JsfileIcon className="w-[16px] h-[16px] text-gray-500" />;
+      case "json":
+        return <JsonfileIcon className="w-[16px] h-[16px] text-gray-500" />;
+      case "ts":
+        return <TsfileIcon className="w-[16px] h-[16px] text-gray-500" />;
+      default:
+        return <Readme className="w-[16px] h-[16px] text-gray-500" />;
+    }
+  };
 
 const Header: React.FC<HeaderProps> = ({
   handleZoomIn,
@@ -86,15 +113,16 @@ const Header: React.FC<HeaderProps> = ({
             }
           `}
             onClick={() => onFileSelect(file)}
-          >
-            <span className="truncate max-w-[150px]">{file.name}</span>
+          > 
+          <div className="mr-2">
+          {getIconForType(file.name)}</div>
+            <span className="truncate max-w-[100px]">{file.name}</span>
             <button
-              className="ml-2 p-1 rounded-sm opacity-0 group-hover:opacity-100 hover:bg-gray-300"
+              className="ml-1  rounded-sm opacity-0 group-hover:opacity-100 hover:bg-gray-300"
               onClick={(e) => {
                 e.stopPropagation();
                 onCloseFile(file.id);
               }}
-              title="Close"
             >
               <X size={14} />
             </button>

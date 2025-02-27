@@ -77,10 +77,7 @@ contract MyContract {
   const { files, activeFileId, onFileSelect, onCloseFile, activeFile } =
     useEditor();
 
-
-  useEffect(() => {
-    console.log("page.tsx - files updated:", files);
-  }, [files]);
+  useEffect(() => {}, [files]);
 
   return (
     <div className="flex flex-col h-full">
