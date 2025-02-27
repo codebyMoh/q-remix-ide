@@ -321,20 +321,12 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     );
   };
 
-  if (isLoading) {
-    return (
-      <div className="w-64 bg-white border-r h-screen flex items-center justify-center">
-        <span>Loading...</span>
-      </div>
-    );
-  }
-
   const rootNodes = sortNodes(
     allNodes.filter((node) => node.parentId === null)
   );
 
   return (
-    <div className=" bg-white border-r border-[#DEDEDE] h-screen overflow-y-auto">
+    <div className=" bg-white border-r border-[#DEDEDE] h-screen overflow-y-auto" >
       <div
         className={`${
           isExpanded ? "w-80 px-4" : "w-0 px-0"
@@ -393,7 +385,13 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
             <hr className="border-t border-[#DEDEDE] w-full my-3" />
 
             <div className="py-2">
-              {rootNodes.map((node) => renderNode(node))}
+              {rootNodes ? (
+                rootNodes.map((node) => renderNode(node))
+              ) : (
+                <div className="w-64 bg-white border-r h-screen flex items-center justify-center">
+                  <span>Loading...</span>
+                </div>
+              )}
             </div>
           </div>
         )}

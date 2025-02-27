@@ -59,13 +59,13 @@ const Header: React.FC<HeaderProps> = ({
         
         {/* Conditionally Show Home Text & Icons */}
         {showHome && (
-          <div className="flex items-center space-x-1 cursor-pointer">
+          <div className="flex items-center border-r  space-x-1 cursor-pointer">
             <HomeIcon />
             <span>Home</span>
             <button
               onClick={() => {
                 setShowHome(false);
-                setActiveTab("editor");
+                setActiveTab("editor"); 
               }}
             >
               <Cross />
@@ -81,8 +81,8 @@ const Header: React.FC<HeaderProps> = ({
             flex items-center px-3 py-1 border-r cursor-pointer group
             ${
               activeFileId === file.id
-                ? "bg-white text-gray-900"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                ? " bg-gray-100 text-gray-900"
+                : " text-gray-600 hover:bg-gray-200"
             }
           `}
             onClick={() => onFileSelect(file)}
