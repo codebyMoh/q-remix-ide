@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ChevronRight, Plus, Trash, Edit2 } from "lucide-react";
 import { FaRegFolder } from "react-icons/fa";
 import {
@@ -47,6 +47,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
   const [newNodeName, setNewNodeName] = useState("");
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingNewNode, setPendingNewNode] = useState<FileSystemNode | null>(null);
 
   const [selectedWorkspace, setSelectedWorkspace] =
     useState("Default Workspace");
@@ -99,13 +100,17 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     };
 
     try {
-      await createNode(newNode);
-      setAllNodes((prev) => sortNodes([...prev, newNode]));
+      // Create the node but keep it in a pending state
+      setPendingNewNode(newNode);
       setEditingNode(newNode.id);
+      setNewNodeName("");
 
       if (effectiveParentId) {
         setExpandedFolders((prev) => new Set(prev).add(effectiveParentId));
       }
+      
+      // Add it temporarily to UI
+      setAllNodes((prev) => sortNodes([...prev, newNode]));
     } catch (error) {
       console.error("Failed to create node:", error);
     }
@@ -149,19 +154,41 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
   };
 
   const handleRename = async (node: FileSystemNode) => {
-    if (!newNodeName.trim()) return;
-
-    try {
+    setEditingNode(null);
+    
+    // If it's a new name and not empty, save it
+    if (newNodeName.trim()) {
       const updatedNode = { ...node, name: newNodeName, updatedAt: Date.now() };
-      await updateNode(updatedNode);
-      setAllNodes((prev) =>
-        sortNodes(prev.map((n) => (n.id === node.id ? updatedNode : n)))
-      );
-      setEditingNode(null);
-      setNewNodeName("");
-    } catch (error) {
-      console.error("Failed to rename node:", error);
+      
+      try {
+        // Only save to DB if it's not a default name
+        await createNode(updatedNode);
+        setAllNodes((prev) =>
+          sortNodes(prev.map((n) => (n.id === node.id ? updatedNode : n)))
+        );
+      } catch (error) {
+        console.error("Failed to rename node:", error);
+      }
+    } else {
+      // If empty name or cancelled, remove the pending node
+      if (pendingNewNode && node.id === pendingNewNode.id) {
+        setAllNodes((prev) => prev.filter((n) => n.id !== node.id));
+        setPendingNewNode(null);
+      }
     }
+    
+    setNewNodeName("");
+  };
+
+  const cancelRename = (node: FileSystemNode) => {
+    // If this is a pending new node, remove it from the UI
+    if (pendingNewNode && node.id === pendingNewNode.id) {
+      setAllNodes((prev) => prev.filter((n) => n.id !== node.id));
+      setPendingNewNode(null);
+    }
+    
+    setEditingNode(null);
+    setNewNodeName("");
   };
 
   const toggleFolder = (folderId: string) => {
@@ -177,6 +204,9 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
   };
 
   const handleNodeClick = (node: FileSystemNode) => {
+    // Don't do anything if we're currently editing
+    if (editingNode) return;
+    
     setSelectedNode(node.id);
     if (node.type === "file") {
       onFileSelect(node);
@@ -204,6 +234,11 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     }
   };
 
+  const startRenaming = (node: FileSystemNode) => {
+    setEditingNode(node.id);
+    setNewNodeName(node.name);
+  };
+
   const renderNode = (node: FileSystemNode, level: number = 0) => {
     const isExpanded = expandedFolders.has(node.id);
     const childNodes = sortNodes(
@@ -215,7 +250,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     return (
       <div key={node.id}>
         <div
-          className={`flex items-center p-1 hover:bg-gray-100 group relative ${
+          className={`flex items-center p-1 hover:bg-gray-100 group relative cursor-pointer ${
             isSelected ? "bg-blue-50" : ""
           }`}
           style={{ paddingLeft: `${indent}px` }}
@@ -250,12 +285,9 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
               onBlur={() => handleRename(node)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleRename(node);
-                if (e.key === "Escape") {
-                  setEditingNode(null);
-                  setNewNodeName("");
-                }
+                if (e.key === "Escape") cancelRename(node);
               }}
-              className="ml-1 px-1 border rounded bg-white"
+            className="ml-1 px-1 border border-gray-500 rounded bg-white focus:outline-none w-full "
               autoFocus
               onClick={(e) => e.stopPropagation()}
             />
@@ -292,8 +324,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setEditingNode(node.id);
-                    setNewNodeName(node.name);
+                    startRenaming(node);
                   }}
                   className="p-[0.5px]"
                 >

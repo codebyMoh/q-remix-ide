@@ -14,7 +14,6 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   error,
   compilationResult,
 }) => {
-  console.log(file.content,"fileee")
   const [content, setContent] = useState(
     file.content == "undefined" ? editCode : file.content
   );
