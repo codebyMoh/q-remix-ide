@@ -86,7 +86,7 @@ const Header: React.FC<HeaderProps> = ({
         
         {/* Conditionally Show Home Text & Icons */}
         {showHome && (
-          <div className="flex items-center border-r  space-x-1 cursor-pointer">
+          <div className="flex items-center border-r border-l space-x-1 cursor-pointer">
             <HomeIcon />
             <span>Home</span>
             <button
