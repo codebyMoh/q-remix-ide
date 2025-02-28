@@ -3,7 +3,6 @@ import React, { useState, useCallback, useEffect } from "react";
 import Web3Workspace from "@/components/Web3Workspace";
 import FeaturesShow from "@/components/FeaturesShow";
 import Header from "@/components/Header";
-import FileTabs from "@/components/FileTabs";
 import config from "@/config";
 import { useEditor } from "../context/EditorContext";
 import MonacoEditor from "@/components/MonacoEditor";
@@ -108,7 +107,6 @@ contract MyContract {
             >
               <MonacoEditor
                 file={activeFile}
-                editCode={code}
                 zoom={zoom}
                 error={error}
                 compilationResult={compilationResult}

@@ -10,13 +10,10 @@ interface MonacoEditorProps {
 
 const MonacoEditor: React.FC<MonacoEditorProps> = ({
   file,
-  editCode,
   error,
   compilationResult,
 }) => {
-  const [content, setContent] = useState(
-    file.content == "undefined" ? editCode : file.content
-  );
+  const [content, setContent] = useState(file.content);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
