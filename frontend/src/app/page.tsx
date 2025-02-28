@@ -1,16 +1,15 @@
 "use client";
-import React, { useState, useCallback } from "react";
-import Editor from "@monaco-editor/react";
+import React, { useState, useCallback, useEffect } from "react";
 import Web3Workspace from "@/components/Web3Workspace";
 import FeaturesShow from "@/components/FeaturesShow";
 import Header from "@/components/Header";
 import FileTabs from "@/components/FileTabs";
-import { useEditor } from "@/context/EditorContext";
 import config from "@/config";
-
+import { useEditor } from "../context/EditorContext";
+import MonacoEditor from "@/components/MonacoEditor";
 const MemoizedWeb3Workspace = React.memo(Web3Workspace);
 const MemoizedFeaturesShow = React.memo(FeaturesShow);
-const MemoizedHeader = React.memo(Header);
+// const MemoizedHeader = React.memo(Header);
 
 export default function HomePage() {
   // "home" view shows Web3Workspace/FeaturesShow; "editor" view shows the code editor with tabs.
@@ -38,14 +37,18 @@ contract MyContract {
 
   const handleCompile = async () => {
     try {
-      const sourceCode = activeTab === "editor" && currentFile ? currentFile.content : code;
-      const response = await fetch(`${config.backendUrl}${config.routes.compile}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceCode }),
-      });
+      const sourceCode =
+        activeTab === "editor" && currentFile ? currentFile.content : code;
+      const response = await fetch(
+        `${config.backendUrl}${config.routes.compile}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sourceCode }),
+        }
+      );
       const result = await response.json();
-  
+
       if (result.error) {
         setError(result.error);
         setCompilationResult(null);
@@ -71,59 +74,47 @@ contract MyContract {
     }
   };
 
+  const { files, activeFileId, onFileSelect, onCloseFile, activeFile } =
+    useEditor();
+
+  useEffect(() => {}, [files]);
+
   return (
     <div className="flex flex-col h-full">
-      <MemoizedHeader
+      <Header
         handleZoomIn={handleZoomIn}
-        handleRun={handleRun}
         handleZoomOut={handleZoomOut}
         setActiveTab={setActiveTab}
+        files={files}
+        activeFileId={activeFileId}
+        onFileSelect={onFileSelect}
+        onCloseFile={onCloseFile}
       />
       <div className="flex-1 relative overflow-hidden">
-        {activeTab === "home" ? (
+        {files.length === 0 && activeFileId === null ? (
           <div className="flex w-full h-full overflow-auto">
             <MemoizedWeb3Workspace />
             <MemoizedFeaturesShow />
           </div>
         ) : (
-          <div className="flex flex-col h-full">
-            {currentFile ? <FileTabs /> : null}
-            <div className="flex-1 overflow-auto">
-              <div
-                style={{
-                  transform: `scale(${zoom})`,
-                  transformOrigin: "top left",
-                }}
-                className="w-full h-full"
-              >
-                <Editor
-                  height="100%"
-                  width="100%"
-                  defaultLanguage="solidity"
-                  value={currentFile ? currentFile.content : code}
-                  theme="vs-light"
-                  options={{
-                    fontSize: 14,
-                    minimap: { enabled: false },
-                    scrollBeyondLastLine: false,
-                    automaticLayout: true,
-                  }}
-                  onChange={handleEditorChange}
-                />
-              </div>
+          activeFile && (
+            <div
+              style={{
+                transform: `scale(${zoom})`,
+                transformOrigin: "top left",
+                height: "calc(100vh - 84px)", // Account for header and tab bar
+              }}
+              className="flex-1 overflow-hidden"
+            >
+              <MonacoEditor
+                file={activeFile}
+                editCode={code}
+                zoom={zoom}
+                error={error}
+                compilationResult={compilationResult}
+              />
             </div>
-            {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2">
-                Error: {error}
-              </div>
-            )}
-            {compilationResult && (
-              <div className="bg-gray-100 border border-gray-400 text-gray-700 px-4 py-2">
-                <h2 className="font-bold">Compilation Result</h2>
-                <pre>{JSON.stringify(compilationResult, null, 2)}</pre>
-              </div>
-            )}
-          </div>
+          )
         )}
       </div>
     </div>

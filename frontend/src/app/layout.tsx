@@ -13,9 +13,8 @@ import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import { metaMaskWallet } from "@rainbow-me/rainbowkit/wallets";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-/* 3) Import components */
 import Sidebar from "@/components/Sidebar";
-import ToggleWorkspace from "@/components/ToggleWorkspace";
+import FileExplorer from "@/components/FileExplorer";
 import ToggleDeployAndRun from "@/components/ToggleDeployAndRun";
 import SolidiyCompiler from "@/components/SolidiyCompiler";
 import Debugger from "@/components/Debugger"; // <-- Imported Debugger
@@ -107,9 +106,9 @@ export default function RootLayout({
   const handleActiveSectionChange = (section: string) => {
     setActiveSection(section);
   };
-
+  
   return (
-    <html lang="en">
+    <html lang="en" className="light">
       <body className={urbanist.className}>
         {/* 6) Wrap everything in Wagmi + RainbowKit + QueryClient providers */}
         <WagmiConfig config={config}>
@@ -129,8 +128,8 @@ export default function RootLayout({
                     ) : activeSection === "debugger" ? ( // <-- Added Debugger
                       <Debugger />
                     ) : (
-                      <ToggleWorkspace />
-                    )}
+                      <FileExplorer/>
+                    )} 
                   </div>
 
                   {/* Main Content + Terminal Container */}
