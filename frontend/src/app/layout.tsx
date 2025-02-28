@@ -17,7 +17,8 @@ import Sidebar from "@/components/Sidebar";
 import FileExplorer from "@/components/FileExplorer";
 import ToggleDeployAndRun from "@/components/ToggleDeployAndRun";
 import SolidiyCompiler from "@/components/SolidiyCompiler";
-import Debugger from "@/components/Debugger"; // <-- Imported Debugger
+import Debugger from "@/components/Debugger"; 
+import DeplyRun from "@/components/DeployRun"
 import Terminal from "@/components/Terminal";
 import Footer from "@/components/Footer";
 import { EditorProvider } from "@/context/EditorContext";
