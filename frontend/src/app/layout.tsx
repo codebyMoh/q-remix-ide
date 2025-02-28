@@ -13,9 +13,10 @@ import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import { metaMaskWallet } from "@rainbow-me/rainbowkit/wallets";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+
 /* 3) Import your components */
 import Sidebar from "@/components/Sidebar";
-import ToggleWorkspace from "@/components/ToggleWorkspace";
+import FileExplorer from "@/components/FileExplorer";
 import ToggleDeployAndRun from "@/components/ToggleDeployAndRun";
 import SolidiyCompiler from "@/components/SolidiyCompiler";
 import Terminal from "@/components/Terminal";
@@ -108,7 +109,7 @@ export default function RootLayout({
   const handleActiveSectionChange = (section: string) => {
     setActiveSection(section);
   };
-
+  
   return (
     <html lang="en" className="light">
       <body className={urbanist.className}>
@@ -128,8 +129,8 @@ export default function RootLayout({
                     ) : activeSection === "deploy-run" ? (
                       <ToggleDeployAndRun />
                     ) : (
-                      <ToggleWorkspace />
-                    )}
+                      <FileExplorer/>
+                    )} 
                   </div>
 
                   {/* Main Content + Terminal Container */}
