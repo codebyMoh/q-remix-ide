@@ -7,23 +7,22 @@ import { WagmiConfig, createConfig, http } from "wagmi";
 import { RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import "@rainbow-me/rainbowkit/styles.css"; // <-- Important!
 
-/* 2) Import any chains, connectors, etc. */
+/* 2) Import chains and connectors */
 import { sepolia } from "viem/chains";
 import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import { metaMaskWallet } from "@rainbow-me/rainbowkit/wallets";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-
-/* 3) Import your components */
 import Sidebar from "@/components/Sidebar";
 import FileExplorer from "@/components/FileExplorer";
 import ToggleDeployAndRun from "@/components/ToggleDeployAndRun";
 import SolidiyCompiler from "@/components/SolidiyCompiler";
+import Debugger from "@/components/Debugger"; // <-- Imported Debugger
 import Terminal from "@/components/Terminal";
 import Footer from "@/components/Footer";
 import { EditorProvider } from "@/context/EditorContext";
 
-/* 4) Google font example (optional) */
+/* 4) Google font example */
 import { Urbanist } from "next/font/google";
 const urbanist = Urbanist({
   subsets: ["latin"],
@@ -45,7 +44,6 @@ const connectors = connectorsForWallets(
 const config = createConfig({
   connectors,
   chains: [sepolia],
-  // If you're using a recent wagmi version:
   autoConnect: true,
   publicClient: http(),
 });
@@ -57,11 +55,9 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [activeSection, setActiveSection] = useState<string | null>(
-    "workspace"
-  );
+  const [activeSection, setActiveSection] = useState<string>("workspace");
   const [terminalHeight, setTerminalHeight] = useState(150);
-
+  
   const terminalRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -106,6 +102,7 @@ export default function RootLayout({
     }
   };
 
+  /* Handle switching between sections */
   const handleActiveSectionChange = (section: string) => {
     setActiveSection(section);
   };
@@ -122,12 +119,14 @@ export default function RootLayout({
                   {/* Sidebar */}
                   <Sidebar onSectionChange={handleActiveSectionChange} />
 
-                  {/* Toggle between sections (compiler, deploy-run, or workspace) */}
+                  {/* Toggle between sections */}
                   <div className="h-full">
                     {activeSection === "compiler" ? (
                       <SolidiyCompiler />
                     ) : activeSection === "deploy-run" ? (
                       <ToggleDeployAndRun />
+                    ) : activeSection === "debugger" ? ( // <-- Added Debugger
+                      <Debugger />
                     ) : (
                       <FileExplorer/>
                     )} 

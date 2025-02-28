@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@remix-project/remix-debug": "^0.5.64",
     "axios": "^1.7.9",
     "body-parser": "^1.20.3",
     "cors": "^2.8.5",
@@ -24,13 +25,15 @@
     "fs-extra": "^11.3.0",
     "mongoose": "^8.9.5",
     "solc": "^0.8.28",
-    "web3": "^4.16.0"
+    "web3": "^4.16.0",
+    "web3-core": "^4.7.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.13.1",
+    "@types/web3": "^1.0.20",
     "chokidar": "^4.0.3",
     "eslint": "^9.19.0",
     "morgan": "^1.10.0",
