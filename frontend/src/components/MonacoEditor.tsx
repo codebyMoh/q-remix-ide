@@ -1,35 +1,47 @@
+"use client";
 import React, { useState, useEffect } from "react";
 import Editor from "@monaco-editor/react";
-import { updateNode, getNodeById } from "../utils/IndexDB";
+import { getNodeById, updateNode } from "../utils/IndexDB";
 import type { FileSystemNode } from "../types";
+import { useEditor } from "../context/EditorContext";
 
 interface MonacoEditorProps {
   file: FileSystemNode;
   zoom: number;
+  editCode?: string;
+  error?: string;
+  compilationResult?: any;
 }
 
 const MonacoEditor: React.FC<MonacoEditorProps> = ({
   file,
+  zoom,
   editCode,
   error,
   compilationResult,
 }) => {
-  const [content, setContent] = useState(
-    file.content == "undefined" ? editCode : file.content
-  );
+  // Use file.content if defined; if not, fallback to editCode (if provided)
+  const initialContent =
+    file.content !== undefined && file.content !== "undefined"
+      ? file.content
+      : editCode || "";
+  const [content, setContent] = useState(initialContent);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // When file changes externally, load its latest content from IndexedDB.
   useEffect(() => {
     const loadContent = async () => {
       const latestFile = await getNodeById(file.id);
       if (latestFile) {
-        setContent(latestFile.content || '');
+        setContent(latestFile.content || "");
         setIsDirty(false);
       }
     };
     loadContent();
   }, [file.id]);
+
+  const { updateActiveFileContent } = useEditor();
 
   const handleSave = async () => {
     try {
@@ -37,45 +49,53 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       const updatedFile = {
         ...file,
         content,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
       };
       await updateNode(updatedFile);
       setIsDirty(false);
     } catch (error) {
-      console.error('Failed to save file:', error);
-      alert('Failed to save file. Please try again.');
+      console.error("Failed to save file:", error);
+      alert("Failed to save file. Please try again.");
     } finally {
       setIsSaving(false);
     }
   };
 
+  // When the editor changes, update local state and context.
+  const handleEditorChange = (value: string | undefined) => {
+    const newValue = value || "";
+    setContent(newValue);
+    setIsDirty(true);
+    updateActiveFileContent(newValue);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+    if ((e.metaKey || e.ctrlKey) && e.key === "s") {
       e.preventDefault();
       if (!isSaving && isDirty) {
         handleSave();
       }
     }
   };
-  // Capture global keyboard shortcuts
+
+  // Global keyboard save shortcut
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault(); // Prevent browser's default save dialog
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
         if (!isSaving && isDirty) {
           handleSave();
         }
       }
     };
-
-      document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleGlobalKeyDown);
     return () => {
-        document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleGlobalKeyDown);
     };
-  }, [isDirty, isSaving, handleSave]);
+  }, [isDirty, isSaving]);
 
   const getLanguage = (fileName: string) => {
-    const ext = fileName.split('.').pop()?.toLowerCase();
+    const ext = fileName.split(".").pop()?.toLowerCase();
     switch (ext) {
       case "js":
         return "javascript";
@@ -111,18 +131,13 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
           defaultLanguage={getLanguage(file.name)}
           value={content}
           theme="vs-light"
-          onChange={(value) => {
-            setContent(value || '');
-            setIsDirty(true);
-          }}
+          onChange={handleEditorChange}
           options={{
             fontSize: 14,
             minimap: { enabled: false },
-            scrollBeyondLastLine: false,
             automaticLayout: true,
             lineNumbers: "on",
             roundedSelection: false,
-            scrollBeyondLastLine: false,
             readOnly: false,
             cursorStyle: "line",
           }}
