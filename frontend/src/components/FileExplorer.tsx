@@ -218,6 +218,15 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
         setAllNodes((prev) =>
           sortNodes(prev.map((n) => (n.id === node.id ? updatedNode : n)))
         );
+
+        if (
+          pendingNewNode &&
+          node.id === pendingNewNode.id &&
+          node.type === "file"
+        ) {
+          setSelectedNode(node.id);
+          onFileSelect(updatedNode); 
+        }
       } catch (error) {
         console.error("Failed to rename node:", error);
       }
@@ -320,9 +329,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
           }}
         >
           {node.type === "folder" && (
-            <button
-              className="p-1"
-            >
+            <button className="p-1">
               {isExpanded ? (
                 <ChevronDown size={16} />
               ) : (

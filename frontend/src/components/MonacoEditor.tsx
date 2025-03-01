@@ -95,7 +95,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="bg-gray-50 border-b px-4 py-2 flex justify-between items-center">
+      <div className="bg-gray-50   flex justify-between items-center">
         <div className="flex items-center gap-2">
           {isDirty && (
             <span className="text-sm text-gray-500">(unsaved changes)</span>
