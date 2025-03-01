@@ -1,15 +1,70 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Terminal as XTerminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
+import TransactionDetails from './TransactionDetails';
+import { DeploymentResult } from '@/utils/deployContract';
 
 import { TerminalDownArrow, Search, AlertOctagon  } from "@/assets/index";
+
+// Define terminal output types
+interface TerminalOutput {
+  id: string;
+  type: 'log' | 'error' | 'transaction';
+  content?: string;
+  timestamp: number;
+  transactionData?: DeploymentResult;
+}
+
+// Create a context for terminal
+export const TerminalContext = React.createContext<{
+  outputs: TerminalOutput[];
+  addOutput: (content: string | DeploymentResult, type: 'log' | 'error' | 'transaction') => void;
+  clearOutputs: () => void;
+}>({
+  outputs: [],
+  addOutput: () => {},
+  clearOutputs: () => {},
+});
+
+export const useTerminal = () => React.useContext(TerminalContext);
+
+export const TerminalProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
+  const [outputs, setOutputs] = useState<TerminalOutput[]>([]);
+  
+  const addOutput = (content: string | DeploymentResult, type: 'log' | 'error' | 'transaction') => {
+    const newOutput: TerminalOutput = {
+      id: crypto.randomUUID(),
+      type,
+      timestamp: Date.now(),
+    };
+    
+    if (type === 'transaction' && typeof content !== 'string') {
+      newOutput.transactionData = content;
+    } else if (typeof content === 'string') {
+      newOutput.content = content;
+    }
+    
+    setOutputs(prev => [...prev, newOutput]);
+  };
+  
+  const clearOutputs = () => {
+    setOutputs([]);
+  };
+  
+  return (
+    <TerminalContext.Provider value={{ outputs, addOutput, clearOutputs }}>
+      {children}
+    </TerminalContext.Provider>
+  );
+};
 
 const Terminal = ({ toggleHeight }) => {
   const terminalContainerRef = useRef(null);
   const xtermRef = useRef(null);
   const fitAddonRef = useRef(null);
   const currentCommandRef = useRef("");
+  const { outputs, clearOutputs } = useTerminal();
 
   useEffect(() => {
     // Initialize xterm with specific dimensions
@@ -102,6 +157,13 @@ const Terminal = ({ toggleHeight }) => {
     };
   }, []);
 
+  // Auto-scroll to bottom when new outputs are added
+  useEffect(() => {
+    if (terminalContainerRef.current) {
+      terminalContainerRef.current.scrollTop = terminalContainerRef.current.scrollHeight;
+    }
+  }, [outputs]);
+
   return (
     <div className="flex flex-col h-full">
       {/* Terminal Header */}
@@ -132,7 +194,22 @@ const Terminal = ({ toggleHeight }) => {
         style={{
           minHeight: 0, // Important for flex child scrolling
         }}
-      />
+      >
+        {outputs.map((output) => (
+          <div key={output.id} className="mb-2">
+            {output.type === 'transaction' && output.transactionData ? (
+              <TransactionDetails transaction={output.transactionData} />
+            ) : (
+              <div className={`${output.type === 'error' ? 'text-red-400' : 'text-green-300'}`}>
+                <span className="text-gray-500 mr-2">
+                  [{new Date(output.timestamp).toLocaleTimeString()}]
+                </span>
+                {output.content}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

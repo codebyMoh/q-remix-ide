@@ -1,72 +1,68 @@
-// "use client";
-// import React from "react";
-
-// const DeployRun = () => {
-//   return (
-//     <div className="p-4 space-y-4">
-//       {/* 1. Environment Box */}
-//       <div className="p-4 border border-gray-300 rounded-lg">
-//         <h2 className="text-lg font-semibold mb-2">Environment</h2>
-//         <p className="text-sm text-gray-600">Injected Provider</p>
-//       </div>
-
-//       {/* 2. Account Info Box */}
-//       <div className="p-4 border border-gray-300 rounded-lg">
-//         <h2 className="text-lg font-semibold mb-2">Account</h2>
-//         <p className="text-sm text-gray-600">
-//           Address: 0x0000000000000000000000000000000000000000
-//         </p>
-//         <p className="text-sm text-gray-600">Balance: 0.00 ETH</p>
-//       </div>
-
-//       {/* 3. Compiled Contracts Box */}
-//       <div className="p-4 border border-gray-300 rounded-lg">
-//         <h2 className="text-lg font-semibold mb-2">Compiled Contracts</h2>
-//         <p className="text-sm text-gray-600">No contracts compiled yet.</p>
-//       </div>
-
-//       {/* 4. Deployed Contracts Box */}
-//       <div className="p-4 border border-gray-300 rounded-lg">
-//         <h2 className="text-lg font-semibold mb-2">Deployed Contracts</h2>
-//         <p className="text-sm text-gray-600">No deployed contracts.</p>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default DeployRun;
 "use client";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Urbanist } from "next/font/google";
+import { deployContract } from "@/utils/deployContract";
+import { getAlchemyApiKey } from "@/config/alchemy";
+import { getAllNodes } from "@/utils/IndexDB";
+import { DeploymentResult } from "@/utils/deployContract";
+import { useTerminal } from './Terminal';
 
 const urbanist = Urbanist({
   subsets: ["latin"],
   weight: ["400", "600", "700"],
 });
 
+// Define types for our component
+interface ContractFunction {
+  name: string;
+  payable: boolean;
+  inputs: Array<{name: string, type: string}>;
+  outputs?: Array<{name: string, type: string}>;
+}
+
+interface DeployedContract {
+  name: string;
+  address: string;
+  functions: ContractFunction[];
+}
+
+interface CompiledContract {
+  name: string;
+  abi: any[];
+  byteCode: string;
+  constructorInputs: Array<{name: string, type: string}>;
+}
+
+interface ConstructorInputs {
+  [key: string]: string;
+}
+
+interface TransactionDetails extends DeploymentResult {
+  timestamp?: number;
+}
+
 const DeployRun = () => {
   const [isExpanded, setIsExpanded] = useState(true);
-  const [environment, setEnvironment] = useState("remixVM");
-  const [account, setAccount] = useState("0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c");
+  const [environment, setEnvironment] = useState("sepolia");
+  const [account, setAccount] = useState("");
   const [gasLimit, setGasLimit] = useState("3000000");
   const [value, setValue] = useState("0");
   const [valueUnit, setValueUnit] = useState("wei");
-  const [selectedContract, setSelectedContract] = useState("Ballot");
-  const [deployedContracts, setDeployedContracts] = useState([
-    {
-      name: "Ballot",
-      address: "0x692a70d2e424a56d2c6c27aa97d1a86395877b3a",
-      functions: [
-        { name: "vote", payable: false, inputs: [{ name: "proposal", type: "uint256" }] },
-        { name: "delegate", payable: false, inputs: [{ name: "to", type: "address" }] },
-        { name: "winningProposal", payable: false, inputs: [], outputs: [{ name: "", type: "uint256" }] },
-        { name: "sendEther", payable: true, inputs: [] }
-      ]
-    }
-  ]);
+  const [selectedContract, setSelectedContract] = useState("");
+  const [deployedContracts, setDeployedContracts] = useState<DeployedContract[]>([]);
   const [atAddressValue, setAtAddressValue] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [transactionsRecorded, setTransactionsRecorded] = useState(0);
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [deploymentError, setDeploymentError] = useState("");
+  const [deploymentSuccess, setDeploymentSuccess] = useState("");
+  const [compiledContracts, setCompiledContracts] = useState<CompiledContract[]>([]);
+  const [constructorInputs, setConstructorInputs] = useState<ConstructorInputs>({});
+  const [alchemyApiKey, setAlchemyApiKey] = useState("");
+  const [isConnected, setIsConnected] = useState(false);
+  const [transactionDetails, setTransactionDetails] = useState<TransactionDetails | null>(null);
+  const [lastCompilationTimestamp, setLastCompilationTimestamp] = useState<number>(0);
+  const { addOutput } = useTerminal();
 
   // Mock accounts for the Remix VM
   const accounts = [
@@ -77,84 +73,434 @@ const DeployRun = () => {
     "0xdD870fA1b7C4700F2BD7f44238821C26f7392148"
   ];
 
-  // Mock environments available in Remix
+  // Environments available in Remix
   const environments = [
     { id: "remixVM", name: "Remix VM (Cancun)" },
     { id: "injected", name: "Injected Provider - MetaMask" },
-    { id: "mainnetFork", name: "Remix VM - Mainnet fork" },
-    { id: "sepoliaFork", name: "Remix VM - Sepolia fork" },
-    { id: "customFork", name: "Remix VM - Custom fork" },
     { id: "sepolia", name: "Testnet - Sepolia" },
-    { id: "walletConnect", name: "WalletConnect" },
-    { id: "optimism", name: "L2 - Optimism Provider" },
-    { id: "arbitrum", name: "L2 - Arbitrum One Provider" },
-    { id: "ephemery", name: "Ephemery Testnet" },
-    { id: "external", name: "Custom - External HTTP Provider" },
-    { id: "hardhat", name: "Dev - Hardhat Provider" },
-    { id: "ganache", name: "Dev - Ganache Provider" },
-    { id: "foundry", name: "Dev - Foundry Provider" }
-  ];
-
-  // Mock contracts available to deploy
-  const availableContracts = [
-    { name: "Ballot", constructorParams: [{ name: "proposals", type: "bytes32[]" }] },
-    { name: "ERC20", constructorParams: [{ name: "name", type: "string" }, { name: "symbol", type: "string" }] },
-    { name: "Storage", constructorParams: [] }
+    { id: "goerli", name: "Testnet - Goerli" },
+    { id: "mumbai", name: "Testnet - Mumbai" },
+    { id: "mainnet", name: "Mainnet" },
+    { id: "optimism", name: "L2 - Optimism" },
+    { id: "arbitrum", name: "L2 - Arbitrum One" },
   ];
 
   // Value units for the value input
   const valueUnits = ["wei", "gwei", "finney", "ether"];
 
+  // Create a reusable function to load compiled contracts
+  const loadCompiledContracts = useCallback(async () => {
+    try {
+      console.log("Loading compiled contracts...");
+      const files = await getAllNodes();
+      
+      // Find artifacts folder
+      const artifactsFolder = files.find(
+        (f) => f.type === "folder" && f.name === "artifacts"
+      );
+      
+      if (!artifactsFolder) {
+        console.log("No artifacts folder found");
+        return;
+      }
+      
+      // Get all JSON files in artifacts folder
+      const artifactFiles = files.filter(
+        (f) => f.type === "file" && 
+               f.parentId === artifactsFolder.id && 
+               f.name.endsWith('.json')
+      );
+      
+      // Sort artifact files by updatedAt timestamp (most recent first)
+      artifactFiles.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      
+      console.log(`Found ${artifactFiles.length} artifact files`);
+      
+      // Parse JSON files to get contract data
+      const contracts = artifactFiles.map(file => {
+        try {
+          const contractData = JSON.parse(file.content || '{}');
+          const contractName = file.name.replace('.json', '');
+          console.log(`Parsing contract: ${contractName}`);
+          
+          return {
+            name: contractName,
+            abi: contractData.abi || [],
+            byteCode: contractData.byteCode || '',
+            constructorInputs: contractData.abi?.filter((item: any) => 
+              item.type === 'constructor')[0]?.inputs || []
+          };
+        } catch (e) {
+          console.error(`Error parsing ${file.name}:`, e);
+          return null;
+        }
+      }).filter(Boolean) as CompiledContract[];
+      
+      console.log(`Successfully loaded ${contracts.length} contracts`);
+      
+      // Update state with the loaded contracts
+      setCompiledContracts(contracts);
+      
+      // If no contract is selected and we have contracts, select the first one
+      if (contracts.length > 0) {
+        // Check if the currently selected contract exists in the loaded contracts
+        const currentContractExists = selectedContract && 
+          contracts.some(c => c.name === selectedContract);
+        
+        if (!currentContractExists) {
+          // If the current selection doesn't exist, select the most recently compiled contract
+          // (which is likely the one that was just compiled)
+          console.log(`Setting selected contract to: ${contracts[0].name}`);
+          setSelectedContract(contracts[0].name);
+          
+          // Initialize constructor inputs for the selected contract
+          initializeConstructorInputs(contracts[0]);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading compiled contracts:", error);
+    }
+  }, [selectedContract]);
+  
+  // Helper function to initialize constructor inputs
+  const initializeConstructorInputs = (contract: CompiledContract) => {
+    if (contract?.constructorInputs && contract.constructorInputs.length > 0) {
+      const initialInputs: ConstructorInputs = {};
+      contract.constructorInputs.forEach(input => {
+        initialInputs[input.name] = '';
+      });
+      setConstructorInputs(initialInputs);
+    } else {
+      // Reset constructor inputs if there are none
+      setConstructorInputs({});
+    }
+  };
+  
+  // Load compiled contracts on component mount and when compilation happens
+  useEffect(() => {
+    loadCompiledContracts();
+    
+    // Set up an interval to check for new contracts
+    const intervalId = setInterval(() => {
+      loadCompiledContracts();
+    }, 5000); // Check every 5 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [loadCompiledContracts]);
+  
+  // Listen for compilation events
+  useEffect(() => {
+    const handleCompilationEvent = (event: CustomEvent) => {
+      console.log("Compilation event received");
+      setLastCompilationTimestamp(Date.now());
+      
+      // Force reload of compiled contracts immediately after compilation
+      loadCompiledContracts();
+      
+      // If the event contains contract data, we can use it directly
+      if (event.detail && event.detail.contracts) {
+        const newContracts = event.detail.contracts;
+        if (newContracts.length > 0) {
+          // Select the newly compiled contract
+          const newContract = newContracts[0];
+          setSelectedContract(newContract.contractName);
+          
+          // Initialize constructor inputs for the new contract
+          const constructorInputs = newContract.abi?.filter((item: any) => 
+            item.type === 'constructor')[0]?.inputs || [];
+          
+          if (constructorInputs.length > 0) {
+            const initialInputs: ConstructorInputs = {};
+            constructorInputs.forEach((input: any) => {
+              initialInputs[input.name] = '';
+            });
+            setConstructorInputs(initialInputs);
+          } else {
+            setConstructorInputs({});
+          }
+        }
+      }
+    };
+    
+    // Add event listener for compilation events
+    window.addEventListener('contract-compiled' as any, handleCompilationEvent);
+    
+    return () => {
+      window.removeEventListener('contract-compiled' as any, handleCompilationEvent);
+    };
+  }, [loadCompiledContracts]);
+  
+  // Reload when lastCompilationTimestamp changes
+  useEffect(() => {
+    if (lastCompilationTimestamp > 0) {
+      loadCompiledContracts();
+    }
+  }, [lastCompilationTimestamp, loadCompiledContracts]);
+  
+  // Handle contract selection change
+  const handleContractChange = (contractName: string) => {
+    setSelectedContract(contractName);
+    
+    // Find the selected contract
+    const contract = compiledContracts.find(c => c.name === contractName);
+    if (contract) {
+      // Initialize constructor inputs for the selected contract
+      initializeConstructorInputs(contract);
+    }
+  };
+
+  // Connect to MetaMask
+  const connectWallet = async () => {
+    if (typeof window.ethereum !== 'undefined') {
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' }) as string[];
+        setAccount(accounts[0] || '');
+        setIsConnected(accounts.length > 0);
+        
+        // Get network ID
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' }) as string;
+        console.log("Connected to chain ID:", chainId);
+        
+        // Set environment based on chain ID
+        switch (chainId) {
+          case '0x1':
+            setEnvironment('mainnet');
+            break;
+          case '0xaa36a7':
+            setEnvironment('sepolia');
+            break;
+          case '0x5':
+            setEnvironment('goerli');
+            break;
+          case '0x13881':
+            setEnvironment('mumbai');
+            break;
+          case '0xa':
+            setEnvironment('optimism');
+            break;
+          case '0xa4b1':
+            setEnvironment('arbitrum');
+            break;
+          default:
+            // Keep current environment
+        }
+        
+        // Listen for account changes
+        window.ethereum.on('accountsChanged', (accounts: string[]) => {
+          setAccount(accounts[0] || '');
+          setIsConnected(accounts.length > 0);
+        });
+        
+        // Listen for chain changes
+        window.ethereum.on('chainChanged', (_chainId: string) => {
+          window.location.reload();
+        });
+        
+      } catch (error) {
+        console.error("Error connecting to MetaMask:", error);
+      }
+    } else {
+      alert("MetaMask is not installed. Please install MetaMask to connect your wallet.");
+    }
+  };
+
+  // Handle constructor input changes
+  const handleConstructorInputChange = (name: string, value: string) => {
+    setConstructorInputs({
+      ...constructorInputs,
+      [name]: value
+    });
+  };
+
+  // Parse constructor inputs based on type
+  const parseConstructorInput = (input: {name: string, type: string}, value: string) => {
+    try {
+      if (input.type.includes('[]')) {
+        // Handle array types
+        return JSON.parse(value);
+      } else if (input.type.includes('int')) {
+        // Handle integer types
+        return Number(value);
+      } else if (input.type === 'bool') {
+        // Handle boolean
+        return value.toLowerCase() === 'true';
+      } else {
+        // Handle string, address, bytes, etc.
+        return value;
+      }
+    } catch (error) {
+      console.error(`Error parsing input ${input.name}:`, error);
+      throw new Error(`Invalid format for ${input.name} (${input.type})`);
+    }
+  };
+
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
   };
 
-  const deployContract = () => {
-    // Mock deployment
-    const newContract = {
-      name: selectedContract,
-      address: "0x" + Math.floor(Math.random() * 16777215).toString(16).padStart(40, '0'),
-      functions: availableContracts.find(c => c.name === selectedContract)?.name === "Ballot" 
-        ? [
-            { name: "vote", payable: false, inputs: [{ name: "proposal", type: "uint256" }] },
-            { name: "delegate", payable: false, inputs: [{ name: "to", type: "address" }] },
-            { name: "winningProposal", payable: false, inputs: [], outputs: [{ name: "", type: "uint256" }] },
-            { name: "sendEther", payable: true, inputs: [] }
-          ]
-        : [
-            { name: "set", payable: false, inputs: [{ name: "x", type: "uint256" }] },
-            { name: "get", payable: false, inputs: [], outputs: [{ name: "", type: "uint256" }] }
-          ]
-    };
+  // Deploy contract using our utility
+  const handleDeployContract = async () => {
+    setIsDeploying(true);
+    setDeploymentError("");
+    setDeploymentSuccess("");
+    setTransactionDetails(null);
     
-    setDeployedContracts([...deployedContracts, newContract]);
-    if (isRecording) {
-      setTransactionsRecorded(transactionsRecorded + 1);
+    try {
+      // Find the selected contract
+      const contract = compiledContracts.find(c => c.name === selectedContract);
+      
+      if (!contract) {
+        throw new Error("Contract not found. Please compile a contract first.");
+      }
+
+      console.log("Selected contract:", contract.name);
+      console.log("Contract bytecode length:", contract.byteCode.length);
+      console.log("Contract ABI entries:", contract.abi.length);
+      
+      if (!contract.byteCode || contract.byteCode.length < 10) {
+        throw new Error("Invalid bytecode. Please recompile the contract.");
+      }
+      
+      if (!contract.abi || contract.abi.length === 0) {
+        throw new Error("Invalid ABI. Please recompile the contract.");
+      }
+      
+      // Parse constructor arguments
+      const constructorArgs = [];
+      if (contract.constructorInputs && contract.constructorInputs.length > 0) {
+        console.log("Processing constructor inputs:", contract.constructorInputs);
+        for (const input of contract.constructorInputs) {
+          if (!constructorInputs[input.name] && input.type !== 'bool') {
+            throw new Error(`Missing constructor argument: ${input.name}`);
+          }
+          const parsedValue = parseConstructorInput(input, constructorInputs[input.name] || '');
+          console.log(`Parsed ${input.name} (${input.type}):`, parsedValue);
+          constructorArgs.push(parsedValue);
+        }
+      }
+      
+      // Get Alchemy API key for the selected environment
+      let apiKey = '';
+      if (environment !== 'remixVM' && environment !== 'injected') {
+        apiKey = getAlchemyApiKey(environment);
+        console.log("Using Alchemy API key for network:", environment);
+        if (!apiKey) {
+          console.warn(`No Alchemy API key found for ${environment}. Check your .env.local file.`);
+        }
+      }
+      
+      // Ensure we're connected to MetaMask
+      if (!isConnected && environment !== 'remixVM') {
+        console.log("Connecting to MetaMask...");
+        await connectWallet();
+        
+        // Check if connection was successful
+        if (!account) {
+          throw new Error("Failed to connect to MetaMask. Please connect manually and try again.");
+        }
+      }
+      
+      console.log("Deploying contract with the following parameters:");
+      console.log("- ABI entries:", contract.abi.length);
+      console.log("- Bytecode length:", contract.byteCode.length);
+      console.log("- Constructor args:", constructorArgs);
+      console.log("- Using Alchemy API:", !!apiKey);
+      console.log("- Connected account:", account);
+      console.log("- Selected environment:", environment);
+      
+      // Deploy the contract
+      const result = await deployContract(
+        contract.abi,
+        contract.byteCode,
+        constructorArgs,
+        apiKey,
+        environment
+      );
+      
+      console.log("Deployment result:", result);
+      
+      if (result.success && result.contractAddress) {
+        setDeploymentSuccess(`Contract deployed successfully at ${result.contractAddress}`);
+        
+        // Store transaction details
+        setTransactionDetails(result);
+        
+        // Add to terminal output
+        addOutput(result, 'transaction');
+        
+        // Add to deployed contracts
+        const newContract: DeployedContract = {
+          name: contract.name,
+          address: result.contractAddress,
+          functions: contract.abi
+            .filter(item => item.type === 'function')
+            .map(func => ({
+              name: func.name,
+              payable: func.stateMutability === 'payable',
+              inputs: func.inputs || [],
+              outputs: func.outputs || []
+            }))
+        };
+        
+        setDeployedContracts([...deployedContracts, newContract]);
+        
+        if (isRecording) {
+          setTransactionsRecorded(transactionsRecorded + 1);
+        }
+      } else {
+        setDeploymentError(result.error || "Unknown error during deployment");
+        addOutput(`Deployment failed: ${result.error || "Unknown error"}`, 'error');
+      }
+    } catch (error: any) {
+      console.error("Deployment error:", error);
+      setDeploymentError(error.message || "Error deploying contract");
+      addOutput(`Error: ${error.message || "Unknown deployment error"}`, 'error');
+    } finally {
+      setIsDeploying(false);
     }
+  };
+
+  // Function to add output to terminal
+  const addToTerminal = (output: any) => {
+    // This will be implemented to send data to the Terminal component
+    // For now, we'll just log to console
+    console.log("Terminal output:", output);
+    
+    // If you have a global terminal state or context, you would update it here
+    // For example: terminalContext.addOutput(output);
   };
 
   const accessAtAddress = () => {
     if (!atAddressValue) return;
     
-    // Mock accessing contract at address
-    const newContract = {
-      name: selectedContract,
-      address: atAddressValue,
-      functions: availableContracts.find(c => c.name === selectedContract)?.name === "Ballot" 
-        ? [
-            { name: "vote", payable: false, inputs: [{ name: "proposal", type: "uint256" }] },
-            { name: "delegate", payable: false, inputs: [{ name: "to", type: "address" }] },
-            { name: "winningProposal", payable: false, inputs: [], outputs: [{ name: "", type: "uint256" }] },
-            { name: "sendEther", payable: true, inputs: [] }
-          ]
-        : [
-            { name: "set", payable: false, inputs: [{ name: "x", type: "uint256" }] },
-            { name: "get", payable: false, inputs: [], outputs: [{ name: "", type: "uint256" }] }
-          ]
-    };
-    
-    setDeployedContracts([...deployedContracts, newContract]);
-    setAtAddressValue("");
+    try {
+      // Find the selected contract
+      const contract = compiledContracts.find(c => c.name === selectedContract);
+      
+      if (!contract) {
+        throw new Error("Contract not found. Please compile a contract first.");
+      }
+      
+      // Add to deployed contracts
+      const newContract: DeployedContract = {
+        name: contract.name,
+        address: atAddressValue,
+        functions: contract.abi
+          .filter(item => item.type === 'function')
+          .map(func => ({
+            name: func.name,
+            payable: func.stateMutability === 'payable',
+            inputs: func.inputs || [],
+            outputs: func.outputs || []
+          }))
+      };
+      
+      setDeployedContracts([...deployedContracts, newContract]);
+      setAtAddressValue("");
+    } catch (error: any) {
+      console.error("Error accessing contract at address:", error);
+      alert(error.message);
+    }
   };
 
   const toggleRecording = () => {
@@ -168,6 +514,12 @@ const DeployRun = () => {
 
   const clearDeployedContracts = () => {
     setDeployedContracts([]);
+  };
+
+  // Get constructor inputs for the selected contract
+  const getConstructorInputs = () => {
+    const contract = compiledContracts.find(c => c.name === selectedContract);
+    return contract?.constructorInputs || [];
   };
 
   return (
@@ -225,10 +577,12 @@ const DeployRun = () => {
                   </option>
                 ))}
               </select>
-              {environment === "external" && (
+              {environment !== 'remixVM' && environment !== 'injected' && (
                 <input
                   type="text"
-                  placeholder="http://127.0.0.1:8545"
+                  placeholder="Alchemy API Key (optional)"
+                  value={alchemyApiKey}
+                  onChange={(e) => setAlchemyApiKey(e.target.value)}
                   className="border p-2 rounded text-sm mt-1"
                 />
               )}
@@ -237,17 +591,34 @@ const DeployRun = () => {
             {/* Account Selector */}
             <div className="flex flex-col gap-1 mt-3">
               <div className="text-gray-600 text-xs">ACCOUNT</div>
-              <select
-                value={account}
-                onChange={(e) => setAccount(e.target.value)}
-                className="border p-2 rounded text-sm"
-              >
-                {accounts.map((acc, index) => (
-                  <option key={acc} value={acc}>
-                    Account {index} ({acc.slice(0, 6)}...{acc.slice(-4)}) - 100 ETH
-                  </option>
-                ))}
-              </select>
+              {environment === 'remixVM' ? (
+                <select
+                  value={account}
+                  onChange={(e) => setAccount(e.target.value)}
+                  className="border p-2 rounded text-sm"
+                >
+                  {accounts.map((acc, index) => (
+                    <option key={acc} value={acc}>
+                      Account {index} ({acc.slice(0, 6)}...{acc.slice(-4)}) - 100 ETH
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {isConnected ? (
+                    <div className="border p-2 rounded text-sm bg-gray-50">
+                      {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'No account connected'}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={connectWallet}
+                      className="bg-blue-600 text-white p-2 rounded text-sm hover:bg-blue-700"
+                    >
+                      Connect to MetaMask
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Gas Limit */}
@@ -290,10 +661,11 @@ const DeployRun = () => {
               <div className="text-gray-600 text-xs">CONTRACT</div>
               <select
                 value={selectedContract}
-                onChange={(e) => setSelectedContract(e.target.value)}
+                onChange={(e) => handleContractChange(e.target.value)}
                 className="border p-2 rounded text-sm"
               >
-                {availableContracts.map((contract) => (
+                <option value="">Select a contract</option>
+                {compiledContracts.map((contract) => (
                   <option key={contract.name} value={contract.name}>
                     {contract.name}
                   </option>
@@ -301,13 +673,28 @@ const DeployRun = () => {
               </select>
             </div>
 
-            {/* Deploy & At Address Buttons */}
+            {/* Deploy Button and At Address */}
             <div className="flex gap-2 mt-4">
               <button
-                onClick={deployContract}
-                className="flex-1 bg-blue-600 text-white p-2 rounded text-sm hover:bg-blue-700"
+                onClick={handleDeployContract}
+                disabled={isDeploying || !selectedContract}
+                className={`w-full py-2 px-4 mt-4 rounded-md font-semibold text-white ${
+                  isDeploying || !selectedContract
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700"
+                } transition-colors duration-200 flex items-center justify-center`}
               >
-                Deploy
+                {isDeploying ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Deploying...
+                  </>
+                ) : (
+                  "Deploy"
+                )}
               </button>
               <input
                 type="text"
@@ -318,22 +705,52 @@ const DeployRun = () => {
               />
               <button
                 onClick={accessAtAddress}
-                className="bg-gray-200 p-2 rounded text-sm hover:bg-gray-300 whitespace-nowrap"
+                disabled={!atAddressValue || !selectedContract}
+                className={`${
+                  !atAddressValue || !selectedContract
+                    ? "bg-gray-200 cursor-not-allowed"
+                    : "bg-gray-200 hover:bg-gray-300"
+                } p-2 rounded text-sm whitespace-nowrap`}
               >
                 At Address
               </button>
             </div>
 
+            {/* Error and Success Messages */}
+            {deploymentError && (
+              <div className="mt-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-md">
+                <p className="font-semibold">Error:</p>
+                <p>{deploymentError}</p>
+              </div>
+            )}
+            
+            {deploymentSuccess && (
+              <div className="mt-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded-md">
+                <p className="font-semibold">Success:</p>
+                <p>{deploymentSuccess}</p>
+              </div>
+            )}
+
             {/* Constructor Parameters */}
-            {selectedContract && availableContracts.find(c => c.name === selectedContract)?.constructorParams.length > 0 && (
+            {selectedContract && getConstructorInputs().length > 0 && (
               <div className="mt-3">
                 <div className="text-gray-600 text-xs">CONSTRUCTOR PARAMETERS</div>
-                {availableContracts.find(c => c.name === selectedContract)?.constructorParams.map((param, idx) => (
+                {getConstructorInputs().map((param, idx) => (
                   <div key={idx} className="flex flex-col mt-1">
                     <label className="text-xs text-gray-600">{param.name} ({param.type})</label>
                     <input
                       type="text"
-                      placeholder={param.type === "bytes32[]" ? '["0x1234", "0x5678"]' : param.type === "string" ? "My Token" : ""}
+                      value={constructorInputs[param.name] || ''}
+                      onChange={(e) => handleConstructorInputChange(param.name, e.target.value)}
+                      placeholder={
+                        param.type.includes('[]') 
+                          ? '["0x1234", "0x5678"]' 
+                          : param.type === 'string' 
+                            ? 'My Token' 
+                            : param.type === 'bool'
+                              ? 'true or false'
+                              : ''
+                      }
                       className="border p-2 rounded text-sm mt-1"
                     />
                   </div>
@@ -342,72 +759,51 @@ const DeployRun = () => {
             )}
 
             {/* Recorder */}
-            <div className="mt-6 p-3 bg-gray-50 rounded">
-              <div className="flex justify-between items-center">
-                <div className="text-sm font-medium">Transactions Recorded: {transactionsRecorded}</div>
-                <div className="flex gap-2">
+            <div className="mt-4 border-t pt-4">
+              <div className="flex items-center justify-between">
+                <div className="text-gray-600 text-xs">TRANSACTIONS RECORDER</div>
+                <div className="flex items-center gap-2">
                   <button
                     onClick={toggleRecording}
-                    className={`p-1 rounded ${isRecording ? "bg-red-100 text-red-600" : "bg-gray-200"}`}
+                    className={`w-3 h-3 rounded-full ${
+                      isRecording ? "bg-red-500" : "bg-gray-300"
+                    }`}
                     title={isRecording ? "Stop recording" : "Start recording"}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4"
-                      fill={isRecording ? "currentColor" : "none"}
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <circle cx="12" cy="12" r="6" />
-                    </svg>
-                  </button>
+                  ></button>
                   <button
                     onClick={saveScenario}
-                    className={`p-1 rounded bg-gray-200 ${transactionsRecorded === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
                     disabled={transactionsRecorded === 0}
-                    title="Save to scenario.json"
+                    className={`text-xs ${
+                      transactionsRecorded === 0
+                        ? "text-gray-400 cursor-not-allowed"
+                        : "text-blue-600 hover:text-blue-700"
+                    }`}
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
-                      />
-                    </svg>
+                    Save
                   </button>
                 </div>
               </div>
-              <div className="mt-2">
-                <label className="flex items-center text-[13px]">
-                  <input
-                    type="checkbox"
-                    className="accent-black"
-                  />
-                  <span className="pl-2">Run with last compilation result</span>
-                </label>
-              </div>
+              {isRecording && (
+                <div className="mt-1 text-xs text-gray-500">
+                  {transactionsRecorded} transaction(s) recorded
+                </div>
+              )}
             </div>
 
             {/* Deployed Contracts */}
-            <div className="mt-4">
-              <div className="flex justify-between items-center">
-                <div className="text-sm font-medium">DEPLOYED CONTRACTS</div>
+            <div className="mt-4 border-t pt-4">
+              <div className="flex items-center justify-between">
+                <div className="text-gray-600 text-xs">DEPLOYED CONTRACTS</div>
                 {deployedContracts.length > 0 && (
                   <button
                     onClick={clearDeployedContracts}
-                    className="text-red-500 text-xs"
+                    className="text-xs text-red-600 hover:text-red-700"
                   >
-                    Clear
+                    Clear All
                   </button>
                 )}
               </div>
+              
               <div className="mt-2 max-h-60 overflow-auto">
                 {deployedContracts.map((contract, idx) => (
                   <div key={idx} className="border rounded p-2 mb-2">
@@ -444,37 +840,35 @@ const DeployRun = () => {
                     </div>
                   </div>
                 ))}
-                {deployedContracts.length === 0 && (
-                  <div className="text-sm text-gray-500">No contracts deployed yet</div>
-                )}
               </div>
             </div>
+
+            {/* MetaMask Connection Status */}
+            {environment !== 'remixVM' && (
+              <div className="mt-4 border border-gray-200 rounded-md p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold">MetaMask Connection</p>
+                    <p className="text-sm text-gray-600">
+                      {isConnected ? 
+                        `Connected: ${account.substring(0, 6)}...${account.substring(account.length - 4)}` : 
+                        'Not connected'}
+                    </p>
+                  </div>
+                  {!isConnected && (
+                    <button
+                      onClick={connectWallet}
+                      className="bg-orange-500 hover:bg-orange-600 text-white py-2 px-4 rounded-md font-semibold transition-colors duration-200"
+                    >
+                      Connect MetaMask
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
-
-      {/* Show Arrow When Collapsed */}
-      {!isExpanded && (
-        <button
-          onClick={() => setIsExpanded(true)}
-          className="absolute left-0 top-5 transition-all"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-5 h-5 text-gray-500"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
-        </button>
-      )}
     </div>
   );
 };

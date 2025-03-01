@@ -207,6 +207,7 @@ import DeplyRun from "@/components/DeployRun";
 import Terminal from "@/components/Terminal";
 import Footer from "@/components/Footer";
 import { EditorProvider } from "@/context/EditorContext";
+import { TerminalProvider } from '@/components/Terminal';
 
 /* 4) Google font example */
 import { Urbanist } from "next/font/google";
@@ -311,62 +312,64 @@ function RootLayoutClient({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
           <EditorProvider>
-            <div className="flex h-screen">
-              {/* Sidebar */}
-              <Sidebar onSectionChange={handleActiveSectionChange} />
+            <TerminalProvider>
+              <div className="flex h-screen">
+                {/* Sidebar */}
+                <Sidebar onSectionChange={handleActiveSectionChange} />
 
-              {/* Toggle between sections */}
-              <div className="h-full">
-                {activeSection === "compiler" ? (
-                  <SolidiyCompiler />
-                ) : activeSection === "deploy-run" ? (
-                  <ToggleDeployAndRun />
-                ) : activeSection === "debugger" ? (
-                  <Debugger />
-                ) : (
-                  <FileExplorer />
-                )} 
-              </div>
-
-              {/* Main Content + Terminal Container */}
-              <div className="flex-1 flex flex-col h-screen overflow-hidden">
-                {/* Main Content Area - Fixed height */}
-                <div
-                  className="flex-1 overflow-auto"
-                  style={{
-                    height: `calc(100vh - ${terminalHeight}px)`,
-                  }}
-                >
-                  {children}
+                {/* Toggle between sections */}
+                <div className="h-full">
+                  {activeSection === "compiler" ? (
+                    <SolidiyCompiler />
+                  ) : activeSection === "deploy-run" ? (
+                    <DeplyRun />
+                  ) : activeSection === "debugger" ? (
+                    <Debugger />
+                  ) : (
+                    <FileExplorer />
+                  )} 
                 </div>
 
-                {/* Terminal at the bottom */}
-                <div
-                  ref={terminalRef}
-                  className="w-full bg-white text-black flex flex-col"
-                  style={{
-                    height: `${terminalHeight}px`,
-                    transition: "height 0.2s ease-in-out",
-                  }}
-                >
-                  {/* The draggable bar */}
+                {/* Main Content + Terminal Container */}
+                <div className="flex-1 flex flex-col h-screen overflow-hidden">
+                  {/* Main Content Area - Fixed height */}
                   <div
-                    onMouseDown={handleMouseDown}
-                    onMouseEnter={() => setIsResizerHovered(true)}
-                    onMouseLeave={() => setIsResizerHovered(false)}
-                    className={`cursor-row-resize w-full h-1 ${
-                      isResizing || isResizerHovered
-                        ? "bg-red-500"
-                        : "bg-gray-300"
-                    }`}
-                  />
-                  <Terminal toggleHeight={toggleHeight} />
-                </div>
-              </div>
+                    className="flex-1 overflow-auto"
+                    style={{
+                      height: `calc(100vh - ${terminalHeight}px)`,
+                    }}
+                  >
+                    {children}
+                  </div>
 
-              {/* Footer */}
-              <Footer />
-            </div>
+                  {/* Terminal at the bottom */}
+                  <div
+                    ref={terminalRef}
+                    className="w-full bg-white text-black flex flex-col"
+                    style={{
+                      height: `${terminalHeight}px`,
+                      transition: "height 0.2s ease-in-out",
+                    }}
+                  >
+                    {/* The draggable bar */}
+                    <div
+                      onMouseDown={handleMouseDown}
+                      onMouseEnter={() => setIsResizerHovered(true)}
+                      onMouseLeave={() => setIsResizerHovered(false)}
+                      className={`cursor-row-resize w-full h-1 ${
+                        isResizing || isResizerHovered
+                          ? "bg-red-500"
+                          : "bg-gray-300"
+                      }`}
+                    />
+                    <Terminal toggleHeight={toggleHeight} />
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <Footer />
+              </div>
+            </TerminalProvider>
           </EditorProvider>
         </RainbowKitProvider>
       </QueryClientProvider>

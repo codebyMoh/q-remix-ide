@@ -175,6 +175,12 @@ const SolidityCompiler = () => {
         setResults(contracts);
         console.log("Compilation result:", contracts);
         
+        // Dispatch a custom event with the contract data
+        const compilationEvent = new CustomEvent('contract-compiled', {
+          detail: { contracts }
+        });
+        window.dispatchEvent(compilationEvent);
+        
         // --- Generate Artifacts Folder and JSON Files ---
         (async () => {
           try {
@@ -186,7 +192,7 @@ const SolidityCompiler = () => {
               artifactFolder = {
                 id: crypto.randomUUID(),
                 name: "artifacts",
-                type: "folder",
+                type: "folder" as "folder",
                 parentId: null,
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
@@ -218,7 +224,7 @@ const SolidityCompiler = () => {
                 const newArtifactFile = {
                   id: crypto.randomUUID(),
                   name: artifactFileName,
-                  type: "file",
+                  type: "file" as "file",
                   content: artifactContent,
                   parentId: artifactFolder.id,
                   createdAt: Date.now(),
