@@ -3,29 +3,35 @@ import React, { useState, useEffect } from "react";
 import { GreenTick, RightArrow, DownArrow } from "@/assets/index";
 import { Urbanist } from "next/font/google";
 import { useEditor } from "../context/EditorContext";
-import { getAllNodes } from "../utils/IndexDB";
+import { getAllNodes, createNode, updateNode } from "../utils/IndexDB";
 
 const urbanist = Urbanist({
   subsets: ["latin"],
   weight: ["400", "600", "700"],
 });
 
+export interface ContractData {
+  contractName: string;
+  abi: any;
+  byteCode: string;
+}
+
 const SolidityCompiler = () => {
-  // Using your EditorContext which provides activeFile and onFileSelect.
-  const { activeFile, onFileSelect } = useEditor();
+  // Get active file, onFileSelect and files array from your EditorContext.
+  const { activeFile, onFileSelect, files } = useEditor();
   const [availableFiles, setAvailableFiles] = useState<any[]>([]);
   const [selectedVersion, setSelectedVersion] = useState("0.8.26+commit.8a97fa7a");
   const [isExpanded, setIsExpanded] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<ContractData[]>([]);
   const [error, setError] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
   const [showWarnings, setShowWarnings] = useState(false);
+  const [hideWarningsOption, setHideWarningsOption] = useState(false);
+  const [autoCompile, setAutoCompile] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
   const [expandedAbi, setExpandedAbi] = useState<string | null>(null);
   const [expandedBytecode, setExpandedBytecode] = useState<string | null>(null);
-  const [hideWarningsOption, setHideWarningsOption] = useState(false);
-  const [autoCompile, setAutoCompile] = useState(false);
   const [workerInstance, setWorkerInstance] = useState<Worker | null>(null);
 
   const toggleSettingsVisibility = () => {
@@ -51,15 +57,15 @@ const SolidityCompiler = () => {
 
   const checkboxOptions = [
     { label: "Include nightly builds" },
-    { 
-      label: "Auto compile", 
+    {
+      label: "Auto compile",
       checked: autoCompile,
-      onChange: () => setAutoCompile(prev => !prev)
+      onChange: () => setAutoCompile((prev) => !prev),
     },
-    { 
-      label: "Hide warnings", 
+    {
+      label: "Hide warnings",
       checked: hideWarningsOption,
-      onChange: () => setHideWarningsOption(prev => !prev)
+      onChange: () => setHideWarningsOption((prev) => !prev),
     },
   ];
 
@@ -79,7 +85,7 @@ const SolidityCompiler = () => {
     { label: "cancun" },
   ];
 
-  // Load available Solidity files from IndexedDB
+  // Load available Solidity files from IndexedDB (or your backend)
   useEffect(() => {
     async function loadSolFiles() {
       try {
@@ -95,7 +101,7 @@ const SolidityCompiler = () => {
     loadSolFiles();
   }, []);
 
-  // Auto-compile when activeFile changes if autoCompile is enabled
+  // Auto-compile if enabled when activeFile changes
   useEffect(() => {
     if (autoCompile && activeFile?.type === "file" && activeFile.name.endsWith(".sol")) {
       handleCompile();
@@ -136,26 +142,22 @@ const SolidityCompiler = () => {
     setWarnings([]);
     setResults([]);
 
-    // Always terminate the existing worker if there is one
+    // Terminate any existing worker before starting a new one
     if (workerInstance) {
       workerInstance.terminate();
     }
 
-    // Always create a new worker for each compilation - this is key
-    const worker = new Worker(
-      new URL("../workers/solc.worker.ts", import.meta.url),
-      { type: 'module' }
-    );
-
+    // Create a new worker instance (as a module)
+    const worker = new Worker(new URL("../workers/solc.worker.ts", import.meta.url), { type: "module" });
     setWorkerInstance(worker);
 
-    // Add unique timestamp to ensure fresh compilation
+    // Use a timestamp to force fresh compiler load
     const timestamp = Date.now();
     worker.postMessage({
       contractCode: activeFile.content,
       filename: activeFile.name,
       compilerVersion: selectedVersion,
-      timestamp
+      timestamp,
     });
 
     worker.onmessage = (event) => {
@@ -164,23 +166,74 @@ const SolidityCompiler = () => {
       if (event.data.error) {
         setError(event.data.error);
       } else {
-        // Handle warnings if any
         if (event.data.warnings && Array.isArray(event.data.warnings)) {
           setWarnings(event.data.warnings);
         }
-        
-        // Ensure we always set results as an array
         const contracts = Array.isArray(event.data.contracts)
           ? event.data.contracts
           : [];
         setResults(contracts);
+        console.log("Compilation result:", contracts);
         
-        if (contracts.length === 0) {
-          setError("Compilation completed but no contracts were found in the file.");
-        }
+        // --- Generate Artifacts Folder and JSON Files ---
+        (async () => {
+          try {
+            // Check if an "artifacts" folder exists in the root (parentId null)
+            let artifactFolder = files.find(
+              (f) => f.type === "folder" && f.name === "artifacts"
+            );
+            if (!artifactFolder) {
+              artifactFolder = {
+                id: crypto.randomUUID(),
+                name: "artifacts",
+                type: "folder",
+                parentId: null,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+              };
+              await createNode(artifactFolder);
+            }
+            // For each contract, create or update a JSON artifact file
+            for (const contract of contracts) {
+              const artifactFileName = `${contract.contractName}.json`;
+              const artifactContent = JSON.stringify(
+                { abi: contract.abi, byteCode: contract.byteCode },
+                null,
+                2
+              );
+              let artifactFile = files.find(
+                (f) =>
+                  f.type === "file" &&
+                  f.name === artifactFileName &&
+                  f.parentId === artifactFolder.id
+              );
+              if (artifactFile) {
+                artifactFile = {
+                  ...artifactFile,
+                  content: artifactContent,
+                  updatedAt: Date.now(),
+                };
+                await updateNode(artifactFile);
+              } else {
+                const newArtifactFile = {
+                  id: crypto.randomUUID(),
+                  name: artifactFileName,
+                  type: "file",
+                  content: artifactContent,
+                  parentId: artifactFolder.id,
+                  createdAt: Date.now(),
+                  updatedAt: Date.now(),
+                };
+                await createNode(newArtifactFile);
+              }
+            }
+          } catch (artifactError) {
+            console.error("Error updating artifacts:", artifactError);
+          }
+        })();
+        // --- End Artifacts Generation ---
       }
       
-      // Make sure to terminate the worker when done
       worker.terminate();
       setWorkerInstance(null);
     };
@@ -269,10 +322,10 @@ const SolidityCompiler = () => {
             <div className="flex flex-col gap-2 mt-3">
               {checkboxOptions.map((checkbox, index) => (
                 <label key={index} className="flex items-center text-[13px]">
-                  <input 
-                    type="checkbox" 
-                    className="accent-black" 
-                    checked={checkbox.checked !== undefined ? checkbox.checked : false}
+                  <input
+                    type="checkbox"
+                    className="accent-black"
+                    checked={checkbox.checked || false}
                     onChange={checkbox.onChange || (() => {})}
                   />
                   <span className="pl-2">{checkbox.label}</span>
@@ -404,7 +457,6 @@ const SolidityCompiler = () => {
                   )}
                 </div>
 
-                {/* Display Warnings Section */}
                 {warnings.length > 0 && showWarnings && !hideWarningsOption && (
                   <div className="mt-2 mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
                     <div className="flex justify-between items-center mb-2">
@@ -439,7 +491,13 @@ const SolidityCompiler = () => {
                     <div className="space-y-2">
                       <div>
                         <button
-                          onClick={() => setExpandedAbi(expandedAbi === contract.contractName ? null : contract.contractName)}
+                          onClick={() =>
+                            setExpandedAbi(
+                              expandedAbi === contract.contractName
+                                ? null
+                                : contract.contractName
+                            )
+                          }
                           className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
                         >
                           <span>{expandedAbi === contract.contractName ? "▾" : "▸"}</span>
@@ -453,7 +511,13 @@ const SolidityCompiler = () => {
                       </div>
                       <div>
                         <button
-                          onClick={() => setExpandedBytecode(expandedBytecode === contract.contractName ? null : contract.contractName)}
+                          onClick={() =>
+                            setExpandedBytecode(
+                              expandedBytecode === contract.contractName
+                                ? null
+                                : contract.contractName
+                            )
+                          }
                           className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
                         >
                           <span>{expandedBytecode === contract.contractName ? "▾" : "▸"}</span>
