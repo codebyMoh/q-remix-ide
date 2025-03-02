@@ -17,8 +17,7 @@ export interface ContractData {
 }
 
 const SolidityCompiler = () => {
-  // Get active file, onFileSelect and files array from your EditorContext.
-  const { activeFile, onFileSelect, files } = useEditor();
+  const { activeFile, onFileSelect, files, setCompiledContracts, compileFile, compiledContracts } = useEditor();
   const [availableFiles, setAvailableFiles] = useState<any[]>([]);
   const [selectedVersion, setSelectedVersion] = useState("0.8.26+commit.8a97fa7a");
   const [isExpanded, setIsExpanded] = useState(true);
@@ -32,7 +31,6 @@ const SolidityCompiler = () => {
   const [isCompiling, setIsCompiling] = useState(false);
   const [expandedAbi, setExpandedAbi] = useState<string | null>(null);
   const [expandedBytecode, setExpandedBytecode] = useState<string | null>(null);
-  const [workerInstance, setWorkerInstance] = useState<Worker | null>(null);
 
   const toggleSettingsVisibility = () => {
     setShowAdvanced((prev) => !prev);
@@ -85,7 +83,6 @@ const SolidityCompiler = () => {
     { label: "cancun" },
   ];
 
-  // Load available Solidity files from IndexedDB (or your backend)
   useEffect(() => {
     async function loadSolFiles() {
       try {
@@ -101,160 +98,114 @@ const SolidityCompiler = () => {
     loadSolFiles();
   }, []);
 
-  // Auto-compile if enabled when activeFile changes
   useEffect(() => {
     if (autoCompile && activeFile?.type === "file" && activeFile.name.endsWith(".sol")) {
       handleCompile();
     }
   }, [activeFile, autoCompile]);
 
-  // Clean up worker on unmount
-  useEffect(() => {
-    return () => {
-      if (workerInstance) {
-        workerInstance.terminate();
-      }
-    };
-  }, [workerInstance]);
-
-  // When a file is chosen from the dropdown, update the active file
   const handleFileSelection = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const fileId = e.target.value;
     const file = availableFiles.find((f) => f.id === fileId);
     onFileSelect(file || null);
   };
 
-  // Check if the active file is a valid Solidity file
-  const isSolFile =
-    activeFile?.type === "file" && activeFile.name.endsWith(".sol");
+  const isSolFile = activeFile?.type === "file" && activeFile.name.endsWith(".sol");
 
-  // Handle compilation by posting to the web worker
   const handleCompile = async () => {
     if (!isSolFile || !activeFile) {
       setError("Please select a Solidity file (.sol) to compile.");
       return;
     }
-    
-    console.log("Compiling file:", activeFile.name);
-    
+
     setIsCompiling(true);
     setError("");
     setWarnings([]);
     setResults([]);
 
-    // Terminate any existing worker before starting a new one
-    if (workerInstance) {
-      workerInstance.terminate();
+    try {
+      console.log("SolidityCompiler - Compiling file:", activeFile.name);
+      await compileFile(activeFile, selectedVersion);
+      setResults(compiledContracts); // Use compiledContracts from context
+    } catch (err) {
+      setError(err.message || "Compilation failed");
+      console.error("SolidityCompiler - Compilation error:", err);
+    } finally {
+      setIsCompiling(false);
     }
 
-    // Create a new worker instance (as a module)
-    const worker = new Worker(new URL("../workers/solc.worker.ts", import.meta.url), { type: "module" });
-    setWorkerInstance(worker);
+    // Generate artifacts folder and JSON files
+    if (compiledContracts.length > 0) {
+      try {
+        // Load all nodes to ensure we have the latest state
+        const allNodes = await getAllNodes();
 
-    // Use a timestamp to force fresh compiler load
-    const timestamp = Date.now();
-    worker.postMessage({
-      contractCode: activeFile.content,
-      filename: activeFile.name,
-      compilerVersion: selectedVersion,
-      timestamp,
-    });
-
-    worker.onmessage = (event) => {
-      setIsCompiling(false);
-      
-      if (event.data.error) {
-        setError(event.data.error);
-      } else {
-        if (event.data.warnings && Array.isArray(event.data.warnings)) {
-          setWarnings(event.data.warnings);
+        // Find or create a single artifacts folder at the root (parentId: null)
+        let artifactFolder = allNodes.find(
+          (f) => f.type === "folder" && f.name === "artifacts" && f.parentId === null
+        );
+        if (!artifactFolder) {
+          artifactFolder = {
+            id: crypto.randomUUID(),
+            name: "artifacts",
+            type: "folder",
+            parentId: null,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          await createNode(artifactFolder);
+          console.log("Created artifacts folder:", artifactFolder.id);
+        } else {
+          console.log("Using existing artifacts folder:", artifactFolder.id);
         }
-        const contracts = Array.isArray(event.data.contracts)
-          ? event.data.contracts
-          : [];
-        setResults(contracts);
-        console.log("Compilation result:", contracts);
-        
-        // --- Generate Artifacts Folder and JSON Files ---
-        (async () => {
-          try {
-            // Check if an "artifacts" folder exists in the root (parentId null)
-            let artifactFolder = files.find(
-              (f) => f.type === "folder" && f.name === "artifacts"
-            );
-            if (!artifactFolder) {
-              artifactFolder = {
-                id: crypto.randomUUID(),
-                name: "artifacts",
-                type: "folder",
-                parentId: null,
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
-              };
-              await createNode(artifactFolder);
-            }
-            // For each contract, create or update a JSON artifact file
-            for (const contract of contracts) {
-              const artifactFileName = `${contract.contractName}.json`;
-              const artifactContent = JSON.stringify(
-                { abi: contract.abi, byteCode: contract.byteCode },
-                null,
-                2
-              );
-              let artifactFile = files.find(
-                (f) =>
-                  f.type === "file" &&
-                  f.name === artifactFileName &&
-                  f.parentId === artifactFolder.id
-              );
-              if (artifactFile) {
-                artifactFile = {
-                  ...artifactFile,
-                  content: artifactContent,
-                  updatedAt: Date.now(),
-                };
-                await updateNode(artifactFile);
-              } else {
-                const newArtifactFile = {
-                  id: crypto.randomUUID(),
-                  name: artifactFileName,
-                  type: "file",
-                  content: artifactContent,
-                  parentId: artifactFolder.id,
-                  createdAt: Date.now(),
-                  updatedAt: Date.now(),
-                };
-                await createNode(newArtifactFile);
-              }
-            }
-          } catch (artifactError) {
-            console.error("Error updating artifacts:", artifactError);
-          }
-        })();
-        // --- End Artifacts Generation ---
-      }
-      
-      worker.terminate();
-      setWorkerInstance(null);
-    };
 
-    worker.onerror = (err) => {
-      setIsCompiling(false);
-      setError(err.message || "An error occurred during compilation");
-      worker.terminate();
-      setWorkerInstance(null);
-    };
+        // For each contract, create or update a JSON artifact file within the folder
+        for (const contract of compiledContracts) {
+          const artifactFileName = `${contract.contractName}.json`;
+          const artifactContent = JSON.stringify(
+            { abi: contract.abi, byteCode: contract.byteCode },
+            null,
+            2
+          );
+          let artifactFile = allNodes.find(
+            (f) =>
+              f.type === "file" &&
+              f.name === artifactFileName &&
+              f.parentId === artifactFolder.id
+          );
+          if (artifactFile) {
+            artifactFile = {
+              ...artifactFile,
+              content: artifactContent,
+              updatedAt: Date.now(),
+            };
+            await updateNode(artifactFile);
+          } else {
+            const newArtifactFile = {
+              id: crypto.randomUUID(),
+              name: artifactFileName,
+              type: "file",
+              content: artifactContent,
+              parentId: artifactFolder.id,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            };
+            await createNode(newArtifactFile);
+          }
+        }
+      } catch (artifactError) {
+        console.error("Error updating artifacts:", artifactError);
+      }
+    }
   };
 
   return (
     <div className="relative flex">
-      {/* Sidebar */}
       <div
         className={`${
           isExpanded ? "w-80 px-4" : "w-0 px-0"
         } bg-white flex flex-col border-r border-[#DEDEDE] py-4 transition-all duration-300 overflow-hidden ${urbanist.className}`}
       >
-        {/* Header */}
         <div className="mb-2 flex items-center justify-between">
           <span className={`${isExpanded ? "opacity-100" : "opacity-0"}`}>
             SOLIDITY COMPILER
@@ -278,15 +229,12 @@ const SolidityCompiler = () => {
           </div>
         </div>
 
-        {/* Sidebar Navigation */}
         {isExpanded && (
           <div className="flex flex-col gap-[0.1rem] mt-[1px]">
-            {/* Compiler Header */}
             <div className="flex items-center gap-2">
               <span className="text-gray-600 text-sm">Compiler</span>
             </div>
 
-            {/* Version Selector */}
             <select
               value={selectedVersion}
               onChange={(e) => setSelectedVersion(e.target.value)}
@@ -299,7 +247,6 @@ const SolidityCompiler = () => {
               ))}
             </select>
 
-            {/* Dropdown for choosing a file */}
             <div className="mt-4">
               <label className="block text-sm text-gray-600 mb-1">
                 Choose a file to compile:
@@ -318,7 +265,6 @@ const SolidityCompiler = () => {
               </select>
             </div>
 
-            {/* Checkbox Options */}
             <div className="flex flex-col gap-2 mt-3">
               {checkboxOptions.map((checkbox, index) => (
                 <label key={index} className="flex items-center text-[13px]">
@@ -333,7 +279,6 @@ const SolidityCompiler = () => {
               ))}
             </div>
 
-            {/* Advanced Configurations */}
             <div className="mt-6">
               <div className="flex justify-between items-center">
                 <div>Advanced Configurations</div>
@@ -420,7 +365,6 @@ const SolidityCompiler = () => {
               )}
             </div>
 
-            {/* Compile Buttons */}
             <div className="flex flex-col gap-4 mt-6">
               <button
                 onClick={handleCompile}
@@ -442,7 +386,6 @@ const SolidityCompiler = () => {
               </button>
             </div>
 
-            {/* Results Section */}
             {Array.isArray(results) && results.length > 0 && (
               <div className="mt-4">
                 <div className="p-2 bg-green-100 text-green-800 rounded-md mb-2 flex justify-between items-center">
@@ -535,7 +478,6 @@ const SolidityCompiler = () => {
               </div>
             )}
 
-            {/* Error Display */}
             {error && (
               <div className="mt-4 p-2 bg-red-100 text-red-800 rounded-md">
                 <div className="font-bold mb-1">✗ Compilation Failed</div>
@@ -546,7 +488,6 @@ const SolidityCompiler = () => {
         )}
       </div>
 
-      {/* Show Arrow When Collapsed */}
       {!isExpanded && (
         <button
           onClick={() => setIsExpanded(true)}
