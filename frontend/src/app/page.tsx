@@ -73,11 +73,18 @@ contract MyContract {
     }
   };
 
-  const { files, activeFileId, onFileSelect, onCloseFile, activeFile } =
-    useEditor();
+  const {
+    files,
+    activeFileId,
+    onFileSelect,
+    onCloseFile,
+    activeFile,
+    setActiveFileId,
+    showHome,
+    setShowHome
+  } = useEditor();
 
   useEffect(() => {}, [files]);
-
   return (
     <div className="flex flex-col h-full">
       <Header
@@ -88,32 +95,34 @@ contract MyContract {
         activeFileId={activeFileId}
         onFileSelect={onFileSelect}
         onCloseFile={onCloseFile}
+        setActiveFileId={setActiveFileId}
+        showHome={showHome}
+        setShowHome={setShowHome}
       />
       <div className="flex-1 relative overflow-hidden">
-        {files.length === 0 && activeFileId === null ? (
+        {activeFileId === "Home" ? (
           <div className="flex w-full h-full overflow-auto">
             <MemoizedWeb3Workspace />
             <MemoizedFeaturesShow />
           </div>
-        ) : (
-          activeFile && (
-            <div
-              style={{
-                transform: `scale(${zoom})`,
-                transformOrigin: "top left",
-                height: "calc(100vh - 84px)", // Account for header and tab bar
-              }}
-              className="flex-1 overflow-hidden"
-            >
-              <MonacoEditor
-                file={activeFile}
-                zoom={zoom}
-                error={error}
-                compilationResult={compilationResult}
-              />
-            </div>
-          )
-        )}
+        ) : activeFile || (activeFileId==="editor" && files.length === 0) ? (
+          <div
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: "top left",
+              height: "calc(100vh - 84px)"
+            }}
+            className="flex-1 overflow-hidden"
+          >
+            <MonacoEditor
+              file={activeFile}
+              zoom={zoom}
+              error={error}
+              code={code}
+              compilationResult={compilationResult}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );

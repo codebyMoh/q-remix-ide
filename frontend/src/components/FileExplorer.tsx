@@ -67,6 +67,9 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
   const [selectedWorkspace, setSelectedWorkspace] =
     useState("Default Workspace");
   const [isExpanded, setIsExpanded] = useState(true);
+  
+  // Add state for error message when duplicate is detected
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Add state for delete confirmation - removed position since we're centering it
   const [deleteConfirmation, setDeleteConfirmation] =
@@ -91,6 +94,18 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
 
     loadAllNodes();
   }, []);
+  
+  // Automatically clear error message after 3 seconds
+  useEffect(() => {
+    if (errorMessage) {
+      const timer = setTimeout(() => {
+        setErrorMessage(null);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [errorMessage]);
+  
   const sortNodes = (nodes: FileSystemNode[]) => {
     return [...nodes].sort((a, b) => {
       if (a.type !== b.type) {
@@ -98,6 +113,14 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
       }
       return a.name.localeCompare(b.name);
     });
+  };
+
+  const isDuplicate = (type: "file" | "folder", name: string, parentId: string | null): boolean => {
+    return allNodes.some(node => 
+      node.type === type && 
+      node.parentId === parentId && 
+      node.name.toLowerCase() === name.toLowerCase()
+    );
   };
 
   const handleCreateNode = async (
@@ -110,31 +133,71 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
       allNodes.find((n) => n.id === selectedNode)?.type === "folder"
         ? selectedNode
         : null);
-
-    const newNode: FileSystemNode = {
-      id: crypto.randomUUID(),
-      name: `New ${type}`,
-      type,
-      parentId: effectiveParentId,
-      content: type === "file" ? code : undefined,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
-    try {
-      // Create the node but keep it in a pending state
-      setPendingNewNode(newNode);
-      setEditingNode(newNode.id);
-      setNewNodeName("");
-
-      if (effectiveParentId) {
-        setExpandedFolders((prev) => new Set(prev).add(effectiveParentId));
+        
+    const defaultName = `New ${type}`;
+    
+    // Check if a node with the same name already exists in the same location
+    if (isDuplicate(type, defaultName, effectiveParentId)) {
+      // Find a unique name by adding a number suffix
+      let counter = 1;
+      let uniqueName = `${defaultName} (${counter})`;
+      
+      while (isDuplicate(type, uniqueName, effectiveParentId)) {
+        counter++;
+        uniqueName = `${defaultName} (${counter})`;
       }
+      
+      const newNode: FileSystemNode = {
+        id: crypto.randomUUID(),
+        name: uniqueName,
+        type,
+        parentId: effectiveParentId,
+        content: type === "file" ? code : undefined,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
 
-      // Add it temporarily to UI
-      setAllNodes((prev) => sortNodes([...prev, newNode]));
-    } catch (error) {
-      console.error("Failed to create node:", error);
+      try {
+        // Create the node but keep it in a pending state
+        setPendingNewNode(newNode);
+        setEditingNode(newNode.id);
+        setNewNodeName(uniqueName);
+
+        if (effectiveParentId) {
+          setExpandedFolders((prev) => new Set(prev).add(effectiveParentId));
+        }
+
+        // Add it temporarily to UI
+        setAllNodes((prev) => sortNodes([...prev, newNode]));
+      } catch (error) {
+        console.error("Failed to create node:", error);
+      }
+    } else {
+      const newNode: FileSystemNode = {
+        id: crypto.randomUUID(),
+        name: defaultName,
+        type,
+        parentId: effectiveParentId,
+        content: type === "file" ? code : undefined,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      try {
+        // Create the node but keep it in a pending state
+        setPendingNewNode(newNode);
+        setEditingNode(newNode.id);
+        setNewNodeName("");
+
+        if (effectiveParentId) {
+          setExpandedFolders((prev) => new Set(prev).add(effectiveParentId));
+        }
+
+        // Add it temporarily to UI
+        setAllNodes((prev) => sortNodes([...prev, newNode]));
+      } catch (error) {
+        console.error("Failed to create node:", error);
+      }
     }
   };
 
@@ -210,6 +273,18 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
 
     // If it's a new name and not empty, save it
     if (newNodeName.trim()) {
+      // Check if the new name would create a duplicate
+      if (newNodeName !== node.name && isDuplicate(node.type, newNodeName, node.parentId)) {
+        setErrorMessage(`A ${node.type} with this name already exists`);
+        
+        // If it's a pending new node, use the existing name or remove it
+        if (pendingNewNode && node.id === pendingNewNode.id) {
+          setAllNodes((prev) => prev.filter((n) => n.id !== node.id));
+          setPendingNewNode(null);
+        }
+        return;
+      }
+      
       const updatedNode = { ...node, name: newNodeName, updatedAt: Date.now() };
 
       try {
@@ -423,7 +498,17 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
   );
 
   return (
-    <div className="bg-white border-r border-[#DEDEDE] h-screen overflow-y-auto relative">
+    <div className="bg-white border-r border-[#DEDEDE] h-screen overflow-y-auto relative"
+    onClick={(e)=>{
+      setSelectedNode(null)
+      e.stopPropagation()
+    }}
+    >
+      {errorMessage && (
+        <div className="absolute top-0 left-0 right-0 bg-red-500 text-white text-center py-2 z-50">
+          {errorMessage}
+        </div>
+      )}
       <div
         className={`${
           isExpanded ? "w-80 px-4" : "w-0 px-0"

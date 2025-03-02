@@ -11,12 +11,12 @@ interface MonacoEditorProps {
 const MonacoEditor: React.FC<MonacoEditorProps> = ({
   file,
   error,
+  code,
   compilationResult,
 }) => {
-  const [content, setContent] = useState(file.content);
+  const [content, setContent] = useState(file?.content || code);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
   useEffect(() => {
     const loadContent = async () => {
       const latestFile = await getNodeById(file.id);
@@ -26,7 +26,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       }
     };
     loadContent();
-  }, [file.id]);
+  }, [file?.id]);
 
   const handleSave = async () => {
     try {
@@ -72,7 +72,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   }, [isDirty, isSaving, handleSave]);
 
   const getLanguage = (fileName: string) => {
-    const ext = fileName.split('.').pop()?.toLowerCase();
+    const ext = fileName?.split('.').pop()?.toLowerCase();
     switch (ext) {
       case "js":
         return "javascript";
@@ -105,7 +105,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       <div className="flex-1 relative" style={{ minHeight: "200px" }}>
         <Editor
           height="100%"
-          defaultLanguage={getLanguage(file.name)}
+          defaultLanguage={getLanguage(file?.name)}
           value={content}
           theme="vs-light"
           onChange={(value) => {

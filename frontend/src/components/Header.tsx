@@ -7,9 +7,6 @@ import {
   ZoomIn,
   HomeIcon,
   Cross,
-} from "@/assets/index";
-import { X } from "lucide-react";
-import {
   JsfileIcon,
   JsonfileIcon,
   SolidityfileIcon,
@@ -17,7 +14,7 @@ import {
   Readme,
   Code,
 } from "@/assets/index";
-
+import { X } from "lucide-react";
 // Icons array for iteration
 const icons = [Play, Robot, ToggleOff, ZoomOut, ZoomIn];
 
@@ -61,8 +58,11 @@ const Header: React.FC<HeaderProps> = ({
   activeFileId,
   onFileSelect,
   onCloseFile,
+  setActiveFileId,
+  showHome,
+  setShowHome,
 }) => {
-  const [showHome, setShowHome] = useState(true);
+
   const tabContainerRef = useRef<HTMLDivElement>(null);
 
   // Scroll to the latest opened file
@@ -101,13 +101,25 @@ const Header: React.FC<HeaderProps> = ({
         className="flex-1 flex items-center overflow-x-auto space-x-2 scrollbar-hide pl-4 hide-scrollbar"
       >
         {showHome && (
-          <div className="flex items-center border-r px-3 py-1 cursor-pointer">
+          <div
+            className={`flex h-[38px] items-center border-r  cursor-pointer 
+            
+            ${
+              activeFileId == "Home"
+                ? "bg-gray-100 text-gray-900"
+                : "text-gray-600 hover:bg-gray-200"
+            }`}
+            onClick={(e) => setActiveFileId("Home")
+            }
+          >
             <HomeIcon />
-            <span className="abc">Home</span>
+            <span className="truncate max-w-[100px]">Home</span>
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setShowHome(false);
                 setActiveTab("editor");
+                setActiveFileId("editor");
               }}
               className="ml-1"
             >
@@ -120,9 +132,9 @@ const Header: React.FC<HeaderProps> = ({
         {files.map((file) => (
           <div
             key={file.id}
-            className={`flex items-center px-3 py-1 border-r cursor-pointer group ${
+            className={`flex items-center h-[38px] px-3 py-1 border-r cursor-pointer group ${
               activeFileId === file.id
-                ? "bg-gray-100 text-gray-900"
+                ? "bg-gray-100  text-gray-900"
                 : "text-gray-600 hover:bg-gray-200"
             }`}
             onClick={() => onFileSelect(file)}

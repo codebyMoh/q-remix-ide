@@ -21,8 +21,8 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   // State for tracking open files
   const [openFiles, setOpenFiles] = useState<FileSystemNode[]>([]);
   // State for tracking the active file ID
-  const [activeFileId, setActiveFileId] = useState<string | null>(null);
-
+  const [activeFileId, setActiveFileId] = useState<string | null>("Home");
+  const [showHome, setShowHome] = useState(true);
   // Handler for selecting/opening a file
   const handleFileSelect = (file: FileSystemNode | null) => {
     if (!file || file.type !== "file") return;
@@ -56,7 +56,17 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const activeFile = openFiles.find((f) => f.id === activeFileId) || null;
 
   // Debug logging
-  useEffect(() => {}, [openFiles, activeFileId]);
+  useEffect(() => {
+    if (openFiles.length == 0 && activeFileId !== "editor") {
+      if (showHome) {
+        setActiveFileId("Home");
+      } else {
+        setActiveFileId("editor");
+      }
+    } else if (openFiles.length != 0 && activeFileId === "editor") {
+      setActiveFileId(openFiles[openFiles.length - 1].id);
+    }
+  }, [openFiles, activeFileId, handleCloseFile]);
 
   // Provide context values
   const contextValue: EditorContextProps = {
@@ -65,6 +75,9 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
     activeFile,
     onFileSelect: handleFileSelect,
     onCloseFile: handleCloseFile,
+    setActiveFileId,
+    showHome,
+    setShowHome,
   };
 
   return (
