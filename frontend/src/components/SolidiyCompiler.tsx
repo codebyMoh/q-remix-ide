@@ -160,7 +160,7 @@ const SolidityCompiler = () => {
       timestamp,
     });
 
-    worker.onmessage = (event) => {
+    worker.onmessage = async (event) => {
       setIsCompiling(false);
       
       if (event.data.error) {
@@ -184,9 +184,12 @@ const SolidityCompiler = () => {
         // --- Generate Artifacts Folder and JSON Files ---
         (async () => {
           try {
-            // Check if an "artifacts" folder exists in the root (parentId null)
-            let artifactFolder = files.find(
-              (f) => f.type === "folder" && f.name === "artifacts"
+            // Load all nodes to ensure we have the latest state
+            const allNodes = await getAllNodes();
+
+            // Find or create a single artifacts folder at the root (parentId: null)
+            let artifactFolder = allNodes.find(
+              (f) => f.type === "folder" && f.name === "artifacts" && f.parentId === null
             );
             if (!artifactFolder) {
               artifactFolder = {
@@ -198,8 +201,12 @@ const SolidityCompiler = () => {
                 updatedAt: Date.now(),
               };
               await createNode(artifactFolder);
+              console.log("Created artifacts folder:", artifactFolder.id);
+            } else {
+              console.log("Using existing artifacts folder:", artifactFolder.id);
             }
-            // For each contract, create or update a JSON artifact file
+
+            // For each contract, create or update a JSON artifact file within the folder
             for (const contract of contracts) {
               const artifactFileName = `${contract.contractName}.json`;
               const artifactContent = JSON.stringify(
@@ -207,7 +214,7 @@ const SolidityCompiler = () => {
                 null,
                 2
               );
-              let artifactFile = files.find(
+              let artifactFile = allNodes.find(
                 (f) =>
                   f.type === "file" &&
                   f.name === artifactFileName &&
