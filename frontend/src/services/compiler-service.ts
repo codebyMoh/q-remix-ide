@@ -52,17 +52,10 @@ export interface CompilationResult {
 }
 
 export interface CompilerService {
-  compile(
-    targets: CompilationTarget,
-    settings: CompilerSettings
-  ): Promise<CompilationResult>;
-  
+  compile(targets: CompilationTarget, settings: CompilerSettings): Promise<CompilationResult>;
   validateSources(sources: CompilationTarget): boolean;
-  
   getVersions(): Promise<string[]>;
-  
   resolveImports(fileContent: string): Promise<any>;
-  
   getCompatibleVersion(content: string): Promise<string>;
 }
 
@@ -74,13 +67,21 @@ class RemixCompilerService implements CompilerService {
     settings: CompilerSettings
   ): Promise<CompilationResult> {
     try {
-      const [fileName, { content }] = Object.entries(targets);
+      if (!targets || Object.keys(targets).length === 0) {
+        throw new Error("No compilation targets provided");
+      }
+
+      const [fileName, fileData] = Object.entries(targets)[0];
+      const content = fileData?.content;
       console.log("Compiler-service.ts: Received content:", content);
+      if (!content) throw new Error("No content provided for compilation");
+
       let warnings: Warning[] | undefined;
-      const version = await this.getCompatibleVersion(content); // Always use pragma-based version
+      const version = await this.getCompatibleVersion(content);
       console.log("Compiler-service.ts: Final version selected:", version);
       const result = await compile(content, version, (w) => (warnings = w));
 
+      console.log("Compiler-service.ts: Compilation result:", result);
       return {
         success: true,
         data: result,
@@ -101,7 +102,7 @@ class RemixCompilerService implements CompilerService {
       return false;
     }
     for (const [fileName, { content }] of Object.entries(sources)) {
-      if (!fileName.endsWith(".sol") || !content.trim()) {
+      if (!fileName.endsWith(".sol") || !content?.trim()) {
         return false;
       }
     }
@@ -154,6 +155,10 @@ class RemixCompilerService implements CompilerService {
 
   async getCompatibleVersion(content: string): Promise<string> {
     console.log("getCompatibleVersion: Processing content:", content);
+    if (!content || typeof content !== "string") {
+      console.warn("getCompatibleVersion: No valid content, defaulting to 0.8.19+commit.7dd6d404");
+      return "0.8.19+commit.7dd6d404";
+    }
     const pragmaMatch = content.match(/pragma\s+solidity\s+[^0-8]*(\d+\.\d+\.\d+)/);
     const requiredVersion = pragmaMatch ? pragmaMatch[1] : null;
     console.log("getCompatibleVersion: Parsed pragma version:", requiredVersion);

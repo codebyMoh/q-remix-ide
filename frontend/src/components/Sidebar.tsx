@@ -95,6 +95,22 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
             }`}
           />
         </button>
+        {/* Deploy & Run Button (Fourth Icon) */}
+        <button
+          className={`p-2 rounded-lg ${
+            active === "deploy-run" ? "bg-gray-200" : "hover:bg-gray-300"
+          }`}
+          onClick={() => {
+            setActive("deploy-run");
+            onSectionChange("deploy-run");
+          }}
+        >
+          <Deploy
+            className={`w-8 h-8 ${
+              active === "deploy-run" ? "text-[#CE192D]" : "text-black"
+            }`}
+          />
+        </button>
 
         {/* Debugger Button */}
         <button
@@ -109,23 +125,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
           <Bug
             className={`mx-2 w-5 h-5 ${
               active === "debugger" ? "text-[#CE192D]" : "text-black"
-            }`}
-          />
-        </button>
-
-        {/* Deploy & Run Button (Fourth Icon) */}
-        <button
-          className={`p-2 rounded-lg ${
-            active === "deploy-run" ? "bg-gray-200" : "hover:bg-gray-300"
-          }`}
-          onClick={() => {
-            setActive("deploy-run");
-            onSectionChange("deploy-run");
-          }}
-        >
-          <Deploy
-            className={`w-8 h-8 ${
-              active === "deploy-run" ? "text-[#CE192D]" : "text-black"
             }`}
           />
         </button>

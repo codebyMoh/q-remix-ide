@@ -1,20 +1,21 @@
 import wrapper from "solc/wrapper";
 
-self.onmessage = (event) => {
-  const { contractCode, filename, compilerVersion } = event.data;
-  
+self.onmessage = async (event) => {
   try {
-    const url = `https://binaries.soliditylang.org/bin/soljson-v${compilerVersion}.js?t=${Date.now()}`;
-    console.log("Loading compiler from:", url);
-    importScripts(url);
+    const { contractCode, filename, compilerVersion, timestamp } = event.data;
+    console.log(`Worker: Loading compiler version: ${compilerVersion} (timestamp: ${timestamp})`);
     
+    // Append timestamp to avoid caching
+    const compilerURL = `https://binaries.soliditylang.org/bin/soljson-v${compilerVersion}.js?t=${timestamp}`;
+    importScripts(compilerURL);
+
     if (!self.Module) {
       throw new Error(`Failed to initialize compiler for version ${compilerVersion}`);
     }
-    
-    const compiler = wrapper(self.Module);
-    console.log("Compiler loaded for version:", compilerVersion);
 
+    const compiler = wrapper(self.Module);
+    console.log(`Worker: Compiler loaded for version: ${compilerVersion}`);
+    
     const sourceCode = {
       language: "Solidity",
       sources: {
@@ -26,11 +27,46 @@ self.onmessage = (event) => {
         },
       },
     };
-
+    
     const output = JSON.parse(compiler.compile(JSON.stringify(sourceCode)));
-    self.postMessage({ output, filename });
+    console.log("Worker: Compilation output:", output);
+    
+    const warnings: string[] = [];
+    const errors: string[] = [];
+    
+    if (output.errors) {
+      for (const error of output.errors) {
+        if (error.severity === "error") {
+          errors.push(error.formattedMessage);
+        } else if (error.severity === "warning") {
+          warnings.push(error.formattedMessage);
+        }
+      }
+    }
+    
+    if (errors.length > 0) {
+      self.postMessage({ error: errors.join("\n"), warnings, timestamp });
+      return;
+    }
+    
+    if (!output.contracts || !output.contracts[filename] || Object.keys(output.contracts[filename]).length === 0) {
+      self.postMessage({ error: "Compilation failed: No contract objects were generated.", warnings, timestamp });
+      return;
+    }
+    
+    const contracts = [];
+    for (const [contractName, contractData] of Object.entries(output.contracts[filename])) {
+      contracts.push({
+        contractName,
+        abi: contractData.abi,
+        byteCode: contractData.evm?.bytecode?.object || "0x",
+      });
+    }
+    
+    console.log(`Worker: Compilation successful. Found ${contracts.length} contracts.`);
+    self.postMessage({ contracts, warnings, timestamp });
   } catch (error) {
     console.error("Worker error:", error);
-    self.postMessage({ error: `Failed to load or run compiler version ${compilerVersion}: ${error.message}` });
+    self.postMessage({ error: error.message || "Unknown compilation error" });
   }
 };

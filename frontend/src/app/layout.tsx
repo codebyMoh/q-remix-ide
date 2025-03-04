@@ -17,7 +17,8 @@ import Sidebar from "@/components/Sidebar";
 import FileExplorer from "@/components/FileExplorer";
 import ToggleDeployAndRun from "@/components/ToggleDeployAndRun";
 import SolidiyCompiler from "@/components/SolidiyCompiler";
-import Debugger from "@/components/Debugger"; // <-- Imported Debugger
+import Debugger from "@/components/Debugger"; 
+import DeployRun from "@/components/DeployRun";
 import Terminal from "@/components/Terminal";
 import Footer from "@/components/Footer";
 import { EditorProvider } from "@/context/EditorContext";
@@ -30,7 +31,11 @@ const urbanist = Urbanist({
 });
 
 /* 5) Wagmi + RainbowKit config */
-const projectId = "YOUR_WALLETCONNECT_PROJECT_ID";
+const projectId = "YOUR_WALLETCONNECT_PROJECT_ID"; // Replace with your WalletConnect project ID
+if (!projectId) {
+  throw new Error("WalletConnect project ID is required. Please set it in the configuration.");
+}
+
 const connectors = connectorsForWallets(
   [
     {
@@ -57,7 +62,6 @@ export default function RootLayout({
 }) {
   const [activeSection, setActiveSection] = useState<string>("workspace");
   const [terminalHeight, setTerminalHeight] = useState(150);
-  
   const terminalRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
   const [isResizing, setIsResizing] = useState(false);
