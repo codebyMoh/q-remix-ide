@@ -20,6 +20,8 @@ const EditorContext = createContext<EditorContextProps | undefined>(undefined);
 export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   // State for tracking open files
   const [openFiles, setOpenFiles] = useState<FileSystemNode[]>([]);
+
+    const [allNodes, setAllNodes] = useState<FileSystemNode[]>([]);
   // State for tracking the active file ID
   const [activeFileId, setActiveFileId] = useState<string | null>("Home");
   const [showHome, setShowHome] = useState(true);
@@ -78,6 +80,8 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
     setActiveFileId,
     showHome,
     setShowHome,
+    allNodes, 
+    setAllNodes,
   };
 
   return (

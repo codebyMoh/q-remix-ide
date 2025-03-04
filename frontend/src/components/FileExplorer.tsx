@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ChevronRight, Plus, Trash, Edit2 } from "lucide-react";
+import { ChevronRight} from "lucide-react";
 import { FaRegFolder } from "react-icons/fa";
 import {
   createNode,
@@ -44,8 +44,8 @@ interface DeleteConfirmation {
 }
 
 const FileExplorer: React.FC<FileExplorerProps> = () => {
-  const { onFileSelect } = useEditor();
-  const [allNodes, setAllNodes] = useState<FileSystemNode[]>([]);
+  const { onFileSelect,allNodes,setAllNodes, } = useEditor();
+  // const [allNodes, setAllNodes] = useState<FileSystemNode[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     new Set()
   );
@@ -242,7 +242,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     if (nodeToDelete.type === "folder") {
       idsToDelete.push(...getAllChildIds(nodeToDelete.id));
     }
-
+ 
     try {
       await Promise.all(idsToDelete.map((id) => deleteNode(id)));
       setAllNodes((prev) =>

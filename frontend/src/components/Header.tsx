@@ -15,6 +15,7 @@ import {
   Code,
 } from "@/assets/index";
 import { X } from "lucide-react";
+import { useEditor } from "../context/EditorContext";
 // Icons array for iteration
 const icons = [Play, Robot, ToggleOff, ZoomOut, ZoomIn];
 
@@ -27,6 +28,9 @@ interface HeaderProps {
   activeFileId: string | null;
   onFileSelect: (file: any) => void;
   onCloseFile: (fileId: string) => void;
+  setActiveFileId: (fileId: string) => void;
+  showHome: boolean;
+  setShowHome: (show: boolean) => void;
 }
 
 const getIconForType = (name: string) => {
@@ -62,8 +66,8 @@ const Header: React.FC<HeaderProps> = ({
   showHome,
   setShowHome,
 }) => {
-
   const tabContainerRef = useRef<HTMLDivElement>(null);
+  const { allNodes } = useEditor();
 
   // Scroll to the latest opened file
   useEffect(() => {
@@ -72,6 +76,20 @@ const Header: React.FC<HeaderProps> = ({
     }
   }, [files]);
 
+
+  useEffect(() => {
+    if (allNodes && files.length > 0) {
+      const nodeIds = allNodes.map(node => node.id);
+      const filesToClose = files.filter(file => {
+       if (file.id === "Home") return false;
+        return !nodeIds.includes(file.id);
+      });
+      filesToClose.forEach(file => {
+        onCloseFile(file.id);
+      });
+    }
+  }, [allNodes, files, onCloseFile]);
+ 
   return (
     <div className="h-[38px] flex items-center px-4 bg-white border-b shadow-sm">
       {/* Icons Section */}
@@ -102,15 +120,13 @@ const Header: React.FC<HeaderProps> = ({
       >
         {showHome && (
           <div
-            className={`flex h-[38px] items-center border-r  cursor-pointer 
-            
+            className={`flex h-[38px] items-center border-r cursor-pointer 
             ${
-              activeFileId == "Home"
+              activeFileId === "Home"
                 ? "bg-gray-100 text-gray-900"
                 : "text-gray-600 hover:bg-gray-200"
             }`}
-            onClick={(e) => setActiveFileId("Home")
-            }
+            onClick={() => setActiveFileId("Home")}
           >
             <HomeIcon />
             <span className="truncate max-w-[100px]">Home</span>
@@ -134,7 +150,7 @@ const Header: React.FC<HeaderProps> = ({
             key={file.id}
             className={`flex items-center h-[38px] px-3 py-1 border-r cursor-pointer group ${
               activeFileId === file.id
-                ? "bg-gray-100  text-gray-900"
+                ? "bg-gray-100 text-gray-900"
                 : "text-gray-600 hover:bg-gray-200"
             }`}
             onClick={() => onFileSelect(file)}
