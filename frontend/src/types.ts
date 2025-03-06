@@ -7,3 +7,8 @@ export interface FileSystemNode {
     createdAt: number;
     updatedAt: number;
   }
+  export interface Workspace {
+    id: string;
+    name: string;
+    createdAt: number;
+  }
