@@ -1,22 +1,26 @@
 "use client";
 import React, { useState } from "react";
-import  {Logo,
+import {
+  Logo,
   Workspace,
-Search ,
-Compile ,
-Deploy ,
-Bug,
-Git,
-Settings,
-SettingsD,
-Plugin} from '@/assets/index'
-
+  Search,
+  Compile,
+  Deploy,
+  Bug,
+  Git,
+  Settings,
+  SettingsD,
+  Plugin,
+} from "@/assets/index";
+import { useEditor } from "../context/EditorContext";
 interface SidebarProps {
   onSectionChange: (section: string) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
   const [active, setActive] = useState("workspace");
+
+  const { setActiveFileId, setShowHome } = useEditor();
 
   return (
     <div className="w-20 bg-white flex flex-col gap-1 border border-gray-300 items-center p-2">
@@ -28,7 +32,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
           onSectionChange("workspace");
         }}
       >
-        <Logo className="w-10 h-10 rounded-full" />
+        <Logo
+          className="w-10 h-10 rounded-full"
+          onClick={() => {
+            setActiveFileId("Home");
+            setShowHome(true);
+          }}
+        />
       </div>
       <div className="mb-6 w-full flex justify-center">
         <hr className="w-10 border-t-2 border-gray-300" />
@@ -45,7 +55,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
             onSectionChange("workspace");
           }}
         >
-          <Workspace className={`w-8 h-8 ${active === "workspace" ? "text-[#CE192D]" : "text-black"}`} />
+          <Workspace
+            className={`w-8 h-8 ${
+              active === "workspace" ? "text-[#CE192D]" : "text-black"
+            }`}
+          />
         </button>
 
         {/* Search Button (Adjusted for alignment and color) */}
@@ -58,7 +72,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
             onSectionChange("search");
           }}
         >
-          <Search className={`w-8 h-8 pl-[8px] pt-[8px] ${active === "search" ? "text-[#CE192D]" : "text-black"}`} />
+          <Search
+            className={`w-8 h-8 pl-[8px] pt-[8px] ${
+              active === "search" ? "text-[#CE192D]" : "text-black"
+            }`}
+          />
         </button>
 
         {/* Compile Button */}
@@ -71,22 +89,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
             onSectionChange("compiler");
           }}
         >
-          <Compile className={`w-8 h-8 ${active === "compile" ? "text-[#CE192D]" : "text-black"}`} />
+          <Compile
+            className={`w-8 h-8 ${
+              active === "compile" ? "text-[#CE192D]" : "text-black"
+            }`}
+          />
         </button>
-
-        {/* Debugger Button */}
-<button
-  className={`p-2 rounded-lg ${
-    active === "debugger" ? "bg-gray-200" : "hover:bg-gray-300"
-  }`}
-  onClick={() => {
-    setActive("debugger");
-    onSectionChange("debugger");
-  }}
->
-  <Bug className={`mx-2 w-5 h-5 ${active === "debugger" ? "text-[#CE192D]" : "text-black"}`} />
-</button>
-
         {/* Deploy & Run Button (Fourth Icon) */}
         <button
           className={`p-2 rounded-lg ${
@@ -97,7 +105,28 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
             onSectionChange("deploy-run");
           }}
         >
-          <Deploy className={`w-8 h-8 ${active === "deploy-run" ? "text-[#CE192D]" : "text-black"}`} />
+          <Deploy
+            className={`w-8 h-8 ${
+              active === "deploy-run" ? "text-[#CE192D]" : "text-black"
+            }`}
+          />
+        </button>
+
+        {/* Debugger Button */}
+        <button
+          className={`p-2 rounded-lg ${
+            active === "debugger" ? "bg-gray-200" : "hover:bg-gray-300"
+          }`}
+          onClick={() => {
+            setActive("debugger");
+            onSectionChange("debugger");
+          }}
+        >
+          <Bug
+            className={`mx-2 w-5 h-5 ${
+              active === "debugger" ? "text-[#CE192D]" : "text-black"
+            }`}
+          />
         </button>
 
         {/* Git Button */}
@@ -110,7 +139,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
             onSectionChange("git");
           }}
         >
-          <Git className={`w-8 h-8 ${active === "git" ? "text-[#CE192D]" : "text-black"}`} />
+          <Git
+            className={`w-8 h-8 ${
+              active === "git" ? "text-[#CE192D]" : "text-black"
+            }`}
+          />
         </button>
 
         {/* Settings Button */}
@@ -123,7 +156,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
             onSectionChange("settings");
           }}
         >
-          <Settings className={`w-8 h-8 ${active === "settings" ? "text-[#CE192D]" : "text-black"}`} />
+          <Settings
+            className={`w-8 h-8 ${
+              active === "settings" ? "text-[#CE192D]" : "text-black"
+            }`}
+          />
         </button>
       </nav>
 
@@ -138,7 +175,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
             onSectionChange("settingsd");
           }}
         >
-          <SettingsD className={`w-8 h-8 ${active === "settingsd" ? "text-[#CE192D]" : "text-black"}`} />
+          <SettingsD
+            className={`w-8 h-8 ${
+              active === "settingsd" ? "text-[#CE192D]" : "text-black"
+            }`}
+          />
         </button>
 
         {/* Plugin Button */}
@@ -151,7 +192,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
             onSectionChange("plugin");
           }}
         >
-          <Plugin className={`w-8 h-8 ${active === "plugin" ? "text-[#CE192D]" : "text-black"}`} />
+          <Plugin
+            className={`w-8 h-8 ${
+              active === "plugin" ? "text-[#CE192D]" : "text-black"
+            }`}
+          />
         </button>
       </div>
     </div>

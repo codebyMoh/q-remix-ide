@@ -31,8 +31,8 @@ const SOCIAL_LINKS = [
     href: "https://www.instagram.com/quraniumofficial/",
     label: "Instagram",
   },
-  { Icon: Send, href: "https://your-send-link.com", label: "Send" },
-  { Icon: M, href: "https://your-m-link.com", label: "M" },
+  { Icon: Send, href: "https://t.me/quraniumofficial", label: "Send" },
+  { Icon: M, href: "https://quranium-org.medium.com/", label: "M" },
 ];
 
 // Reusable SocialIcon component

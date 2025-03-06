@@ -61,3 +61,14 @@ body {
   width: 8px !important;
   height: 8px !important;
 }
+.hide-scrollbar::-webkit-scrollbar {
+  scrollbar-width: none;
+}
+
+.hide-scrollbar {
+  scrollbar-width: none;
+}
+
+.hide-scrollbar {
+  scrollbar-width: none;
+}

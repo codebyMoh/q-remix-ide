@@ -2,17 +2,26 @@ import React, { useEffect, useRef } from "react";
 import { Terminal as XTerminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
+import { TerminalDownArrow, Search, AlertOctagon } from "@/assets/index";
 
-import { TerminalDownArrow, Search, AlertOctagon  } from "@/assets/index";
+interface DeployedContract {
+  address: string;
+  network: { name: string; rpcUrl: string; chainId: string };
+  deployedBy: string;
+  timestamp: number;
+  contractName: string;
+  abi: any[];
+  txHash: string;
+  blockNumber: number;
+}
 
 const Terminal = ({ toggleHeight }) => {
   const terminalContainerRef = useRef(null);
-  const xtermRef = useRef(null);
-  const fitAddonRef = useRef(null);
+  const xtermRef = useRef<XTerminal | null>(null);
+  const fitAddonRef = useRef<FitAddon | null>(null);
   const currentCommandRef = useRef("");
 
   useEffect(() => {
-    // Initialize xterm with specific dimensions
     xtermRef.current = new XTerminal({
       cursorBlink: true,
       theme: {
@@ -31,56 +40,92 @@ const Terminal = ({ toggleHeight }) => {
     if (terminalContainerRef.current) {
       xtermRef.current.open(terminalContainerRef.current);
       setTimeout(() => {
-        fitAddonRef.current.fit();
+        fitAddonRef.current?.fit();
       }, 0);
     }
 
     xtermRef.current.writeln("Welcome Q-Remix BETA.");
     xtermRef.current.write("$ ");
 
-    // Handle input data
     xtermRef.current.onData((data) => {
       const code = data.charCodeAt(0);
       if (code === 13) {
-        xtermRef.current.write("\r\n");
+        xtermRef.current!.write("\r\n");
         processCommand();
       } else if (code === 127) {
         if (currentCommandRef.current.length > 0) {
           currentCommandRef.current = currentCommandRef.current.slice(0, -1);
-          xtermRef.current.write("\b \b");
+          xtermRef.current!.write("\b \b");
         }
       } else {
         currentCommandRef.current += data;
-        xtermRef.current.write(data);
+        xtermRef.current!.write(data);
       }
     });
 
     const processCommand = () => {
       const command = currentCommandRef.current.trim();
       if (command === "clear") {
-        xtermRef.current.clear();
+        xtermRef.current!.clear();
       } else if (command === "help") {
-        xtermRef.current.writeln(
+        xtermRef.current!.writeln(
           "Available commands: help, clear, echo [message]"
         );
       } else if (command.startsWith("echo ")) {
-        xtermRef.current.writeln(command.slice(5));
+        xtermRef.current!.writeln(command.slice(5));
       } else if (command.length > 0) {
-        xtermRef.current.writeln(`command not found: ${command}`);
+        xtermRef.current!.writeln(`command not found: ${command}`);
       }
       currentCommandRef.current = "";
-      xtermRef.current.write("$ ");
+      xtermRef.current!.write("$ ");
     };
 
-    // Enhanced resize handler
+    // Listen for compilation output
+    const handleCompilationOutput = (event: CustomEvent) => {
+      const contracts = event.detail as ContractData[];
+      xtermRef.current!.writeln("\r\n=== Compilation Output ===");
+      contracts.forEach((contract) => {
+        xtermRef.current!.writeln(`Contract: ${contract.contractName}`);
+        xtermRef.current!.writeln("ABI:");
+        xtermRef.current!.writeln(JSON.stringify(contract.abi, null, 2));
+        xtermRef.current!.writeln("Bytecode:");
+        xtermRef.current!.writeln(contract.byteCode);
+        xtermRef.current!.writeln("------------------------");
+      });
+      xtermRef.current!.write("$ ");
+    };
+
+    // Listen for deployment output
+    const handleDeploymentOutput = (event: CustomEvent) => {
+      const deployedContract = event.detail as DeployedContract;
+      xtermRef.current!.writeln("\r\n=== Deployed Contract ===");
+      xtermRef.current!.writeln(`[vm] from: ${deployedContract.deployedBy.slice(0, 6)}...${deployedContract.deployedBy.slice(-4)} to: ${deployedContract.contractName} (constructor) value: ${deployedContract.network.chainId === "11155111" ? "0 wei" : "0 ETH"} data: ${deployedContract.txHash.slice(0, 6)}...${deployedContract.txHash.slice(-6)}`);
+      xtermRef.current!.writeln(`status: ${deployedContract.txHash ? "success" : "pending"}`);
+      xtermRef.current!.writeln(`transaction hash: ${deployedContract.txHash}`);
+      xtermRef.current!.writeln(`block hash: ${deployedContract.txHash || "pending"}`);
+      xtermRef.current!.writeln(`block number: ${deployedContract.blockNumber || "pending"}`);
+      xtermRef.current!.writeln(`contract address: ${deployedContract.address}`);
+      xtermRef.current!.writeln(`from: ${deployedContract.deployedBy}`);
+      xtermRef.current!.writeln(`to: ${deployedContract.contractName} (constructor)`);
+      xtermRef.current!.writeln(`gas: ${deployedContract.txHash ? "pending" : "pending"}`);
+      xtermRef.current!.writeln(`transaction cost: pending`);
+      xtermRef.current!.writeln(`execution cost: pending`);
+      xtermRef.current!.writeln(`input: ${deployedContract.txHash.slice(0, 6)}...${deployedContract.txHash.slice(-6)}`);
+      xtermRef.current!.writeln(`output: ${deployedContract.address.slice(0, 6)}...${deployedContract.address.slice(-6)}`);
+      xtermRef.current!.writeln("------------------------");
+      xtermRef.current!.write("$ ");
+    };
+
+    window.addEventListener("compilationOutput", handleCompilationOutput as EventListener);
+    window.addEventListener("deploymentOutput", handleDeploymentOutput as EventListener);
+
     const handleResize = () => {
       if (fitAddonRef.current && terminalContainerRef.current) {
-        const { width, height } =
-          terminalContainerRef.current.getBoundingClientRect();
+        const { width, height } = terminalContainerRef.current.getBoundingClientRect();
         if (width > 0 && height > 0) {
           requestAnimationFrame(() => {
-            fitAddonRef.current.fit();
-            xtermRef.current.scrollToBottom();
+            fitAddonRef.current!.fit();
+            xtermRef.current!.scrollToBottom();
           });
         }
       }
@@ -95,6 +140,8 @@ const Terminal = ({ toggleHeight }) => {
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      window.removeEventListener("compilationOutput", handleCompilationOutput as EventListener);
+      window.removeEventListener("deploymentOutput", handleDeploymentOutput as EventListener);
       resizeObserver.disconnect();
       if (xtermRef.current) {
         xtermRef.current.dispose();
@@ -104,7 +151,6 @@ const Terminal = ({ toggleHeight }) => {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Terminal Header */}
       <div className="flex items-center justify-between gap-4 border-b p-[10px] bg-white">
         <div onClick={toggleHeight} className="cursor-pointer">
           <TerminalDownArrow />
@@ -130,7 +176,7 @@ const Terminal = ({ toggleHeight }) => {
         ref={terminalContainerRef}
         className="flex-1 overflow-auto"
         style={{
-          minHeight: 0, // Important for flex child scrolling
+          minHeight: 0,
         }}
       />
     </div>

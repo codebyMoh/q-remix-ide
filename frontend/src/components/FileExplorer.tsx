@@ -1,12 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ChevronRight, Plus, Trash, Edit2 } from "lucide-react";
+import { ChevronRight} from "lucide-react";
 import { FaRegFolder } from "react-icons/fa";
-import {
-  createNode,
-  getAllNodes,
-  deleteNode,
-  updateNode,
-} from "../utils/IndexDB";
+import { createNode, getAllNodes, deleteNode, updateNode } from "../utils/IndexDB";
 import type { FileSystemNode } from "../types";
 import {
   GreenTick,
@@ -37,29 +32,53 @@ interface FileExplorerProps {
   onFileSelect: (file: FileSystemNode | null) => void;
 }
 
-const FileExplorer: React.FC<FileExplorerProps> = () => {
-  const { onFileSelect } = useEditor();
-  const [allNodes, setAllNodes] = useState<FileSystemNode[]>([]);
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    new Set()
-  );
+// Define new interface for delete confirmation state
+interface DeleteConfirmation {
+  isOpen: boolean;
+  nodeToDelete: FileSystemNode | null;
+}
+
+  const FileExplorer: React.FC<FileExplorerProps> = () => {
+  const { onFileSelect,allNodes, setAllFiles,setAllNodes } = useEditor(); // Use setAllFiles
+  // const [allNodes, setAllNodes] = useState<FileSystemNode[]>([]);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [editingNode, setEditingNode] = useState<string | null>(null);
   const [newNodeName, setNewNodeName] = useState("");
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [pendingNewNode, setPendingNewNode] = useState<FileSystemNode | null>(null);
+  const [pendingNewNode, setPendingNewNode] = useState<FileSystemNode | null>(
+    null
+  );
+  const [code, setCode] = useState(`// Welcome to Q Remix IDE! 
+// Visit all Quranium websites at: https://quranium.org
+// Write your Solidity contract here...
+// pragma solidity ^0.8.7;
+// contract MyContract {
+// Your contract code goes here
+// }`);
 
   const [selectedWorkspace, setSelectedWorkspace] =
     useState("Default Workspace");
   const [isExpanded, setIsExpanded] = useState(true);
+  
+  // Add state for error message when duplicate is detected
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Load all nodes at once
+  // Add state for delete confirmation - removed position since we're centering it
+  const [deleteConfirmation, setDeleteConfirmation] =
+    useState<DeleteConfirmation>({
+      isOpen: false,
+      nodeToDelete: null,
+    });
+
   useEffect(() => {
     const loadAllNodes = async () => {
       try {
         setIsLoading(true);
         const nodes = await getAllNodes();
-        setAllNodes(sortNodes(nodes));
+        const sortedNodes = sortNodes(nodes);
+        setAllNodes(sortedNodes);
+        setAllFiles(sortedNodes); // Update context
       } catch (error) {
         console.error("Failed to load nodes:", error);
       } finally {
@@ -69,6 +88,18 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
 
     loadAllNodes();
   }, []);
+  
+  // Automatically clear error message after 3 seconds
+  useEffect(() => {
+    if (errorMessage) {
+      const timer = setTimeout(() => {
+        setErrorMessage(null);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [errorMessage]);
+  
   const sortNodes = (nodes: FileSystemNode[]) => {
     return [...nodes].sort((a, b) => {
       if (a.type !== b.type) {
@@ -78,45 +109,118 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     });
   };
 
+  const isDuplicate = (type: "file" | "folder", name: string, parentId: string | null): boolean => {
+    return allNodes.some(node => 
+      node.type === type && 
+      node.parentId === parentId && 
+      node.name.toLowerCase() === name.toLowerCase()
+    );
+  };
+
   const handleCreateNode = async (
     type: "file" | "folder",
     parentId: string | null
   ) => {
     const effectiveParentId =
       parentId ??
-      (selectedNode &&
-      allNodes.find((n) => n.id === selectedNode)?.type === "folder"
+      (selectedNode && allNodes.find((n) => n.id === selectedNode)?.type === "folder"
         ? selectedNode
         : null);
-
-    const newNode: FileSystemNode = {
-      id: crypto.randomUUID(),
-      name: `New ${type}`,
-      type,
-      parentId: effectiveParentId,
-      content: type === "file" ? "" : undefined,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
-    try {
-      // Create the node but keep it in a pending state
-      setPendingNewNode(newNode);
-      setEditingNode(newNode.id);
-      setNewNodeName("");
-
-      if (effectiveParentId) {
-        setExpandedFolders((prev) => new Set(prev).add(effectiveParentId));
+        
+    const defaultName = `New ${type}`;
+    
+    // Check if a node with the same name already exists in the same location
+    if (isDuplicate(type, defaultName, effectiveParentId)) {
+      // Find a unique name by adding a number suffix
+      let counter = 1;
+      let uniqueName = `${defaultName} (${counter})`;
+      
+      while (isDuplicate(type, uniqueName, effectiveParentId)) {
+        counter++;
+        uniqueName = `${defaultName} (${counter})`;
       }
       
-      // Add it temporarily to UI
-      setAllNodes((prev) => sortNodes([...prev, newNode]));
-    } catch (error) {
-      console.error("Failed to create node:", error);
+      const newNode: FileSystemNode = {
+        id: crypto.randomUUID(),
+        name: uniqueName,
+        type,
+        parentId: effectiveParentId,
+        content: type === "file" ? code : undefined,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      try {
+        // Create the node but keep it in a pending state
+        setPendingNewNode(newNode);
+        setEditingNode(newNode.id);
+        setNewNodeName(uniqueName);
+
+        if (effectiveParentId) {
+          setExpandedFolders((prev) => new Set(prev).add(effectiveParentId));
+        }
+
+        // Add it temporarily to UI
+        setAllNodes((prev) => sortNodes([...prev, newNode]));
+      } catch (error) {
+        console.error("Failed to create node:", error);
+      }
+    } else {
+      const newNode: FileSystemNode = {
+        id: crypto.randomUUID(),
+        name: defaultName,
+        type,
+        parentId: effectiveParentId,
+        content: type === "file" ? code : undefined,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      try {
+        // Create the node but keep it in a pending state
+        setPendingNewNode(newNode);
+        setEditingNode(newNode.id);
+        setNewNodeName("");
+
+        if (effectiveParentId) {
+          setExpandedFolders((prev) => new Set(prev).add(effectiveParentId));
+        }
+
+        // Add it temporarily to UI
+        setAllNodes((prev) => sortNodes([...prev, newNode]));
+      } catch (error) {
+        console.error("Failed to create node:", error);
+      }
     }
   };
 
-  const handleDelete = async (nodeToDelete: FileSystemNode) => {
+  // Updated showDeleteConfirmation to open the confirmation dialog
+  const showDeleteConfirmation = (
+    nodeToDelete: FileSystemNode,
+    event: React.MouseEvent
+  ) => {
+    // Prevent event bubbling
+    event.stopPropagation();
+
+    setDeleteConfirmation({
+      isOpen: true,
+      nodeToDelete,
+    });
+  };
+
+  // Close the delete confirmation
+  const closeDeleteConfirmation = () => {
+    setDeleteConfirmation({
+      isOpen: false,
+      nodeToDelete: null,
+    });
+  };
+
+  // Perform the actual deletion when confirmed
+  const confirmDelete = async () => {
+    if (!deleteConfirmation.nodeToDelete) return;
+
+    const nodeToDelete = deleteConfirmation.nodeToDelete;
     const getAllChildIds = (parentId: string): string[] => {
       const children = allNodes.filter((n) => n.parentId === parentId);
       return children.reduce((acc, child) => {
@@ -131,12 +235,14 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     if (nodeToDelete.type === "folder") {
       idsToDelete.push(...getAllChildIds(nodeToDelete.id));
     }
-
+ 
     try {
       await Promise.all(idsToDelete.map((id) => deleteNode(id)));
-      setAllNodes((prev) =>
-        prev.filter((node) => !idsToDelete.includes(node.id))
-      );
+      setAllNodes((prev) => {
+        const updatedNodes = prev.filter((node) => !idsToDelete.includes(node.id));
+        setAllFiles(updatedNodes); // Update context
+        return updatedNodes;
+      });
 
       if (selectedNode && idsToDelete.includes(selectedNode)) {
         setSelectedNode(null);
@@ -148,45 +254,75 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
         idsToDelete.forEach((id) => next.delete(id));
         return next;
       });
+
+      // Close the confirmation dialog
+      closeDeleteConfirmation();
     } catch (error) {
       console.error("Failed to delete nodes:", error);
+      closeDeleteConfirmation();
     }
   };
 
   const handleRename = async (node: FileSystemNode) => {
     setEditingNode(null);
-    
+
     // If it's a new name and not empty, save it
     if (newNodeName.trim()) {
-      const updatedNode = { ...node, name: newNodeName, updatedAt: Date.now() };
+      // Check if the new name would create a duplicate
+      if (newNodeName !== node.name && isDuplicate(node.type, newNodeName, node.parentId)) {
+        setErrorMessage(`A ${node.type} with this name already exists`);
+        
+        // If it's a pending new node, use the existing name or remove it
+        if (pendingNewNode && node.id === pendingNewNode.id) {
+          setAllNodes((prev) => prev.filter((n) => n.id !== node.id));
+          setPendingNewNode(null);
+        }
+        return;
+      }
       
+      const updatedNode = { ...node, name: newNodeName, updatedAt: Date.now() };
+
       try {
-        // Only save to DB if it's not a default name
         await createNode(updatedNode);
         setAllNodes((prev) =>
           sortNodes(prev.map((n) => (n.id === node.id ? updatedNode : n)))
         );
+
+        if (
+          pendingNewNode &&
+          node.id === pendingNewNode.id &&
+          node.type === "file"
+        ) {
+          setSelectedNode(node.id);
+          onFileSelect(updatedNode); 
+        }
       } catch (error) {
         console.error("Failed to rename node:", error);
       }
     } else {
-      // If empty name or cancelled, remove the pending node
       if (pendingNewNode && node.id === pendingNewNode.id) {
-        setAllNodes((prev) => prev.filter((n) => n.id !== node.id));
+        setAllNodes((prev) => {
+          const updatedNodes = prev.filter((n) => n.id !== node.id);
+          setAllFiles(updatedNodes);
+          return updatedNodes;
+        });
         setPendingNewNode(null);
       }
     }
-    
+
     setNewNodeName("");
   };
 
   const cancelRename = (node: FileSystemNode) => {
-    // If this is a pending new node, remove it from the UI
     if (pendingNewNode && node.id === pendingNewNode.id) {
-      setAllNodes((prev) => prev.filter((n) => n.id !== node.id));
+      setAllNodes((prev) => {
+        const updatedNodes = prev.filter((n) => n.id !== node.id);
+        setAllFiles(updatedNodes);
+        return updatedNodes;
+      });
       setPendingNewNode(null);
     }
-    
+
     setEditingNode(null);
     setNewNodeName("");
   };
@@ -204,14 +340,13 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
   };
 
   const handleNodeClick = (node: FileSystemNode) => {
-    // Don't do anything if we're currently editing
     if (editingNode) return;
-    
     setSelectedNode(node.id);
     if (node.type === "file") {
       onFileSelect(node);
     }
   };
+
   const getIconForType = (name, type) => {
     const extension = name?.split(".").pop() || "unknown";
     switch (extension) {
@@ -241,29 +376,32 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
 
   const renderNode = (node: FileSystemNode, level: number = 0) => {
     const isExpanded = expandedFolders.has(node.id);
-    const childNodes = sortNodes(
-      allNodes.filter((n) => n.parentId === node.id)
-    );
+    const childNodes = sortNodes(allNodes.filter((n) => n.parentId === node.id));
     const indent = level * 16;
     const isSelected = selectedNode === node.id;
-
     return (
       <div key={node.id}>
         <div
           className={`flex items-center p-1 hover:bg-gray-100 group relative cursor-pointer ${
             isSelected ? "bg-blue-50" : ""
           }`}
-          style={{ paddingLeft: `${indent}px` }}
-          onClick={() => handleNodeClick(node)}
+          style={{
+            paddingLeft:
+              node.type === "file" && node.parentId === null
+                ? `${indent + 15}px`
+                : node.type === "file"
+                ? `${indent + 10}px`
+                : `${indent}px`,
+          }}
+       
+          onClick={(e) => {
+            e.stopPropagation();
+            handleNodeClick(node);
+            toggleFolder(node.id);
+          }}
         >
           {node.type === "folder" && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleFolder(node.id);
-              }}
-              className="p-1 hover:bg-gray-200 rounded"
-            >
+            <button className="p-1">
               {isExpanded ? (
                 <ChevronDown size={16} />
               ) : (
@@ -287,7 +425,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
                 if (e.key === "Enter") handleRename(node);
                 if (e.key === "Escape") cancelRename(node);
               }}
-            className="ml-1 px-1 border border-gray-500 rounded bg-white focus:outline-none w-full "
+              className="ml-1 px-1 border border-gray-500 rounded bg-white focus:outline-none w-full "
               autoFocus
               onClick={(e) => e.stopPropagation()}
             />
@@ -296,8 +434,6 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
               <span className="ml-1 select-none text-[14px] font-[Urbanist] font-medium leading-[16.8px] tracking-[0%] text-[#94969C]">
                 {node.name}
               </span>
-
-              {/* Buttons wrapper with group-hover to show on hover */}
               <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 {node.type === "folder" && (
                   <>
@@ -330,11 +466,10 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
                 >
                   <MdDriveFileRenameOutline size={14} />
                 </button>
-
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDelete(node);
+                    showDeleteConfirmation(node, e);
                   }}
                   className="p-[0.5px]"
                 >
@@ -352,17 +487,24 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     );
   };
 
-  const rootNodes = sortNodes(
-    allNodes.filter((node) => node.parentId === null)
-  );
+  const rootNodes = sortNodes(allNodes.filter((node) => node.parentId === null));
 
   return (
-    <div className=" bg-white border-r border-[#DEDEDE] h-screen overflow-y-auto" >
+    <div className="bg-white border-r border-[#DEDEDE] h-screen overflow-y-auto relative"
+    onClick={(e)=>{
+      setSelectedNode(null)
+      e.stopPropagation()
+    }}
+    >
+      {errorMessage && (
+        <div className="absolute top-0 left-0 right-0 bg-red-500 text-white text-center py-2 z-50">
+          {errorMessage}
+        </div>
+      )}
       <div
         className={`${
           isExpanded ? "w-80 px-4" : "w-0 px-0"
-        } bg-white flex flex-col   py-4 transition-all duration-300 overflow-hidden 
-        }`}
+        } bg-white flex flex-col py-4 transition-all duration-300 overflow-hidden`}
       >
         <div className="mb-2 flex items-center justify-between">
           <span className={`${isExpanded ? "opacity-100" : "opacity-0"}`}>
@@ -374,10 +516,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
                 isExpanded ? "opacity-100" : "opacity-0"
               }`}
             />
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="transition-all"
-            >
+            <button onClick={() => setIsExpanded(!isExpanded)} className="transition-all">
               <RightArrow
                 className={`w-5 h-5 text-gray-500 transition-transform ${
                   isExpanded ? "rotate-180" : "rotate-0"
@@ -399,10 +538,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
               </button>
             </div>
             <div className="flex gap-4 justify-center items-center w-full mt-4">
-              <File
-                className="cursor-pointer"
-                onClick={() => handleCreateNode("file", null)}
-              />
+              <File className="cursor-pointer" onClick={() => handleCreateNode("file", null)} />
               <Folder
                 className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900"
                 onClick={() => handleCreateNode("folder", null)}
@@ -431,10 +567,43 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
       {!isExpanded && (
         <button
           onClick={() => setIsExpanded(true)}
-          className="absolute left-[80px] top-5 transition-all cursor-pointer z-10 "
+          className="absolute left-[80px] top-5 transition-all cursor-pointer z-10"
         >
           <RightArrow className="w-5 h-5 text-gray-500" />
         </button>
+      )}
+
+      {/* Delete Confirmation Popup - Centered on screen */}
+      {deleteConfirmation.isOpen && deleteConfirmation.nodeToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
+            <h3 className="font-medium text-lg mb-2">Confirm Delete</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Are you sure you want to delete
+              <span className="font-bold">
+                {" "}
+                {deleteConfirmation.nodeToDelete.name}
+              </span>
+              ?
+              {deleteConfirmation.nodeToDelete.type === "folder" &&
+                " All contents will also be deleted."}
+            </p>
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={closeDeleteConfirmation}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-md hover:bg-red-600"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
