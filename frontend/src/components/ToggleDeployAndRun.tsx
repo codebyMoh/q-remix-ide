@@ -5,13 +5,18 @@ import { deploymentService } from "@/services/deployment-service";
 import { Account, DeployedContract, DeploymentInput } from "@/types/deployment";
 import { ethers } from "ethers";
 import { useEditor } from "@/context/EditorContext";
+import ContractInteraction from "./ContractInteraction";
 
 const urbanist = Urbanist({
   subsets: ["latin"],
   weight: ["400", "600", "700"],
 });
 
-const DeployAndRun = () => {
+interface DeployAndRunProps {
+  onTransactionExecuted?: () => void;
+}
+
+const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) => {
   const { allFiles, compiledContracts, compileFile } = useEditor();
   const [isExpanded, setIsExpanded] = useState(true);
   const [environment, setEnvironment] = useState("remixVM");
@@ -77,7 +82,7 @@ const DeployAndRun = () => {
             setAccount(updatedAccounts[0]?.address || "");
           }
         });
-      } catch (err) {
+      } catch (err: any) {
         setError(err.message || "Failed to connect to MetaMask");
         setEnvironment("remixVM");
       } finally {
@@ -142,7 +147,7 @@ const DeployAndRun = () => {
       if (isRecording) {
         setTransactionsRecorded(transactionsRecorded + 1);
       }
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
       console.error("Deployment failed:", err);
     } finally {
@@ -182,7 +187,7 @@ const DeployAndRun = () => {
       };
       setDeployedContracts([...deployedContracts, newContract]);
       setAtAddressValue("");
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
       console.error("Failed to load contract at address:", err);
     } finally {
@@ -380,7 +385,7 @@ const DeployAndRun = () => {
                     if (!compiledContract) return <div>No compiled data available</div>;
 
                     const constructor = compiledContract.abi.find(item => item.type === "constructor");
-                    return constructor?.inputs.map((param, idx) => (
+                    return constructor?.inputs.map((param: any, idx: number) => (
                       <div key={idx} className="flex flex-col mt-1">
                         <label className="text-xs text-gray-600">{param.name} ({param.type})</label>
                         <input
@@ -396,7 +401,7 @@ const DeployAndRun = () => {
                         />
                       </div>
                     )) || <div>No constructor parameters</div>;
-                  } catch (err) {
+                  } catch (err: any) {
                     console.error("Error rendering constructor parameters:", err);
                     return <div>Error loading constructor parameters</div>;
                   }
@@ -481,6 +486,11 @@ const DeployAndRun = () => {
                         at {contract.address.slice(0, 6)}...{contract.address.slice(-4)}
                       </div>
                     </div>
+                    <ContractInteraction 
+                      contract={contract} 
+                      gasLimit={gasLimit} 
+                      onTransactionExecuted={onTransactionExecuted}
+                    />
                   </div>
                 ))}
                 {deployedContracts.length === 0 && (

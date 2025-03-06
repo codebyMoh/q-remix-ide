@@ -3,6 +3,7 @@ import { Terminal as XTerminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
 import { TerminalDownArrow, Search, AlertOctagon } from "@/assets/index";
+import { terminalOutputService } from "@/services/terminal-output-service";
 
 interface DeployedContract {
   address: string;
@@ -15,8 +16,26 @@ interface DeployedContract {
   blockNumber: number;
 }
 
-const Terminal = ({ toggleHeight }) => {
-  const terminalContainerRef = useRef(null);
+interface ContractData {
+  contractName: string;
+  abi: any[];
+  byteCode: string;
+}
+
+interface TransactionOutputEvent {
+  contractName: string;
+  functionName: string;
+  transactionHash: string;
+  success: boolean;
+  contract: DeployedContract;
+}
+
+interface TerminalProps {
+  toggleHeight: () => void;
+}
+
+const Terminal: React.FC<TerminalProps> = ({ toggleHeight }) => {
+  const terminalContainerRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const currentCommandRef = useRef("");
@@ -116,12 +135,82 @@ const Terminal = ({ toggleHeight }) => {
       xtermRef.current!.write("$ ");
     };
 
+    // Listen for transaction output
+    const handleTransactionOutput = async (event: Event) => {
+      const customEvent = event as CustomEvent<TransactionOutputEvent>;
+      const { transactionHash, contract, functionName } = customEvent.detail;
+      
+      if (!transactionHash || !contract) return;
+      
+      xtermRef.current!.writeln("\r\n=== Transaction Output ===");
+      xtermRef.current!.writeln(`Processing transaction: ${transactionHash}`);
+      
+      try {
+        // Get detailed transaction information
+        const details = await terminalOutputService.getTransactionDetails(
+          transactionHash,
+          contract,
+          functionName
+        );
+        
+        // Display transaction details
+        xtermRef.current!.writeln(`[vm] from: ${details.from.slice(0, 6)}...${details.from.slice(-4)} to: ${details.contractName}.${details.functionName}() value: 0 wei`);
+        xtermRef.current!.writeln(`status: ${details.status}`);
+        xtermRef.current!.writeln(`transaction hash: ${details.transactionHash}`);
+        xtermRef.current!.writeln(`block hash: ${details.blockHash}`);
+        xtermRef.current!.writeln(`block number: ${details.blockNumber}`);
+        xtermRef.current!.writeln(`from: ${details.from}`);
+        xtermRef.current!.writeln(`to: ${details.to}`);
+        xtermRef.current!.writeln(`gas: ${details.gas}`);
+        xtermRef.current!.writeln(`gas price: ${details.gasPrice}`);
+        xtermRef.current!.writeln(`transaction cost: ${details.transactionCost}`);
+        xtermRef.current!.writeln(`execution cost: ${details.executionCost}`);
+        
+        // Display input data
+        xtermRef.current!.writeln(`input: ${details.input.slice(0, 20)}...`);
+        
+        // Display decoded input if available
+        if (details.decodedInput) {
+          xtermRef.current!.writeln(`decoded input:`);
+          xtermRef.current!.writeln(JSON.stringify(details.decodedInput, null, 2));
+        }
+        
+        // Display output if available
+        if (details.output) {
+          xtermRef.current!.writeln(`output: ${details.output}`);
+        }
+        
+        // Display decoded output if available
+        if (details.decodedOutput) {
+          xtermRef.current!.writeln(`decoded output:`);
+          xtermRef.current!.writeln(JSON.stringify(details.decodedOutput, null, 2));
+        }
+        
+        // Display logs if available
+        if (details.logs && details.logs.length > 0) {
+          xtermRef.current!.writeln(`logs: ${details.logs.length} events`);
+          details.logs.forEach((log, index) => {
+            xtermRef.current!.writeln(`event #${index + 1}: ${JSON.stringify(log, null, 2)}`);
+          });
+        }
+        
+      } catch (error: any) {
+        console.error("Error processing transaction:", error);
+        xtermRef.current!.writeln(`Error processing transaction: ${error.message}`);
+      } finally {
+        xtermRef.current!.writeln("------------------------");
+        xtermRef.current!.write("$ ");
+      }
+    };
+
     window.addEventListener("compilationOutput", handleCompilationOutput as EventListener);
     window.addEventListener("deploymentOutput", handleDeploymentOutput as EventListener);
+    window.addEventListener("transactionOutput", handleTransactionOutput as EventListener);
 
     const handleResize = () => {
       if (fitAddonRef.current && terminalContainerRef.current) {
-        const { width, height } = terminalContainerRef.current.getBoundingClientRect();
+        const container = terminalContainerRef.current;
+        const { width, height } = container.getBoundingClientRect();
         if (width > 0 && height > 0) {
           requestAnimationFrame(() => {
             fitAddonRef.current!.fit();
@@ -142,6 +231,7 @@ const Terminal = ({ toggleHeight }) => {
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("compilationOutput", handleCompilationOutput as EventListener);
       window.removeEventListener("deploymentOutput", handleDeploymentOutput as EventListener);
+      window.removeEventListener("transactionOutput", handleTransactionOutput as EventListener);
       resizeObserver.disconnect();
       if (xtermRef.current) {
         xtermRef.current.dispose();
