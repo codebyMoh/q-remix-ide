@@ -4,6 +4,8 @@ import Editor from "@monaco-editor/react";
 import { getNodeById, updateNode } from "../utils/IndexDB";
 import type { FileSystemNode } from "../types";
 import { useEditor } from "../context/EditorContext";
+import * as monaco from "monaco-editor";
+
 
 interface MonacoEditorProps {
   file: FileSystemNode;
@@ -115,6 +117,68 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
         return "plaintext";
     }
   };
+  useEffect(() => {
+    monaco.languages.registerCompletionItemProvider("solidity", {
+      provideCompletionItems: (model, position) => {
+        const wordUntil = model.getWordUntilPosition(position);
+        const range = new monaco.Range(
+          position.lineNumber,
+          wordUntil.startColumn,
+          position.lineNumber,
+          wordUntil.endColumn
+        );
+
+        return {
+          suggestions: [
+            {
+              label: "pragma solidity",
+              kind: monaco.languages.CompletionItemKind.Keyword,
+              insertText: "pragma solidity ^0.8.0;",
+              insertTextRules:
+                monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              range,
+            },
+            {
+              label: "contract",
+              kind: monaco.languages.CompletionItemKind.Keyword,
+              insertText:
+                "contract ${1:ContractName} {\n\t$0\n}",
+              insertTextRules:
+                monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              range,
+            },
+            {
+              label: "function",
+              kind: monaco.languages.CompletionItemKind.Keyword,
+              insertText:
+                "function ${1:myFunction}() public {\n\t$0\n}",
+              insertTextRules:
+                monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              range,
+            },
+            {
+              label: "mapping",
+              kind: monaco.languages.CompletionItemKind.Keyword,
+              insertText:
+                "mapping(${1:keyType} => ${2:valueType}) public ${3:myMapping};",
+              insertTextRules:
+                monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              range,
+            },
+            {
+              label: "event",
+              kind: monaco.languages.CompletionItemKind.Keyword,
+              insertText:
+                "event ${1:EventName}(${2:Type} indexed ${3:param});",
+              insertTextRules:
+                monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              range,
+            },
+          ],
+        };
+      },
+    });
+  }, []);
 
   return (
     <div className="flex flex-col h-full">
@@ -160,4 +224,4 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   );
 };
 
-export default MonacoEditor;
+export default MonacoEditor; 

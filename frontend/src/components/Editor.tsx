@@ -38,8 +38,11 @@ const EditorComponent = () => {
 
   const handleEditorDidMount = (editor: any, monaco: Monaco) => {
     editorRef.current = editor;
-    // Configure Monaco for Solidity syntax highlighting
+  
+    // Register Solidity language
     monaco.languages.register({ id: 'solidity' });
+  
+    // Define Solidity syntax highlighting
     monaco.languages.setMonarchTokensProvider('solidity', {
       keywords: [
         'pragma', 'solidity', 'contract', 'function', 'returns', 'memory',
@@ -51,10 +54,12 @@ const EditorComponent = () => {
       tokenizer: {
         root: [
           [/\/\/.*/, 'comment'],
-          [/(contract|function|event|struct|enum|modifier|interface|library)\b/, 'keyword'],
-          [/[0-9]+/, 'number'],
-          [/["'].*["']/, 'string'],
           [/\/\*/, 'comment', '@comment'],
+          [/(contract|function|event|struct|enum|modifier|interface|library)\b/, 'keyword'],
+          [/["'].*["']/, 'string'],
+          [/[0-9]+/, 'number'],
+          [/\b(address|uint256|bool|string)\b/, 'type'],
+          [/(\bpublic\b|\bprivate\b|\binternal\b|\bexternal\b)/, 'modifier'],
         ],
         comment: [
           [/[^\/*]+/, 'comment'],
@@ -63,7 +68,32 @@ const EditorComponent = () => {
         ]
       }
     });
+  
+    // Define custom colors
+    monaco.editor.defineTheme('solidity-dark', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [
+        { token: 'keyword', foreground: '569CD6' },  // Blue
+        { token: 'type', foreground: '4EC9B0' },     // Greenish
+        { token: 'modifier', foreground: 'C586C0' }, // Purple
+        { token: 'comment', foreground: '6A9955' },  // Green
+        { token: 'string', foreground: 'CE9178' },   // Red
+        { token: 'number', foreground: 'B5CEA8' },   // Light green
+      ],
+      colors: {
+        'editor.foreground': '#D4D4D4',
+        'editor.background': '#1E1E1E',
+        'editorCursor.foreground': '#FFFFFF',
+        'editor.lineHighlightBackground': '#2A2D2E',
+        'editorLineNumber.foreground': '#858585',
+        'editor.selectionBackground': '#264F78',
+      }
+    });
+  
+    monaco.editor.setTheme('solidity-dark');
   };
+  
 
   const handleFileClick = (file: any) => {
     if (file.type === 'file') {
@@ -86,6 +116,7 @@ const EditorComponent = () => {
         <Editor
           height="100vh"
           theme="vs-dark"
+          
           language="solidity"
           value={code}
           onChange={(value) => setCode(value || '')}
