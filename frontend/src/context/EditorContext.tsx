@@ -27,6 +27,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const [openFiles, setOpenFiles] = useState<FileSystemNode[]>([]);
 
     const [allNodes, setAllNodes] = useState<FileSystemNode[]>([]);
+    const [allWorkspace, setAllWorkspace] = useState<FileSystemNode[]>([]);
   // State for tracking the active file ID
   const [activeFileId, setActiveFileId] = useState<string | null>("Home");
   const [showHome, setShowHome] = useState(true);
@@ -134,6 +135,8 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
     compiledContracts,
     setCompiledContracts,
     compileFile,
+    allWorkspace,
+     setAllWorkspace
   };
 
   return (

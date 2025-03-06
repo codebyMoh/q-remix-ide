@@ -3,13 +3,24 @@ import type {FileSystemNode} from "../types"
 
 const DB_NAME = 'FileExplorerDB';
 const STORE_NAME = 'filesystem';
+const WORKSPACE_STORE = 'workspaces';
 
 export const initDB = async () => {
-  const db = await openDB(DB_NAME, 1, {
-    upgrade(db) {
-      const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-      store.createIndex('parentId', 'parentId');
-      store.createIndex('updatedAt', 'updatedAt');
+  const db = await openDB(DB_NAME, 2, {
+    upgrade(db, oldVersion) {
+      // Create or update filesystem store
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        store.createIndex('parentId', 'parentId');
+        store.createIndex('updatedAt', 'updatedAt');
+      }
+      if (oldVersion < 2) {
+        const workspaceStore = db.createObjectStore(WORKSPACE_STORE, { keyPath: 'id', autoIncrement: true });
+        workspaceStore.createIndex('name', 'name', { unique: true });
+        
+        // Add default workspace
+        workspaceStore.put({ name: 'Default Workspace' });
+      }
     },
   });
   return db;
@@ -60,3 +71,25 @@ export const updateNode = async (node: FileSystemNode) => {
   await db.put(STORE_NAME, updatedNode);
   return updatedNode;
 };
+
+//workspace related functions
+export const addWorkspace = async (name: string) => {
+  const db = await initDB();
+  await db.put(WORKSPACE_STORE, { name });
+};
+export const getAllWorkspaces = async (): Promise<string[]> => {
+  const db = await initDB();
+  const workspaces = await db.getAll(WORKSPACE_STORE);
+  return workspaces.map(workspace => workspace.name);
+};
+export const deleteWorkspace = async (name: string) => {
+  const db = await initDB();
+  const tx = db.transaction(WORKSPACE_STORE, 'readwrite');
+  const store = tx.objectStore(WORKSPACE_STORE);
+  const index = store.index('name');
+  const key = await index.getKey(name);
+  if (key) {
+    await store.delete(key);
+  }
+};
+
