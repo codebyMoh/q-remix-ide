@@ -96,7 +96,7 @@ const FeaturesShow = () => {
           <select
             value={selectedLanguage}
             onChange={(e) => setSelectedLanguage(e.target.value)}
-            className="border border-[#E7E7E7] p-2 rounded-md"
+            className="border border-[#E7E7E7] p-2 rounded-md text-[#94969C]"
           >
             {languages.map((language) => (
               <option

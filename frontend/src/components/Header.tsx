@@ -76,20 +76,19 @@ const Header: React.FC<HeaderProps> = ({
     }
   }, [files]);
 
-
   useEffect(() => {
     if (allNodes && files.length > 0) {
-      const nodeIds = allNodes.map(node => node.id);
-      const filesToClose = files.filter(file => {
-       if (file.id === "Home") return false;
+      const nodeIds = allNodes.map((node) => node.id);
+      const filesToClose = files.filter((file) => {
+        if (file.id === "Home") return false;
         return !nodeIds.includes(file.id);
       });
-      filesToClose.forEach(file => {
+      filesToClose.forEach((file) => {
         onCloseFile(file.id);
       });
     }
   }, [allNodes, files, onCloseFile]);
- 
+
   return (
     <div className="h-[38px] flex items-center px-4 bg-white border-b shadow-sm">
       {/* Icons Section */}
@@ -120,7 +119,7 @@ const Header: React.FC<HeaderProps> = ({
       >
         {showHome && (
           <div
-            className={`flex h-[38px] items-center border-r cursor-pointer 
+            className={`flex h-[38px] items-center cursor-pointer 
             ${
               activeFileId === "Home"
                 ? "bg-gray-100 text-gray-900"
@@ -128,9 +127,10 @@ const Header: React.FC<HeaderProps> = ({
             }`}
             onClick={() => setActiveFileId("Home")}
           >
-            <HomeIcon />
-            <span className="truncate max-w-[100px]">Home</span>
-            <button
+            <HomeIcon className="" />
+            <span className="truncate max-w-[100px] text-[15px]">Home</span>
+
+            <Cross
               onClick={(e) => {
                 e.stopPropagation();
                 setShowHome(false);
@@ -138,9 +138,7 @@ const Header: React.FC<HeaderProps> = ({
                 setActiveFileId("editor");
               }}
               className="ml-1"
-            >
-              <Cross />
-            </button>
+            />
           </div>
         )}
 
@@ -148,24 +146,24 @@ const Header: React.FC<HeaderProps> = ({
         {files.map((file) => (
           <div
             key={file.id}
-            className={`flex items-center h-[38px] px-3 py-1 border-r cursor-pointer group ${
+            className={`flex items-center h-[38px] pl-3  cursor-pointer group ${
               activeFileId === file.id
-                ? "bg-gray-100 text-gray-900"
-                : "text-gray-600 hover:bg-gray-200"
+                ? "bg-gray-100 text-gray-900 "
+                : "text-gray-600 hover:bg-gray-200 "
             }`}
             onClick={() => onFileSelect(file)}
           >
-            <div className="mr-2">{getIconForType(file.name)}</div>
-            <span className="truncate max-w-[100px]">{file.name}</span>
-            <button
-              className="ml-1 opacity-0 group-hover:opacity-100 hover:bg-gray-300 rounded-sm"
+            <div className="mr-1">{getIconForType(file.name)}</div>
+            <span className="truncate max-w-[100px] text-[15px]">
+              {file.name}
+            </span>
+            <Cross
+              className=" opacity-0 group-hover:opacity-100  rounded-sm"
               onClick={(e) => {
                 e.stopPropagation();
                 onCloseFile(file.id);
               }}
-            >
-              <X size={14} />
-            </button>
+            />
           </div>
         ))}
       </div>
