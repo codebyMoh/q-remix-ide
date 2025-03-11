@@ -5,6 +5,7 @@ import { getNodeById, updateNode } from "../utils/IndexDB";
 import type { FileSystemNode } from "../types";
 import { useEditor } from "../context/EditorContext";
 import * as monaco from "monaco-editor";
+import "monaco-editor/esm/vs/basic-languages/solidity/solidity.contribution";
 
 
 interface MonacoEditorProps {
@@ -14,6 +15,22 @@ interface MonacoEditorProps {
   error?: string;
   compilationResult?: any;
 }
+
+
+monaco.editor.defineTheme("my-light-theme", {
+  base: "vs",
+  inherit: true,
+  rules: [
+    { token: "keyword", foreground: "0070f3", fontStyle: "bold" },
+    { token: "type", foreground: "D73A49" },
+    { token: "number", foreground: "098658" },
+    { token: "string", foreground: "A31515" },
+  ],
+  colors: {
+    "editor.foreground": "#000000",
+    "editor.background": "#FFFFFF",
+  },
+});
 
 const MonacoEditor: React.FC<MonacoEditorProps> = ({
   file,
@@ -85,8 +102,10 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
     }
   };
 
+
   // Global keyboard save shortcut
   useEffect(() => {
+    
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
@@ -132,7 +151,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
           position.lineNumber,
           wordUntil.endColumn
         );
-
+        console.log("Available languages:", monaco.languages.getLanguages());
         return {
           suggestions: [
             {
@@ -184,6 +203,9 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       },
     });
   }, []);
+ 
+  console.log(monaco.languages.getLanguages().find(lang => lang.id === "solidity"));
+
 
   return (
     <div className="flex flex-col h-full">
@@ -195,11 +217,12 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
         </div>
       </div>
       <div className="flex-1 relative" style={{ minHeight: "200px" }}>
-        <Editor
+        <Editor  
+
           height="100%"
-          defaultLanguage={getLanguage(file?.name)}
+          language={getLanguage(file?.name)}
           value={content}
-          theme="vs-light"
+          theme="my-light-theme"
           onChange={handleEditorChange}
           onMount={handleEditorDidMount}
           options={{
