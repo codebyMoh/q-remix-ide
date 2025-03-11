@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ChevronRight} from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { FaRegFolder } from "react-icons/fa";
-import { createNode, getAllNodes, deleteNode, updateNode } from "../utils/IndexDB";
+import {
+  createNode,
+  getAllNodes,
+  deleteNode,
+  addWorkspace,
+  getAllWorkspaces,
+} from "../utils/IndexDB";
 import type { FileSystemNode } from "../types";
 import {
   GreenTick,
@@ -26,7 +32,7 @@ import { MdDeleteOutline } from "react-icons/md";
 import { MdDriveFileRenameOutline } from "react-icons/md";
 import { FaRegFile } from "react-icons/fa";
 import { useEditor } from "../context/EditorContext";
-
+import Popup from "@/pages/Popup";
 
 interface FileExplorerProps {
   onFileSelect: (file: FileSystemNode | null) => void;
@@ -38,17 +44,29 @@ interface DeleteConfirmation {
   nodeToDelete: FileSystemNode | null;
 }
 
-  const FileExplorer: React.FC<FileExplorerProps> = () => {
-  const { onFileSelect,allNodes, setAllFiles,setAllNodes } = useEditor(); // Use setAllFiles
-  // const [allNodes, setAllNodes] = useState<FileSystemNode[]>([]);
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+// Extend FileSystemNode type to include workspaceId
+interface WorkspaceFileSystemNode extends FileSystemNode {
+  workspaceId: string;
+}
+
+const FileExplorer: React.FC<FileExplorerProps> = () => {
+  const {
+    onFileSelect,
+    allNodes,
+    setAllFiles,
+    setAllNodes,
+    allWorkspace,
+    setAllWorkspace,
+  } = useEditor();
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+    new Set()
+  );
   const [editingNode, setEditingNode] = useState<string | null>(null);
   const [newNodeName, setNewNodeName] = useState("");
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [pendingNewNode, setPendingNewNode] = useState<FileSystemNode | null>(
-    null
-  );
+  const [pendingNewNode, setPendingNewNode] =
+    useState<WorkspaceFileSystemNode | null>(null);
   const [code, setCode] = useState(`// Welcome to Q Remix IDE! 
 // Visit all Quranium websites at: https://quranium.org
 // Write your Solidity contract here...
@@ -57,50 +75,99 @@ interface DeleteConfirmation {
 // Your contract code goes here
 // }`);
 
-  const [selectedWorkspace, setSelectedWorkspace] =
-    useState("Default Workspace");
+  const [selectedWorkspace, setSelectedWorkspace] = useState<any>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [workspacePopup, setWorkspacePopup] = useState(false);
+  const [inputworkspace, setInputworkspace] = useState("");
   const [isExpanded, setIsExpanded] = useState(true);
-  
+  const [filteredNodes, setFilteredNodes] = useState<WorkspaceFileSystemNode[]>(
+    []
+  );
+ 
+
   // Add state for error message when duplicate is detected
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Add state for delete confirmation - removed position since we're centering it
+  // Add state for delete confirmation
   const [deleteConfirmation, setDeleteConfirmation] =
     useState<DeleteConfirmation>({
       isOpen: false,
       nodeToDelete: null,
     });
 
+  // Load nodes and workspaces on initial mount
   useEffect(() => {
-    const loadAllNodes = async () => {
+    const loadData = async () => {
       try {
         setIsLoading(true);
+
+        // Load workspaces first
+        const workspaces = await getAllWorkspaces();
+        setAllWorkspace(workspaces);
+
+        // Set default workspace if available
+        if (workspaces.length > 0 && !selectedWorkspace) {
+          setSelectedWorkspace(workspaces[0]);
+        }
+
+        // Load all nodes
         const nodes = await getAllNodes();
-        const sortedNodes = sortNodes(nodes);
+
+        // Convert to WorkspaceFileSystemNode if needed
+        const workspaceNodes = nodes.map((node) => {
+          if (!("workspaceId" in node)) {
+            // If nodes don't have workspaceId yet, assign to default workspace
+            return {
+              ...node,
+              workspaceId: workspaces.length > 0 ? workspaces[0].id : "default",
+            };
+          }
+          return node;
+        }) as WorkspaceFileSystemNode[];
+
+        const sortedNodes = sortNodes(workspaceNodes);
         setAllNodes(sortedNodes);
-        setAllFiles(sortedNodes); // Update context
+        setAllFiles(sortedNodes);
       } catch (error) {
-        console.error("Failed to load nodes:", error);
+        console.error("Failed to load data:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadAllNodes();
+    loadData();
   }, []);
-  
+
+  // Filter nodes when workspace changes
+  useEffect(() => {
+    if (selectedWorkspace && allNodes.length > 0) {
+      const filtered = (allNodes as WorkspaceFileSystemNode[]).filter(
+        (node) => node.workspaceId === selectedWorkspace.id
+      );
+      setFilteredNodes(filtered);
+
+      // Clear selected node if it's not in this workspace
+      if (selectedNode && !filtered.some((node) => node.id === selectedNode)) {
+        setSelectedNode(null);
+        onFileSelect(null);
+      }
+    } else {
+      setFilteredNodes([]);
+    }
+  }, [selectedWorkspace, allNodes, selectedNode, onFileSelect]);
+
   // Automatically clear error message after 3 seconds
   useEffect(() => {
     if (errorMessage) {
       const timer = setTimeout(() => {
         setErrorMessage(null);
       }, 3000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [errorMessage]);
-  
-  const sortNodes = (nodes: FileSystemNode[]) => {
+
+  const sortNodes = (nodes: WorkspaceFileSystemNode[]) => {
     return [...nodes].sort((a, b) => {
       if (a.type !== b.type) {
         return a.type === "folder" ? -1 : 1;
@@ -109,11 +176,16 @@ interface DeleteConfirmation {
     });
   };
 
-  const isDuplicate = (type: "file" | "folder", name: string, parentId: string | null): boolean => {
-    return allNodes.some(node => 
-      node.type === type && 
-      node.parentId === parentId && 
-      node.name.toLowerCase() === name.toLowerCase()
+  const isDuplicate = (
+    type: "file" | "folder",
+    name: string,
+    parentId: string | null
+  ): boolean => {
+    return filteredNodes.some(
+      (node) =>
+        node.type === type &&
+        node.parentId === parentId &&
+        node.name.toLowerCase() === name.toLowerCase()
     );
   };
 
@@ -121,26 +193,33 @@ interface DeleteConfirmation {
     type: "file" | "folder",
     parentId: string | null
   ) => {
+    // Make sure a workspace is selected
+    if (!selectedWorkspace) {
+      setErrorMessage("Please select a workspace first");
+      return;
+    }
+
     const effectiveParentId =
       parentId ??
-      (selectedNode && allNodes.find((n) => n.id === selectedNode)?.type === "folder"
+      (selectedNode &&
+      filteredNodes.find((n) => n.id === selectedNode)?.type === "folder"
         ? selectedNode
         : null);
-        
+
     const defaultName = `New ${type}`;
-    
+
     // Check if a node with the same name already exists in the same location
     if (isDuplicate(type, defaultName, effectiveParentId)) {
       // Find a unique name by adding a number suffix
       let counter = 1;
       let uniqueName = `${defaultName} (${counter})`;
-      
+
       while (isDuplicate(type, uniqueName, effectiveParentId)) {
         counter++;
         uniqueName = `${defaultName} (${counter})`;
       }
-      
-      const newNode: FileSystemNode = {
+
+      const newNode: WorkspaceFileSystemNode = {
         id: crypto.randomUUID(),
         name: uniqueName,
         type,
@@ -148,6 +227,7 @@ interface DeleteConfirmation {
         content: type === "file" ? code : undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
+        workspaceId: selectedWorkspace.id,
       };
 
       try {
@@ -161,12 +241,16 @@ interface DeleteConfirmation {
         }
 
         // Add it temporarily to UI
-        setAllNodes((prev) => sortNodes([...prev, newNode]));
+        const updatedAllNodes = [
+          ...allNodes,
+          newNode,
+        ] as WorkspaceFileSystemNode[];
+        setAllNodes(sortNodes(updatedAllNodes));
       } catch (error) {
         console.error("Failed to create node:", error);
       }
     } else {
-      const newNode: FileSystemNode = {
+      const newNode: WorkspaceFileSystemNode = {
         id: crypto.randomUUID(),
         name: defaultName,
         type,
@@ -174,6 +258,7 @@ interface DeleteConfirmation {
         content: type === "file" ? code : undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
+        workspaceId: selectedWorkspace.id, // Associate with current workspace
       };
 
       try {
@@ -187,7 +272,11 @@ interface DeleteConfirmation {
         }
 
         // Add it temporarily to UI
-        setAllNodes((prev) => sortNodes([...prev, newNode]));
+        const updatedAllNodes = [
+          ...allNodes,
+          newNode,
+        ] as WorkspaceFileSystemNode[];
+        setAllNodes(sortNodes(updatedAllNodes));
       } catch (error) {
         console.error("Failed to create node:", error);
       }
@@ -196,7 +285,7 @@ interface DeleteConfirmation {
 
   // Updated showDeleteConfirmation to open the confirmation dialog
   const showDeleteConfirmation = (
-    nodeToDelete: FileSystemNode,
+    nodeToDelete: WorkspaceFileSystemNode,
     event: React.MouseEvent
   ) => {
     // Prevent event bubbling
@@ -222,7 +311,7 @@ interface DeleteConfirmation {
 
     const nodeToDelete = deleteConfirmation.nodeToDelete;
     const getAllChildIds = (parentId: string): string[] => {
-      const children = allNodes.filter((n) => n.parentId === parentId);
+      const children = filteredNodes.filter((n) => n.parentId === parentId);
       return children.reduce((acc, child) => {
         if (child.type === "folder") {
           return [...acc, child.id, ...getAllChildIds(child.id)];
@@ -235,11 +324,13 @@ interface DeleteConfirmation {
     if (nodeToDelete.type === "folder") {
       idsToDelete.push(...getAllChildIds(nodeToDelete.id));
     }
- 
+
     try {
       await Promise.all(idsToDelete.map((id) => deleteNode(id)));
       setAllNodes((prev) => {
-        const updatedNodes = prev.filter((node) => !idsToDelete.includes(node.id));
+        const updatedNodes = prev.filter(
+          (node) => !idsToDelete.includes(node.id)
+        );
         setAllFiles(updatedNodes); // Update context
         return updatedNodes;
       });
@@ -263,15 +354,18 @@ interface DeleteConfirmation {
     }
   };
 
-  const handleRename = async (node: FileSystemNode) => {
+  const handleRename = async (node: WorkspaceFileSystemNode) => {
     setEditingNode(null);
 
     // If it's a new name and not empty, save it
     if (newNodeName.trim()) {
       // Check if the new name would create a duplicate
-      if (newNodeName !== node.name && isDuplicate(node.type, newNodeName, node.parentId)) {
+      if (
+        newNodeName !== node.name &&
+        isDuplicate(node.type, newNodeName, node.parentId)
+      ) {
         setErrorMessage(`A ${node.type} with this name already exists`);
-        
+
         // If it's a pending new node, use the existing name or remove it
         if (pendingNewNode && node.id === pendingNewNode.id) {
           setAllNodes((prev) => prev.filter((n) => n.id !== node.id));
@@ -279,13 +373,16 @@ interface DeleteConfirmation {
         }
         return;
       }
-      
+
       const updatedNode = { ...node, name: newNodeName, updatedAt: Date.now() };
 
       try {
         await createNode(updatedNode);
-        setAllNodes((prev) =>
-          sortNodes(prev.map((n) => (n.id === node.id ? updatedNode : n)))
+        setAllNodes(
+          (prev) =>
+            sortNodes(
+              prev.map((n) => (n.id === node.id ? updatedNode : n))
+            ) as WorkspaceFileSystemNode[]
         );
 
         if (
@@ -294,7 +391,7 @@ interface DeleteConfirmation {
           node.type === "file"
         ) {
           setSelectedNode(node.id);
-          onFileSelect(updatedNode); 
+          onFileSelect(updatedNode);
         }
       } catch (error) {
         console.error("Failed to rename node:", error);
@@ -313,7 +410,7 @@ interface DeleteConfirmation {
     setNewNodeName("");
   };
 
-  const cancelRename = (node: FileSystemNode) => {
+  const cancelRename = (node: WorkspaceFileSystemNode) => {
     if (pendingNewNode && node.id === pendingNewNode.id) {
       setAllNodes((prev) => {
         const updatedNodes = prev.filter((n) => n.id !== node.id);
@@ -339,7 +436,7 @@ interface DeleteConfirmation {
     });
   };
 
-  const handleNodeClick = (node: FileSystemNode) => {
+  const handleNodeClick = (node: WorkspaceFileSystemNode) => {
     if (editingNode) return;
     setSelectedNode(node.id);
     if (node.type === "file") {
@@ -369,14 +466,30 @@ interface DeleteConfirmation {
     }
   };
 
-  const startRenaming = (node: FileSystemNode) => {
+  const startRenaming = (node: WorkspaceFileSystemNode) => {
     setEditingNode(node.id);
     setNewNodeName(node.name);
   };
 
-  const renderNode = (node: FileSystemNode, level: number = 0) => {
+  const addedWorkspace = async () => {
+    if (inputworkspace.trim() !== "") {
+      const newWorkspace = await addWorkspace(inputworkspace);
+      setInputworkspace("");
+      setWorkspacePopup(false);
+
+      // Add the new workspace to the allWorkspace state
+      if (newWorkspace) {
+        setAllWorkspace((prevWorkspaces) => [...prevWorkspaces, newWorkspace]);
+        setSelectedWorkspace(newWorkspace);
+      }
+    }
+  };
+
+  const renderNode = (node: WorkspaceFileSystemNode, level: number = 0) => {
     const isExpanded = expandedFolders.has(node.id);
-    const childNodes = sortNodes(allNodes.filter((n) => n.parentId === node.id));
+    const childNodes = sortNodes(
+      filteredNodes.filter((n) => n.parentId === node.id)
+    );
     const indent = level * 16;
     const isSelected = selectedNode === node.id;
     return (
@@ -393,11 +506,12 @@ interface DeleteConfirmation {
                 ? `${indent + 10}px`
                 : `${indent}px`,
           }}
-       
           onClick={(e) => {
             e.stopPropagation();
             handleNodeClick(node);
-            toggleFolder(node.id);
+            if (node.type === "folder") {
+              toggleFolder(node.id);
+            }
           }}
         >
           {node.type === "folder" && (
@@ -487,14 +601,17 @@ interface DeleteConfirmation {
     );
   };
 
-  const rootNodes = sortNodes(allNodes.filter((node) => node.parentId === null));
+  const rootNodes = sortNodes(
+    filteredNodes.filter((node) => node.parentId === null)
+  );
 
   return (
-    <div className="bg-white border-r border-[#DEDEDE] h-screen overflow-y-auto relative"
-    onClick={(e)=>{
-      setSelectedNode(null)
-      e.stopPropagation()
-    }}
+    <div
+       className="bg-white border-r  border-[#DEDEDE] relative "
+  
+      onClick={(e) => {
+        e.stopPropagation();
+      }}
     >
       {errorMessage && (
         <div className="absolute top-0 left-0 right-0 bg-red-500 text-white text-center py-2 z-50">
@@ -504,9 +621,9 @@ interface DeleteConfirmation {
       <div
         className={`${
           isExpanded ? "w-80 px-4" : "w-0 px-0"
-        } bg-white flex flex-col py-4 transition-all duration-300 overflow-hidden`}
+        } bg-white flex flex-col transition-all duration-300   `}
       >
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-2 flex items-center justify-between h-[3rem]">
           <span className={`${isExpanded ? "opacity-100" : "opacity-0"}`}>
             File Explorer
           </span>
@@ -516,29 +633,84 @@ interface DeleteConfirmation {
                 isExpanded ? "opacity-100" : "opacity-0"
               }`}
             />
-            <button onClick={() => setIsExpanded(!isExpanded)} className="transition-all">
-              <RightArrow
-                className={`w-5 h-5 text-gray-500 transition-transform ${
-                  isExpanded ? "rotate-180" : "rotate-0"
-                }`}
-              />
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="transition-all "
+            >
+              {isExpanded&&
+               <RightArrow
+               className={`w-5 h-5 text-gray-500 mb-[2px]  transition-transform ${
+                 isExpanded ? "rotate-180" : "rotate-0"
+               }`}
+             />
+              }
+             
             </button>
           </div>
         </div>
         {isExpanded && (
-          <div className="flex flex-col gap-3 mt-5">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-3 h-[calc(100vh-150px)]">
+            <div className="flex items-center">
               <Menu className="w-6 h-6 translate-y-2" />
-              <span className="text-gray-600 leading-none">Workspaces</span>
+              <span className="text-gray-600 text-sm">Workspaces</span>
             </div>
-            <div className="relative">
-              <button className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg flex items-center justify-between">
-                <span>{selectedWorkspace}</span>
+            <div className="relative w-full">
+              {/* Dropdown Button */}
+              <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full px-2 py-2 text-sm bg-white border border-gray-200 rounded-lg text-[#94969C] flex justify-between items-center"
+              >
+                {selectedWorkspace
+                  ? selectedWorkspace.name
+                  : "Select Workspace"}
                 <ChevronDown className="w-4 h-4 text-gray-500" />
               </button>
+
+              {/* Dropdown Content */}
+              {isOpen && (
+                <div className="absolute w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                  <ul className="max-h-40 overflow-auto">
+                    {allWorkspace.map((workspace) => (
+                      <li
+                        key={workspace.id}
+                        className="px-4 py-2 text-sm text-[#94969C] hover:bg-gray-100 cursor-pointer"
+                        onClick={() => {
+                          setIsOpen(false);
+                          setSelectedWorkspace(workspace);
+                        }}
+                      >
+                        {workspace.name}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* Add Workspace Button Inside Dropdown */}
+                  <button
+                    onClick={() => {
+                      setIsOpen(false);
+                      setWorkspacePopup(true);
+                    }}
+                    className="w-full px-4 py-2 text-sm text-[#CE192D] font-medium hover:bg-gray-100"
+                  >
+                    + Add Workspace
+                  </button>
+                </div>
+              )}
             </div>
+            {workspacePopup && (
+              <Popup
+                setworkspace={setWorkspacePopup}
+                Worktype="AddWorkspace"
+                addedWorkspace={addedWorkspace}
+                Inputworkspace={setInputworkspace}
+              />
+            )}
+
             <div className="flex gap-4 justify-center items-center w-full mt-4">
-              <File className="cursor-pointer" onClick={() => handleCreateNode("file", null)} />
+              <File
+                className="cursor-pointer"
+                onClick={() => handleCreateNode("file", null)}
+              />
               <Folder
                 className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900"
                 onClick={() => handleCreateNode("folder", null)}
@@ -549,16 +721,17 @@ interface DeleteConfirmation {
               <Link className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
               <GitLink className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
             </div>
-            <hr className="border-t border-[#DEDEDE] w-full my-3" />
+            <hr className="border-t border-[#DEDEDE] w-full my-3 "  />
 
-            <div className="py-2">
-              {rootNodes ? (
-                rootNodes.map((node) => renderNode(node))
-              ) : (
-                <div className="w-64 bg-white border-r h-screen flex items-center justify-center">
-                  <span>Loading...</span>
-                </div>
-              )}
+            <div className="py-2  overflow-y-auto h-full">
+              {selectedWorkspace ? (
+                rootNodes.length > 0 ? (
+                  rootNodes.map((node) => renderNode(node))
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                  </div>
+                )
+              ) : null}
             </div>
           </div>
         )}
@@ -567,43 +740,19 @@ interface DeleteConfirmation {
       {!isExpanded && (
         <button
           onClick={() => setIsExpanded(true)}
-          className="absolute left-[80px] top-5 transition-all cursor-pointer z-10"
+          className="absolute left-0 top-5 transition-all cursor-pointer z-10"
         >
           <RightArrow className="w-5 h-5 text-gray-500" />
         </button>
       )}
-
       {/* Delete Confirmation Popup - Centered on screen */}
       {deleteConfirmation.isOpen && deleteConfirmation.nodeToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
-            <h3 className="font-medium text-lg mb-2">Confirm Delete</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Are you sure you want to delete
-              <span className="font-bold">
-                {" "}
-                {deleteConfirmation.nodeToDelete.name}
-              </span>
-              ?
-              {deleteConfirmation.nodeToDelete.type === "folder" &&
-                " All contents will also be deleted."}
-            </p>
-            <div className="flex justify-end gap-3 mt-4">
-              <button
-                onClick={closeDeleteConfirmation}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-md hover:bg-red-600"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
+        <Popup
+          DeleteName={deleteConfirmation.nodeToDelete.name}
+          type={deleteConfirmation.nodeToDelete.type}
+          closeDeleteConfirmation={closeDeleteConfirmation}
+          confirmDelete={confirmDelete}
+        />
       )}
     </div>
   );

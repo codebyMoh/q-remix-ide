@@ -17,11 +17,15 @@ import Sidebar from "@/components/Sidebar";
 import FileExplorer from "@/components/FileExplorer";
 import ToggleDeployAndRun from "@/components/ToggleDeployAndRun";
 import SolidiyCompiler from "@/components/SolidiyCompiler";
+import SearchFiles from "@/components/SearchFiles"
+import Git from "@/components/Git"
+import Settings from "@/components/Settings"
 import Debugger from "@/components/Debugger"; 
 import DeployRun from "@/components/DeployRun";
 import Terminal from "@/components/Terminal";
 import Footer from "@/components/Footer";
 import { EditorProvider } from "@/context/EditorContext";
+
 
 /* 4) Google font example */
 import { Urbanist } from "next/font/google";
@@ -110,6 +114,24 @@ export default function RootLayout({
   const handleActiveSectionChange = (section: string) => {
     setActiveSection(section);
   };
+  const renderActiveSection = () => {
+    switch (activeSection) {
+      case "compiler":
+        return <SolidiyCompiler />;
+      case "deploy-run":
+        return <ToggleDeployAndRun />;
+      case "debugger":
+        return <Debugger />;
+      case "settings":
+        return <Settings/>;
+      case "git":
+        return <Git/>;
+      case "search":
+        return <SearchFiles/>;
+      default:
+        return <FileExplorer />;
+    }
+  };
   
   return (
     <html lang="en" className="light">
@@ -124,16 +146,8 @@ export default function RootLayout({
                   <Sidebar onSectionChange={handleActiveSectionChange} />
 
                   {/* Toggle between sections */}
-                  <div className="h-full">
-                    {activeSection === "compiler" ? (
-                      <SolidiyCompiler />
-                    ) : activeSection === "deploy-run" ? (
-                      <ToggleDeployAndRun />
-                    ) : activeSection === "debugger" ? ( // <-- Added Debugger
-                      <Debugger />
-                    ) : (
-                      <FileExplorer/>
-                    )} 
+                  <div className="h-full pb-[36px]">
+                  {renderActiveSection()}
                   </div>
 
                   {/* Main Content + Terminal Container */}

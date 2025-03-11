@@ -17,9 +17,18 @@ export interface ContractData {
 }
 
 const SolidityCompiler = () => {
-  const { activeFile, onFileSelect, files, setCompiledContracts, compileFile, compiledContracts } = useEditor();
+  const {
+    activeFile,
+    onFileSelect,
+    files,
+    setCompiledContracts,
+    compileFile,
+    compiledContracts,
+  } = useEditor();
   const [availableFiles, setAvailableFiles] = useState<any[]>([]);
-  const [selectedVersion, setSelectedVersion] = useState("0.8.26+commit.8a97fa7a");
+  const [selectedVersion, setSelectedVersion] = useState(
+    "0.8.26+commit.8a97fa7a"
+  );
   const [isExpanded, setIsExpanded] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [results, setResults] = useState<ContractData[]>([]);
@@ -99,7 +108,11 @@ const SolidityCompiler = () => {
   }, []);
 
   useEffect(() => {
-    if (autoCompile && activeFile?.type === "file" && activeFile.name.endsWith(".sol")) {
+    if (
+      autoCompile &&
+      activeFile?.type === "file" &&
+      activeFile.name.endsWith(".sol")
+    ) {
       handleCompile();
     }
   }, [activeFile, autoCompile]);
@@ -110,7 +123,8 @@ const SolidityCompiler = () => {
     onFileSelect(file || null);
   };
 
-  const isSolFile = activeFile?.type === "file" && activeFile.name.endsWith(".sol");
+  const isSolFile =
+    activeFile?.type === "file" && activeFile.name.endsWith(".sol");
 
   const handleCompile = async () => {
     if (!isSolFile || !activeFile) {
@@ -142,7 +156,8 @@ const SolidityCompiler = () => {
 
         // Find or create a single artifacts folder at the root (parentId: null)
         let artifactFolder = allNodes.find(
-          (f) => f.type === "folder" && f.name === "artifacts" && f.parentId === null
+          (f) =>
+            f.type === "folder" && f.name === "artifacts" && f.parentId === null
         );
         if (!artifactFolder) {
           artifactFolder = {
@@ -200,15 +215,18 @@ const SolidityCompiler = () => {
   };
 
   return (
-    <div className="relative flex">
+    <div className="relative flex border-r border-[#DEDEDE] h-full  ">
       <div
         className={`${
           isExpanded ? "w-80 px-4" : "w-0 px-0"
-        } bg-white flex flex-col border-r border-[#DEDEDE] py-4 transition-all duration-300 overflow-hidden ${urbanist.className}`}
+        } bg-white flex flex-col transition-all duration-300 overflow-hidden overflow-y-auto  h-full${
+          urbanist.className
+        }`}
       >
-        <div className="mb-2 flex items-center justify-between">
+        {/* <div className="mb-2 flex items-center justify-between"> */}
+        <div className="mb-2 flex items-center justify-between sticky top-0 bg-white z-10  h-[3rem] bg-white flex-shrink-0">
           <span className={`${isExpanded ? "opacity-100" : "opacity-0"}`}>
-            SOLIDITY COMPILER
+            Solidity Compiler
           </span>
           <div className="flex items-center gap-2">
             <GreenTick
@@ -221,7 +239,7 @@ const SolidityCompiler = () => {
               className="transition-all"
             >
               <RightArrow
-                className={`w-5 h-5 text-gray-500 transition-transform ${
+                className={`w-5 h-5 text-gray-500 mb-[2px] transition-transform  ${
                   isExpanded ? "rotate-180" : "rotate-0"
                 }`}
               />
@@ -238,10 +256,14 @@ const SolidityCompiler = () => {
             <select
               value={selectedVersion}
               onChange={(e) => setSelectedVersion(e.target.value)}
-              className="border p-2 rounded"
+              className="border p-2 rounded text-gray-500 text-[15px]"
             >
               {versions.map((data, index) => (
-                <option key={index} value={data.version}>
+                <option
+                  key={index}
+                  value={data.version}
+                  className="text-gray-500"
+                >
                   {data.version}
                 </option>
               ))}
@@ -254,11 +276,17 @@ const SolidityCompiler = () => {
               <select
                 onChange={handleFileSelection}
                 value={activeFile ? activeFile.id : ""}
-                className="border p-2 rounded w-full"
+                className="border p-2 rounded w-full text-gray-500 text-[15px]"
               >
-                <option value="">-- Select a Solidity file --</option>
+                <option value="" className="text-gray-500 text-[14px] ">
+                  -- Select a Solidity file --
+                </option>
                 {availableFiles.map((file) => (
-                  <option key={file.id} value={file.id}>
+                  <option
+                    key={file.id}
+                    value={file.id}
+                    className="text-gray-500 text-[15px]"
+                  >
                     {file.name}
                   </option>
                 ))}
@@ -308,17 +336,21 @@ const SolidityCompiler = () => {
                     </label>
                     <div className="flex flex-col mt-2">
                       <label className="text-[13px]">LANGUAGE</label>
-                      <select className="border p-2 rounded">
-                        <option>Solidity</option>
-                        <option>Yul</option>
+                      <select className="border p-2 rounded text-[15px] text-gray-500">
+                        <option className="text-[14px]">Solidity</option>
+                        <option className="text-[14px]">Yul</option>
                       </select>
                     </div>
                     <div className="flex flex-col mt-2">
-                      <label className="text-[13px]">EVM VERSION</label>
-                      <select className="border p-2 rounded">
-                        <option className="text-[13px]">berlin</option>
+                      <label className="text-[13px] text-gray-500">
+                        EVM VERSION
+                      </label>
+                      <select className="border p-2 rounded text-gray-500">
+                        <option className="text-[13px] ">berlin</option>
                         {evmVersions.map((data, index) => (
-                          <option key={index}>{data.label}</option>
+                          <option key={index} className="text-[15px] ">
+                            {data.label}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -337,7 +369,7 @@ const SolidityCompiler = () => {
                         <input
                           type="number"
                           defaultValue={200}
-                          className="w-[80px] p-1 border rounded"
+                          className="w-[80px] p-1 border rounded text-[14px] text-gray-500"
                         />
                       </div>
                     </div>
@@ -370,8 +402,8 @@ const SolidityCompiler = () => {
                 onClick={handleCompile}
                 className={`border p-2 rounded ${
                   isCompiling || !isSolFile
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-black text-white hover:bg-gray-800"
+                    ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                    : "bg-[#E84050] text-white hover:bg-[#D73642] shadow-md"
                 }`}
                 disabled={isCompiling || !isSolFile}
               >
@@ -381,8 +413,8 @@ const SolidityCompiler = () => {
                   ? `Compile ${activeFile.name}`
                   : "Compile no file selected"}
               </button>
-              <button className="border p-2 rounded bg-gray-500 text-white">
-                Compile and Run script
+              <button className="border p-2 rounded bg-[#222222] text-white hover:bg-[#3A3A3A] transition-all duration-300 shadow-md">
+                Compile and Run Script
               </button>
             </div>
 
@@ -391,7 +423,7 @@ const SolidityCompiler = () => {
                 <div className="p-2 bg-green-100 text-green-800 rounded-md mb-2 flex justify-between items-center">
                   <span>✓ Compilation Successful</span>
                   {warnings.length > 0 && (
-                    <span 
+                    <span
                       className="text-yellow-600 text-xs cursor-pointer hover:underline"
                       onClick={() => setShowWarnings(!showWarnings)}
                     >
@@ -406,7 +438,7 @@ const SolidityCompiler = () => {
                       <h4 className="text-sm font-bold text-yellow-700">
                         Compilation Warnings
                       </h4>
-                      <button 
+                      <button
                         onClick={() => setShowWarnings(false)}
                         className="text-xs text-gray-500 hover:text-gray-700"
                       >
@@ -415,7 +447,10 @@ const SolidityCompiler = () => {
                     </div>
                     <div className="max-h-40 overflow-y-auto">
                       {warnings.map((warning, idx) => (
-                        <div key={idx} className="text-xs text-yellow-800 border-b border-yellow-100 py-1 last:border-0">
+                        <div
+                          key={idx}
+                          className="text-xs text-yellow-800 border-b border-yellow-100 py-1 last:border-0"
+                        >
                           <pre className="whitespace-pre-wrap">{warning}</pre>
                         </div>
                       ))}
@@ -443,7 +478,9 @@ const SolidityCompiler = () => {
                           }
                           className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
                         >
-                          <span>{expandedAbi === contract.contractName ? "▾" : "▸"}</span>
+                          <span>
+                            {expandedAbi === contract.contractName ? "▾" : "▸"}
+                          </span>
                           <span>View ABI</span>
                         </button>
                         {expandedAbi === contract.contractName && (
@@ -463,7 +500,11 @@ const SolidityCompiler = () => {
                           }
                           className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
                         >
-                          <span>{expandedBytecode === contract.contractName ? "▾" : "▸"}</span>
+                          <span>
+                            {expandedBytecode === contract.contractName
+                              ? "▾"
+                              : "▸"}
+                          </span>
                           <span>View Bytecode</span>
                         </button>
                         {expandedBytecode === contract.contractName && (

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
 import { getNodeById, updateNode } from "../utils/IndexDB";
 import type { FileSystemNode } from "../types";
@@ -17,8 +17,6 @@ interface MonacoEditorProps {
 
 const MonacoEditor: React.FC<MonacoEditorProps> = ({
   file,
-  zoom,
-  editCode,
   error,
   code,
   compilationResult,
@@ -26,7 +24,8 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   const [content, setContent] = useState(file?.content || code);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  // When file changes externally, load its latest content from IndexedDB.
+  const editorRef = useRef<any>(null);
+
   useEffect(() => {
     const loadContent = async () => {
       const latestFile = await getNodeById(file?.id);
@@ -43,11 +42,16 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   const handleSave = async () => {
     try {
       setIsSaving(true);
+      
+      // Ensure we fetch latest content directly from Monaco Editor
+      const latestContent = editorRef.current?.getValue() || content;
+
       const updatedFile = {
         ...file,
-        content,
+        content: latestContent,
         updatedAt: Date.now(),
       };
+
       await updateNode(updatedFile);
       setIsDirty(false);
     } catch (error) {
@@ -58,6 +62,11 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
     }
   };
 
+  // Capture editor instance on mount
+  const handleEditorDidMount = (editor: any) => {
+    editorRef.current = editor;
+  };
+
   // When the editor changes, update local state and context.
   const handleEditorChange = (value: string | undefined) => {
     const newValue = value || "";
@@ -66,6 +75,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
     updateActiveFileContent(newValue);
   };
 
+  // Handle Ctrl + S save
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "s") {
       e.preventDefault();
@@ -177,7 +187,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="bg-gray-50   flex justify-between items-center">
+      <div className="bg-gray-50 flex justify-between items-center">
         <div className="flex items-center gap-2">
           {isDirty && (
             <span className="text-sm text-gray-500">(unsaved changes)</span>
@@ -191,6 +201,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
           value={content}
           theme="vs-light"
           onChange={handleEditorChange}
+          onMount={handleEditorDidMount}
           options={{
             fontSize: 14,
             minimap: { enabled: false },
@@ -200,7 +211,6 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
             readOnly: false,
             cursorStyle: "line",
           }}
-          onKeyDown={handleKeyDown}
           loading={<div className="p-4">Loading editor...</div>}
         />
       </div>

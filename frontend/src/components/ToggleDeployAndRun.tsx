@@ -5,6 +5,7 @@ import { deploymentService } from "@/services/deployment-service";
 import { Account, DeployedContract, DeploymentInput } from "@/types/deployment";
 import { ethers } from "ethers";
 import { useEditor } from "@/context/EditorContext";
+import { RightArrow, GreenTick } from "@/assets/index";
 
 const urbanist = Urbanist({
   subsets: ["latin"],
@@ -20,7 +21,9 @@ const DeployAndRun = () => {
   const [value, setValue] = useState("0");
   const [valueUnit, setValueUnit] = useState("wei");
   const [selectedContract, setSelectedContract] = useState("");
-  const [deployedContracts, setDeployedContracts] = useState<DeployedContract[]>([]);
+  const [deployedContracts, setDeployedContracts] = useState<
+    DeployedContract[]
+  >([]);
   const [atAddressValue, setAtAddressValue] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [transactionsRecorded, setTransactionsRecorded] = useState(0);
@@ -48,7 +51,9 @@ const DeployAndRun = () => {
 
   const valueUnits = ["wei", "gwei", "finney", "ether"];
 
-  const solidityFiles = allFiles.filter((file) => file.type === "file" && file.name.endsWith(".sol"));
+  const solidityFiles = allFiles.filter(
+    (file) => file.type === "file" && file.name.endsWith(".sol")
+  );
 
   useEffect(() => {
     console.log("ToggleDeployAndRun - Solidity files:", solidityFiles);
@@ -89,10 +94,6 @@ const DeployAndRun = () => {
     }
   };
 
-  const toggleExpanded = () => {
-    setIsExpanded(!isExpanded);
-  };
-
   const deployContract = async () => {
     if (environment !== "injected") {
       setError("Please connect to MetaMask to deploy contracts");
@@ -101,41 +102,62 @@ const DeployAndRun = () => {
     setLoading(true);
     try {
       const selectedFile = allFiles.find((f) => f.name === selectedContract);
-      console.log("Deploying - Selected contract file:", selectedContract, "Selected file:", selectedFile);
-      if (!selectedFile) throw new Error("Selected contract file not found in file system");
+      console.log(
+        "Deploying - Selected contract file:",
+        selectedContract,
+        "Selected file:",
+        selectedFile
+      );
+      if (!selectedFile)
+        throw new Error("Selected contract file not found in file system");
 
       // If no compiled contracts, trigger compilation
       if (compiledContracts.length === 0) {
-        console.log("Deploying - No compiled contracts found, compiling now...");
+        console.log(
+          "Deploying - No compiled contracts found, compiling now..."
+        );
         await compileFile(selectedFile);
       }
 
       const fileNameWithoutExt = selectedContract.replace(".sol", "");
-      const compiledContract = compiledContracts.find((c) => 
-        c.contractName === fileNameWithoutExt || 
-        selectedContract.includes(c.contractName) || 
-        c.contractName.includes(fileNameWithoutExt)
-      ) || compiledContracts[0];
+      const compiledContract =
+        compiledContracts.find(
+          (c) =>
+            c.contractName === fileNameWithoutExt ||
+            selectedContract.includes(c.contractName) ||
+            c.contractName.includes(fileNameWithoutExt)
+        ) || compiledContracts[0];
       console.log("Deploying - Matching compiled contract:", compiledContract);
       if (!compiledContract) {
-        console.log("Deploying - Available compiled contracts:", compiledContracts);
-        throw new Error("No compiled data found for any contract. Please ensure compilation succeeded.");
+        console.log(
+          "Deploying - Available compiled contracts:",
+          compiledContracts
+        );
+        throw new Error(
+          "No compiled data found for any contract. Please ensure compilation succeeded."
+        );
       }
 
       const deploymentInput: DeploymentInput = {
         contractName: compiledContract.contractName,
         bytecode: compiledContract.byteCode,
         abi: compiledContract.abi,
-        constructorArgs: constructorArgs.length > 0 ? constructorArgs : undefined,
+        constructorArgs:
+          constructorArgs.length > 0 ? constructorArgs : undefined,
       };
-      const deployedContract = await deploymentService.deployContract(deploymentInput, {
-        gasLimit,
-        value: ethers.parseUnits(value, valueUnit).toString(),
-      });
+      const deployedContract = await deploymentService.deployContract(
+        deploymentInput,
+        {
+          gasLimit,
+          value: ethers.parseUnits(value, valueUnit).toString(),
+        }
+      );
       console.log("Deployed contract:", deployedContract);
 
       // Broadcast deployed contract to terminal
-      const deploymentEvent = new CustomEvent("deploymentOutput", { detail: deployedContract });
+      const deploymentEvent = new CustomEvent("deploymentOutput", {
+        detail: deployedContract,
+      });
       window.dispatchEvent(deploymentEvent);
 
       setDeployedContracts([...deployedContracts, deployedContract]);
@@ -155,24 +177,36 @@ const DeployAndRun = () => {
     setLoading(true);
     try {
       const selectedFile = allFiles.find((f) => f.name === selectedContract);
-      if (!selectedFile) throw new Error("Selected contract file not found in file system");
+      if (!selectedFile)
+        throw new Error("Selected contract file not found in file system");
 
       if (compiledContracts.length === 0) {
-        console.log("AccessAtAddress - No compiled contracts found, compiling now...");
+        console.log(
+          "AccessAtAddress - No compiled contracts found, compiling now..."
+        );
         await compileFile(selectedFile);
       }
 
       const fileNameWithoutExt = selectedContract.replace(".sol", "");
-      const compiledContract = compiledContracts.find((c) => 
-        c.contractName === fileNameWithoutExt || 
-        selectedContract.includes(c.contractName) || 
-        c.contractName.includes(fileNameWithoutExt)
-      ) || compiledContracts[0];
-      if (!compiledContract) throw new Error("No compiled data found for any contract. Please ensure compilation succeeded.");
+      const compiledContract =
+        compiledContracts.find(
+          (c) =>
+            c.contractName === fileNameWithoutExt ||
+            selectedContract.includes(c.contractName) ||
+            c.contractName.includes(fileNameWithoutExt)
+        ) || compiledContracts[0];
+      if (!compiledContract)
+        throw new Error(
+          "No compiled data found for any contract. Please ensure compilation succeeded."
+        );
 
       const newContract: DeployedContract = {
         address: atAddressValue,
-        network: { name: environment, rpcUrl: "MetaMask Provided", chainId: "unknown" },
+        network: {
+          name: environment,
+          rpcUrl: "MetaMask Provided",
+          chainId: "unknown",
+        },
         deployedBy: account,
         timestamp: Date.now(),
         contractName: compiledContract.contractName,
@@ -203,36 +237,37 @@ const DeployAndRun = () => {
   };
 
   return (
-    <div className="relative flex">
+    <div className="relative flex border-r border-[#DEDEDE] h-full">
       <div
         className={`${
           isExpanded ? "w-80 px-4" : "w-0 px-0"
-        } bg-white flex flex-col border-r border-[#DEDEDE] py-4 transition-all duration-300 overflow-hidden ${
+        } bg-white flex flex-col  transition-all duration-300 overflow-hidden overflow-y-auto  h-full ${
           urbanist.className
         }`}
       >
-        <div className="mb-2 flex items-center justify-between">
-          <span className={`${isExpanded ? "opacity-100" : "opacity-0"} font-medium`}>
-            DEPLOY & RUN
+        <div className="mb-2 flex items-center justify-between sticky top-0 bg-white z-10  h-[3rem] bg-white flex-shrink-0">
+          <span
+            className={`${
+              isExpanded ? "opacity-100" : "opacity-0"
+            } font-medium`}
+          >
+            Deploy & Run
           </span>
           <div className="flex items-center gap-2">
-            <button onClick={toggleExpanded} className="transition-all">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className={`w-5 h-5 text-gray-500 transition-transform ${
+            <GreenTick
+              className={`w-5 h-5 text-green-500 transition-opacity ${
+                isExpanded ? "opacity-100" : "opacity-0"
+              }`}
+            />
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="transition-all"
+            >
+              <RightArrow
+                className={`w-5 h-5 text-gray-500  mb-[2px] transition-transform ${
                   isExpanded ? "rotate-180" : "rotate-0"
                 }`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
+              />
             </button>
           </div>
         </div>
@@ -240,11 +275,11 @@ const DeployAndRun = () => {
         {isExpanded && (
           <div className="flex flex-col gap-2 mt-1">
             <div className="flex flex-col gap-1">
-              <div className="text-gray-600 text-xs">ENVIRONMENT</div>
+              <div className="text-gray-600 text-sm">Environment</div>
               <select
                 value={environment}
                 onChange={(e) => handleEnvironmentChange(e.target.value)}
-                className="border p-2 rounded text-sm"
+                className="border p-2 rounded text-sm text-gray-500 "
                 disabled={loading}
               >
                 {environments.map((env) => (
@@ -268,13 +303,14 @@ const DeployAndRun = () => {
               <select
                 value={account}
                 onChange={(e) => setAccount(e.target.value)}
-                className="border p-2 rounded text-sm"
+                className="border p-2 rounded text-sm text-gray-500 "
                 disabled={loading || accounts.length === 0}
               >
                 {accounts.length > 0 ? (
                   accounts.map((acc, index) => (
                     <option key={acc.address} value={acc.address}>
-                      Account {index} ({acc.address.slice(0, 6)}...{acc.address.slice(-4)}) - {acc.balance} ETH
+                      Account {index} ({acc.address.slice(0, 6)}...
+                      {acc.address.slice(-4)}) - {acc.balance} ETH
                     </option>
                   ))
                 ) : (
@@ -289,11 +325,11 @@ const DeployAndRun = () => {
                 type="text"
                 value={gasLimit}
                 onChange={(e) => setGasLimit(e.target.value)}
-                className="border p-2 rounded text-sm"
+                className="border p-2 rounded text-sm text-gray-500 "
                 disabled={loading}
               />
             </div>
-            
+
             <div className="flex flex-col gap-1 mt-3">
               <div className="text-gray-600 text-xs">VALUE</div>
               <div className="flex gap-2">
@@ -301,13 +337,13 @@ const DeployAndRun = () => {
                   type="text"
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
-                  className="border p-2 rounded text-sm flex-1"
+                  className="border p-2 rounded text-sm flex-1 text-gray-500 "
                   disabled={loading}
                 />
                 <select
                   value={valueUnit}
                   onChange={(e) => setValueUnit(e.target.value)}
-                  className="border p-2 rounded text-sm"
+                  className="border p-2 rounded text-sm text-gray-500 "
                   disabled={loading}
                 >
                   {valueUnits.map((unit) => (
@@ -325,7 +361,7 @@ const DeployAndRun = () => {
               <select
                 value={selectedContract}
                 onChange={(e) => setSelectedContract(e.target.value)}
-                className="border p-2 rounded text-sm"
+                className="border p-2 rounded text-sm text-gray-500 "
                 disabled={loading || solidityFiles.length === 0}
               >
                 {solidityFiles.length > 0 ? (
@@ -339,11 +375,13 @@ const DeployAndRun = () => {
                 )}
               </select>
             </div>
-            
+
             <button
               onClick={deployContract}
-              className="flex-1 bg-blue-600 text-white p-2 rounded text-sm hover:bg-blue-700"
-              disabled={loading || !selectedContract || environment !== "injected"}
+              className="flex-1 bg-[#CE192D] text-white p-2 rounded text-sm hover:bg-[#CE192D]"
+              disabled={
+                loading || !selectedContract || environment !== "injected"
+              }
             >
               {loading ? "Deploying..." : "Deploy"}
             </button>
@@ -360,7 +398,7 @@ const DeployAndRun = () => {
                 value={atAddressValue}
                 onChange={(e) => setAtAddressValue(e.target.value)}
                 placeholder="Contract Address"
-                className="flex-1 border p-2 rounded text-sm"
+                className="flex-1 border p-2 rounded text-sm text-gray-500"
                 disabled={loading}
               />
             </div>
@@ -368,49 +406,76 @@ const DeployAndRun = () => {
             {/* Constructor Parameters */}
             {selectedContract && compiledContracts.length > 0 && (
               <div className="mt-3">
-                <div className="text-gray-600 text-xs">CONSTRUCTOR PARAMETERS</div>
+                <div className="text-gray-600 text-xs">
+                  CONSTRUCTOR PARAMETERS
+                </div>
                 {(() => {
                   try {
-                    const fileNameWithoutExt = selectedContract.replace(".sol", "");
-                    const compiledContract = compiledContracts.find((c) => 
-                      c.contractName === fileNameWithoutExt || 
-                      selectedContract.includes(c.contractName) || 
-                      c.contractName.includes(fileNameWithoutExt)
-                    ) || compiledContracts[0];
-                    if (!compiledContract) return <div>No compiled data available</div>;
+                    const fileNameWithoutExt = selectedContract.replace(
+                      ".sol",
+                      ""
+                    );
+                    const compiledContract =
+                      compiledContracts.find(
+                        (c) =>
+                          c.contractName === fileNameWithoutExt ||
+                          selectedContract.includes(c.contractName) ||
+                          c.contractName.includes(fileNameWithoutExt)
+                      ) || compiledContracts[0];
+                    if (!compiledContract)
+                      return <div>No compiled data available</div>;
 
-                    const constructor = compiledContract.abi.find(item => item.type === "constructor");
-                    return constructor?.inputs.map((param, idx) => (
-                      <div key={idx} className="flex flex-col mt-1">
-                        <label className="text-xs text-gray-600">{param.name} ({param.type})</label>
-                        <input
-                          type="text"
-                          placeholder={param.type === "bytes32[]" ? '["0x1234", "0x5678"]' : param.type === "string" ? "My Token" : ""}
-                          className="border p-2 rounded text-sm mt-1"
-                          onChange={(e) => {
-                            const newArgs = [...constructorArgs];
-                            newArgs[idx] = e.target.value; // Add parsing logic if needed
-                            setConstructorArgs(newArgs);
-                          }}
-                          disabled={loading}
-                        />
-                      </div>
-                    )) || <div>No constructor parameters</div>;
+                    const constructor = compiledContract.abi.find(
+                      (item) => item.type === "constructor"
+                    );
+                    return (
+                      constructor?.inputs.map((param, idx) => (
+                        <div key={idx} className="flex flex-col mt-1">
+                          <label className="text-xs text-gray-600">
+                            {param.name} ({param.type})
+                          </label>
+                          <input
+                            type="text"
+                            placeholder={
+                              param.type === "bytes32[]"
+                                ? '["0x1234", "0x5678"]'
+                                : param.type === "string"
+                                ? "My Token"
+                                : ""
+                            }
+                            className="border p-2 rounded text-sm mt-1 text-gray-500"
+                            onChange={(e) => {
+                              const newArgs = [...constructorArgs];
+                              newArgs[idx] = e.target.value; // Add parsing logic if needed
+                              setConstructorArgs(newArgs);
+                            }}
+                            disabled={loading}
+                          />
+                        </div>
+                      )) || <div>No constructor parameters</div>
+                    );
                   } catch (err) {
-                    console.error("Error rendering constructor parameters:", err);
+                    console.error(
+                      "Error rendering constructor parameters:",
+                      err
+                    );
                     return <div>Error loading constructor parameters</div>;
                   }
                 })()}
               </div>
             )}
 
-            <div className="mt-6 p-3 bg-gray-50 rounded">
+            <div className="mt-6 bg-gray-50 rounded">
               <div className="flex justify-between items-center">
-                <div className="text-sm font-medium">Transactions Recorded: {transactionsRecorded}</div>
+                <div className="text-sm font-medium">
+                  Transactions Recorded: {transactionsRecorded}
+                </div>
                 <div className="flex gap-2">
                   <button
                     onClick={toggleRecording}
-                    className={`p-1 rounded ${isRecording ? "bg-red-100 text-red-600" : "bg-gray-200"}`}
+                    className={`p-1 rounded ${
+                      isRecording ? "bg-red-100 text-red-600" : "bg-gray-200"
+                    }`}
                     title={isRecording ? "Stop recording" : "Start recording"}
                     disabled={loading}
                   >
@@ -426,7 +491,11 @@ const DeployAndRun = () => {
                   </button>
                   <button
                     onClick={saveScenario}
-                    className={`p-1 rounded bg-gray-200 ${transactionsRecorded === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                    className={`p-1 rounded bg-gray-200 ${
+                      transactionsRecorded === 0
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
+                    }`}
                     disabled={transactionsRecorded === 0 || loading}
                     title="Save to scenario.json"
                   >
@@ -459,34 +528,40 @@ const DeployAndRun = () => {
               </div>
             </div>
 
-            <div className="mt-4">
-              <div className="flex justify-between items-center">
-                <div className="text-sm font-medium">DEPLOYED CONTRACTS</div>
-                {deployedContracts.length > 0 && (
-                  <button
-                    onClick={clearDeployedContracts}
-                    className="text-red-500 text-xs"
-                    disabled={loading}
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-              <div className="mt-2 max-h-60 overflow-auto">
-                {deployedContracts.map((contract, idx) => (
-                  <div key={idx} className="border rounded p-2 mb-2">
-                    <div className="flex justify-between items-center">
-                      <div className="font-medium text-sm">{contract.contractName}</div>
-                      <div className="text-xs text-gray-500 truncate max-w-[120px]" title={contract.address}>
-                        at {contract.address.slice(0, 6)}...{contract.address.slice(-4)}
-                      </div>
+            <div className="flex justify-between items-center">
+              <div className="text-sm font-medium">DEPLOYED CONTRACTS</div>
+              {deployedContracts.length > 0 && (
+                <button
+                  onClick={clearDeployedContracts}
+                  className="text-red-500 text-xs"
+                  disabled={loading}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="mt-2 max-h-60 overflow-auto">
+              {deployedContracts.map((contract, idx) => (
+                <div key={idx} className="border rounded p-2 mb-2">
+                  <div className="flex justify-between items-center">
+                    <div className="font-medium text-sm">
+                      {contract.contractName}
+                    </div>
+                    <div
+                      className="text-xs text-gray-500 truncate max-w-[120px]"
+                      title={contract.address}
+                    >
+                      at {contract.address.slice(0, 6)}...
+                      {contract.address.slice(-4)}
                     </div>
                   </div>
-                ))}
-                {deployedContracts.length === 0 && (
-                  <div className="text-sm text-gray-500">No contracts deployed yet</div>
-                )}
-              </div>
+                </div>
+              ))}
+              {deployedContracts.length === 0 && (
+                <div className="text-sm text-gray-500">
+                  No contracts deployed yet
+                </div>
+              )}
             </div>
             {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
           </div>
@@ -498,20 +573,11 @@ const DeployAndRun = () => {
           onClick={() => setIsExpanded(true)}
           className="absolute left-0 top-5 transition-all"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-5 h-5 text-gray-500"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
+          <RightArrow
+            className={`w-5 h-5 text-gray-500 transition-transform ${
+              isExpanded ? "rotate-180" : "rotate-0"
+            }`}
+          />
         </button>
       )}
     </div>
