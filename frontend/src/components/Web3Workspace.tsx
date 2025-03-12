@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import Linkedin from "@/assets/svg/in.svg";
-
+import Tooltip from "@/components/Tooltip"
 import {  Insta,
   X,
   Send,
@@ -11,29 +11,31 @@ import {  Insta,
   WorkSpaceArrow} from "@/assets/index"
 // Constants for static data
 const TAGS = [
-  "Start Coding",
-  "ZK Semaphore",
-  "ERC 20",
-  "Uniswap V4 Hooks",
-  "NFT/ERC721",
-  "MultiSig",
+  { label: "Start Coding", content: "Start coding using the default template." },
+  { label: "ZK Semaphore", content: "Create a new ZK Project with circum using this template." },
+  { label: "ERC 20", content: "Create a new ERC20 token using this template." },
+  { label: "Uniswap V4 Hooks", content: "Create a new workspace based on this template." },
+  { label: "NFT/ERC721", content: "Create a new ERC721 token using this template." },
+  { label: "MultiSig", content: "Create a new MultiSig wallet using this template." },
 ];
+
 const WORKSPACES = ["Default Workspace", "Team Workspace"];
 const SOCIAL_LINKS = [
-  { Icon: X, href: "https://x.com/quranium_org", label: "X (Twitter)" },
+  { Icon: X, href: "https://x.com/quranium_org", label: "X Profile" },
   {
     Icon: Linkedin,
     href: "https://www.linkedin.com/company/quranium/",
-    label: "LinkedIn",
+    label: "LinkedIn Profile",
   },
   {
     Icon: Insta,
     href: "https://www.instagram.com/quraniumofficial/",
-    label: "Instagram",
+    label: "Instagram Profile",
   },
-  { Icon: Send, href: "https://t.me/quraniumofficial", label: "Send" },
-  { Icon: M, href: "https://quranium-org.medium.com/", label: "M" },
+  { Icon: Send, href: "https://t.me/quraniumofficial", label: "Join us on Discord" },
+  { Icon: M, href: "https://quranium-org.medium.com/", label: "Medium Posts" },
 ];
+
 
 // Reusable SocialIcon component
 const SocialIcon = ({ Icon, href, label }) => (
@@ -63,18 +65,20 @@ const WorkspaceItem = ({ workspace }) => (
 );
 
 const Web3Workspace = () => {
-  const [selectedTag, setSelectedTag] = useState(TAGS[0]);
+  const [selectedTag, setSelectedTag] = useState(TAGS[0].label);
 
   // Memoize static data to avoid unnecessary recalculations
   const socialIcons = useMemo(
     () =>
       SOCIAL_LINKS.map((link, index) => (
+          <Tooltip content={link.label}    key={index}>
         <SocialIcon
-          key={index}
+         
           Icon={link.Icon}
           href={link.href}
           label={link.label}
         />
+        </Tooltip>
       )),
     []
   );
@@ -82,12 +86,13 @@ const Web3Workspace = () => {
   const tags = useMemo(
     () =>
       TAGS.map((tag) => (
+        <Tooltip content={tag.content} key={tag.label}>
         <Tag
-          key={tag}
-          tag={tag}
+          tag={tag.label}
           selectedTag={selectedTag}
           onClick={setSelectedTag}
         />
+        </Tooltip>
       )),
     [selectedTag]
   );

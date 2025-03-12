@@ -13,7 +13,7 @@ import {
   Plugin,
 } from "@/assets/index";
 import { useEditor } from "../context/EditorContext";
-
+import Tooltip from "@/components/Tooltip"
 interface SidebarProps {
   onSectionChange: (section: string) => void;
 }
@@ -52,7 +52,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
   return (
     <div className="w-20 bg-white flex flex-col gap-1 border border-gray-300 items-center p-2">
       <div className="mb-2 mt-2 cursor-pointer" onClick={handleLogoClick}>
+      <Tooltip content="Home">
         <Logo className="w-10 h-10 rounded-full" />
+      </Tooltip>
       </div>
       <div className="mb-6 w-full flex justify-center">
         <hr className="w-10 border-t-2 border-gray-300" />
@@ -62,8 +64,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
+            <Tooltip content={item.label}   key={item.label}>
             <button
-              key={item.id}
+            
               className={`p-2 rounded-lg ${
                 active === item.id ? "bg-gray-200" : "hover:bg-gray-300"
               } ${item.label === "Search" ? "pl-[19px]" : ""}`}
@@ -77,6 +80,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
                 }`}
               />
             </button>
+            </Tooltip>
           );
         })}
       </nav>
@@ -85,8 +89,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
         {bottomItems.map((item) => {
           const Icon = item.icon;
           return (
+            <Tooltip content={item.label}    key={item.id}>
             <button
-              key={item.id}
+           
               className={`p-2 rounded-lg ${
                 active === item.id ? "bg-gray-200" : "hover:bg-gray-300"
               }`}
@@ -99,6 +104,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
                 }`}
               />
             </button>
+            </Tooltip>
           );
         })}
       </div>

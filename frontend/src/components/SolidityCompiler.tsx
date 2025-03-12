@@ -4,7 +4,7 @@ import { GreenTick, RightArrow, DownArrow } from "@/assets/index";
 import { Urbanist } from "next/font/google";
 import { useEditor } from "../context/EditorContext";
 import { getAllNodes, createNode, updateNode } from "../utils/IndexDB";
-
+import Tooltip from "@/components/Tooltip"
 const urbanist = Urbanist({
   subsets: ["latin"],
   weight: ["400", "600", "700"],
@@ -285,10 +285,10 @@ const SolidityCompiler = () => {
               <select
                 onChange={handleFileSelection}
                 value={activeFile ? activeFile.id : ""}
-                className="border p-2 rounded w-full text-gray-500 text-[15px]"
+                className="border p-2 rounded w-full text-gray-500 text-[14px]"
               >
                 <option value="" className="text-gray-500 text-[14px]">
-                  -- Select a Solidity file --
+                  Select a Solidity file
                 </option>
                 {availableFiles.map((file) => (
                   <option
@@ -345,10 +345,12 @@ const SolidityCompiler = () => {
                     </label>
                     <div className="flex flex-col mt-2">
                       <label className="text-[13px]">LANGUAGE</label>
-                      <select className="border p-2 rounded text-[15px] text-gray-500">
-                        <option className="text-[14px]">Solidity</option>
-                        <option className="text-[14px]">Yul</option>
+                      <Tooltip content="Language specification available from Compiler >= v0.5.7">
+                      <select className="border p-2 rounded text-[14px] text-gray-500 w-full">
+                        <option >Solidity</option>
+                        <option >Yul</option>
                       </select>
+                      </Tooltip>
                     </div>
                     <div className="flex flex-col mt-2">
                       <label className="text-[13px] text-gray-500">
@@ -370,16 +372,20 @@ const SolidityCompiler = () => {
                           id="optimization"
                           className="accent-black"
                         />
+                        <Tooltip content="Enable opcode-based optimizer for the qenerated bytecode and the Yul optimizer for the Yul code">
                         <label htmlFor="optimization" className="text-sm">
                           Optimization
                         </label>
+                        </Tooltip>
                       </div>
                       <div>
+                        <Tooltip content="Estimated number of times each opcode of the deployed code will be executed across the life-time of the contract.">
                         <input
                           type="number"
                           defaultValue={200}
                           className="w-[80px] p-1 border rounded text-[14px] text-gray-500"
                         />
+                        </Tooltip>
                       </div>
                     </div>
                   </div>

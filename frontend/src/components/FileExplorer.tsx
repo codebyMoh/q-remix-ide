@@ -9,6 +9,7 @@ import {
   getAllWorkspaces,
 } from "../utils/IndexDB";
 import type { FileSystemNode } from "../types";
+import Tooltip from "@/components/Tooltip";
 import {
   GreenTick,
   RightArrow,
@@ -58,12 +59,15 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     selectedWorkspace,
     setSelectedWorkspace,
   } = useEditor();
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+    new Set()
+  );
   const [editingNode, setEditingNode] = useState<string | null>(null);
   const [newNodeName, setNewNodeName] = useState("");
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [pendingNewNode, setPendingNewNode] = useState<WorkspaceFileSystemNode | null>(null);
+  const [pendingNewNode, setPendingNewNode] =
+    useState<WorkspaceFileSystemNode | null>(null);
   const [code] = useState(`// Welcome to Q Remix IDE! 
 // Visit all Quranium websites at: https://quranium.org
 // Write your Solidity contract here...
@@ -76,13 +80,16 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
   const [workspacePopup, setWorkspacePopup] = useState(false);
   const [inputworkspace, setInputworkspace] = useState("");
   const [isExpanded, setIsExpanded] = useState(true);
-  const [filteredNodes, setFilteredNodes] = useState<WorkspaceFileSystemNode[]>([]);
+  const [filteredNodes, setFilteredNodes] = useState<WorkspaceFileSystemNode[]>(
+    []
+  );
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation>({
-    isOpen: false,
-    nodeToDelete: null,
-  });
+  const [deleteConfirmation, setDeleteConfirmation] =
+    useState<DeleteConfirmation>({
+      isOpen: false,
+      nodeToDelete: null,
+    });
 
   useEffect(() => {
     const loadData = async () => {
@@ -115,7 +122,13 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     };
 
     loadData();
-  }, [setAllWorkspace, setAllNodes, setAllFiles, setSelectedWorkspace, selectedWorkspace]);
+  }, [
+    setAllWorkspace,
+    setAllNodes,
+    setAllFiles,
+    setSelectedWorkspace,
+    selectedWorkspace,
+  ]);
 
   useEffect(() => {
     if (selectedWorkspace && allNodes?.length > 0) {
@@ -151,7 +164,11 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     });
   };
 
-  const isDuplicate = (type: "file" | "folder", name: string, parentId: string | null): boolean => {
+  const isDuplicate = (
+    type: "file" | "folder",
+    name: string,
+    parentId: string | null
+  ): boolean => {
     return filteredNodes.some(
       (node) =>
         node.type === type &&
@@ -160,7 +177,10 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     );
   };
 
-  const handleCreateNode = async (type: "file" | "folder", parentId: string | null) => {
+  const handleCreateNode = async (
+    type: "file" | "folder",
+    parentId: string | null
+  ) => {
     if (!selectedWorkspace) {
       setErrorMessage("Please select a workspace first");
       return;
@@ -168,7 +188,8 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
 
     const effectiveParentId =
       parentId ??
-      (selectedNode && filteredNodes.find((n) => n.id === selectedNode)?.type === "folder"
+      (selectedNode &&
+      filteredNodes.find((n) => n.id === selectedNode)?.type === "folder"
         ? selectedNode
         : null);
 
@@ -204,14 +225,20 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
       }
 
       await createNode(newNode); // Persist to IndexedDB
-      const updatedAllNodes = [...allNodes, newNode] as WorkspaceFileSystemNode[];
+      const updatedAllNodes = [
+        ...allNodes,
+        newNode,
+      ] as WorkspaceFileSystemNode[];
       setAllNodes(sortNodes(updatedAllNodes));
     } catch (error) {
       console.error("Failed to create node:", error);
     }
   };
 
-  const showDeleteConfirmation = (nodeToDelete: WorkspaceFileSystemNode, event: React.MouseEvent) => {
+  const showDeleteConfirmation = (
+    nodeToDelete: WorkspaceFileSystemNode,
+    event: React.MouseEvent
+  ) => {
     event.stopPropagation();
     setDeleteConfirmation({
       isOpen: true,
@@ -248,7 +275,9 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     try {
       await Promise.all(idsToDelete.map((id) => deleteNode(id)));
       setAllNodes((prev) => {
-        const updatedNodes = prev.filter((node) => !idsToDelete.includes(node.id));
+        const updatedNodes = prev.filter(
+          (node) => !idsToDelete.includes(node.id)
+        );
         setAllFiles(updatedNodes);
         return updatedNodes;
       });
@@ -275,7 +304,10 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     setEditingNode(null);
 
     if (newNodeName.trim()) {
-      if (newNodeName !== node.name && isDuplicate(node.type, newNodeName, node.parentId)) {
+      if (
+        newNodeName !== node.name &&
+        isDuplicate(node.type, newNodeName, node.parentId)
+      ) {
         setErrorMessage(`A ${node.type} with this name already exists`);
         if (pendingNewNode && node.id === pendingNewNode.id) {
           setAllNodes((prev) => prev.filter((n) => n.id !== node.id));
@@ -290,10 +322,16 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
         await createNode(updatedNode); // Persist to IndexedDB
         setAllNodes(
           (prev) =>
-            sortNodes(prev.map((n) => (n.id === node.id ? updatedNode : n))) as WorkspaceFileSystemNode[]
+            sortNodes(
+              prev.map((n) => (n.id === node.id ? updatedNode : n))
+            ) as WorkspaceFileSystemNode[]
         );
 
-        if (pendingNewNode && node.id === pendingNewNode.id && node.type === "file") {
+        if (
+          pendingNewNode &&
+          node.id === pendingNewNode.id &&
+          node.type === "file"
+        ) {
           setSelectedNode(node.id);
           onFileSelect?.(updatedNode);
         }
@@ -390,7 +428,9 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
 
   const renderNode = (node: WorkspaceFileSystemNode, level: number = 0) => {
     const isExpanded = expandedFolders.has(node.id);
-    const childNodes = sortNodes(filteredNodes.filter((n) => n.parentId === node.id));
+    const childNodes = sortNodes(
+      filteredNodes.filter((n) => n.parentId === node.id)
+    );
     const indent = level * 16;
     const isSelected = selectedNode === node.id;
     return (
@@ -417,7 +457,11 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
         >
           {node.type === "folder" && (
             <button className="p-1">
-              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              {isExpanded ? (
+                <ChevronDown size={16} />
+              ) : (
+                <ChevronRight size={16} />
+              )}
             </button>
           )}
           {node.type === "folder" ? (
@@ -491,30 +535,62 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
           )}
         </div>
 
-        {node.type === "folder" && isExpanded && childNodes.map((child) => renderNode(child, level + 1))}
+        {node.type === "folder" &&
+          isExpanded &&
+          childNodes.map((child) => renderNode(child, level + 1))}
       </div>
     );
   };
 
-  const rootNodes = sortNodes(filteredNodes.filter((node) => node.parentId === null));
-
+  const rootNodes = sortNodes(
+    filteredNodes.filter((node) => node.parentId === null)
+  );
+  const icons = [
+    {
+      component: File,
+      onClick: () => handleCreateNode("file", null),
+      label: "Create File",
+    },
+    {
+      component: Folder,
+      onClick: () => handleCreateNode("folder", null),
+      label: "Create Folder",
+    },
+    { component: Upload, label: "Upload File" },
+    { component: FolderImport, label: "Import Folder" },
+    { component: Box, label: "Import files from ipfs" },
+    { component: Link, label: "Import files with https" },
+    { component: GitLink, label: "Git Integration" },
+  ];
   return (
-    <div className="bg-white border-r border-[#DEDEDE] relative" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="bg-white border-r border-[#DEDEDE] relative"
+      onClick={(e) => e.stopPropagation()}
+    >
       {errorMessage && (
         <div className="absolute top-0 left-0 right-0 bg-red-500 text-white text-center py-2 z-50">
           {errorMessage}
         </div>
       )}
       <div
-        className={`${isExpanded ? "w-80 px-4" : "w-0 px-0"} bg-white flex flex-col transition-all duration-300`}
+        className={`${
+          isExpanded ? "w-80 px-4" : "w-0 px-0"
+        } bg-white flex flex-col transition-all duration-300`}
       >
         <div className="mb-2 flex items-center justify-between h-[3rem]">
-          <span className={`${isExpanded ? "opacity-100" : "opacity-0"}`}>File Explorer</span>
+          <span className={`${isExpanded ? "opacity-100" : "opacity-0"}`}>
+            File Explorer
+          </span>
           <div className="flex items-center gap-2">
             <GreenTick
-              className={`w-5 h-5 text-green-500 transition-opacity ${isExpanded ? "opacity-100" : "opacity-0"}`}
+              className={`w-5 h-5 text-green-500 transition-opacity ${
+                isExpanded ? "opacity-100" : "opacity-0"
+              }`}
             />
-            <button onClick={() => setIsExpanded(!isExpanded)} className="transition-all">
+          <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="transition-all"
+            >
               {isExpanded && (
                 <RightArrow
                   className={`w-5 h-5 text-gray-500 mb-[2px] transition-transform ${
@@ -536,7 +612,9 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
                 onClick={() => setIsOpen(!isOpen)}
                 className="w-full px-2 py-2 text-sm bg-white border border-gray-200 rounded-lg text-[#94969C] flex justify-between items-center"
               >
-                {selectedWorkspace ? selectedWorkspace.name : "Select Workspace"}
+                {selectedWorkspace
+                  ? selectedWorkspace.name
+                  : "Select Workspace"}
                 <ChevronDown className="w-4 h-4 text-gray-500" />
               </button>
               {isOpen && (
@@ -550,7 +628,9 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
                           setIsOpen(false);
                           setSelectedWorkspace(workspace);
                           const nodes = await getAllNodes(workspace.id);
-                          setAllNodes(sortNodes(nodes as WorkspaceFileSystemNode[]));
+                          setAllNodes(
+                            sortNodes(nodes as WorkspaceFileSystemNode[])
+                          );
                         }}
                       >
                         {workspace.name}
@@ -578,16 +658,15 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
               />
             )}
             <div className="flex gap-4 justify-center items-center w-full mt-4">
-              <File className="cursor-pointer" onClick={() => handleCreateNode("file", null)} />
-              <Folder
-                className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900"
-                onClick={() => handleCreateNode("folder", null)}
-              />
-              <Upload className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
-              <FolderImport className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
-              <Box className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
-              <Link className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
-              <GitLink className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
+              {icons.map(({ component: Icon, onClick, label }) => (
+                <Tooltip key={label} content={label}>
+                  <Icon
+                    className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900"
+                    onClick={onClick}
+                    aria-label={label}
+                  />
+                </Tooltip>
+              ))}
             </div>
             <hr className="border-t border-[#DEDEDE] w-full my-3" />
             <div className="py-2 overflow-y-auto h-full">
@@ -597,10 +676,14 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
                 rootNodes.length > 0 ? (
                   rootNodes.map((node) => renderNode(node))
                 ) : (
-                  <div className="text-center py-4 text-gray-500">No files or folders</div>
+                  <div className="text-center py-4 text-gray-500">
+                    No files or folders
+                  </div>
                 )
               ) : (
-                <div className="text-center py-4 text-gray-500">Select a workspace to view files</div>
+                <div className="text-center py-4 text-gray-500">
+                  Select a workspace to view files
+                </div>
               )}
             </div>
           </div>

@@ -6,7 +6,7 @@ import { Account, DeployedContract, DeploymentInput } from "@/types/deployment";
 import { ethers } from "ethers";
 import { useEditor } from "@/context/EditorContext";
 import { RightArrow, GreenTick } from "@/assets/index";
-
+import Tooltip from "@/components/Tooltip";
 const urbanist = Urbanist({
   subsets: ["latin"],
   weight: ["400", "600", "700"],
@@ -321,29 +321,33 @@ const DeployAndRun = () => {
 
             <div className="flex flex-col gap-1 mt-3">
               <div className="text-gray-600 text-xs">GAS LIMIT</div>
+              <Tooltip content="Enter Gas Limit.">
               <input
                 type="text"
                 value={gasLimit}
                 onChange={(e) => setGasLimit(e.target.value)}
-                className="border p-2 rounded text-sm text-gray-500 "
+                className="border p-2 rounded text-sm text-gray-500 w-full "
                 disabled={loading}
               />
+              </Tooltip>
             </div>
 
             <div className="flex flex-col gap-1 mt-3">
               <div className="text-gray-600 text-xs">VALUE</div>
-              <div className="flex gap-2">
+              <div className="flex gap-3">
+                <Tooltip content="Enter an amount to be send with transaction and choose its unit">
                 <input
                   type="text"
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
-                  className="border p-2 rounded text-sm flex-1 text-gray-500 "
+                  className="border p-2 rounded text-sm flex-1 text-gray-500 w-full "
                   disabled={loading}
                 />
+                </Tooltip>
                 <select
                   value={valueUnit}
                   onChange={(e) => setValueUnit(e.target.value)}
-                  className="border p-2 rounded text-sm text-gray-500 "
+                  className="border p-2  rounded text-sm text-gray-500 w-full"
                   disabled={loading}
                 >
                   {valueUnits.map((unit) => (
@@ -378,7 +382,7 @@ const DeployAndRun = () => {
 
             <button
               onClick={deployContract}
-              className="flex-1 bg-[#CE192D] text-white p-2 rounded text-sm hover:bg-[#CE192D]"
+              className="flex-1 cursor-pointer bg-[#CE192D] text-white p-2 rounded text-sm hover:bg-[#CE192D]"
               disabled={
                 loading || !selectedContract || environment !== "injected"
               }
@@ -386,13 +390,16 @@ const DeployAndRun = () => {
               {loading ? "Deploying..." : "Deploy"}
             </button>
             <div className="flex gap-2 mt-4">
-              <button
-                onClick={accessAtAddress}
-                className="bg-gray-200 p-2 rounded text-sm hover:bg-gray-300 whitespace-nowrap"
-                disabled={loading || !atAddressValue}
-              >
-                At Address
-              </button>
+              <Tooltip content="To interact with a deployed contract either enter its address and compile its source *.sol file (with the same compiler settings) or select its .abi file in the editor">
+                <button
+                  onClick={accessAtAddress}
+                  className="bg-gray-200 p-2 cursor-pointer rounded text-sm hover:bg-gray-300 whitespace-nowrap"
+                  disabled={loading || !atAddressValue}
+                >
+                  At Address
+                </button>
+              </Tooltip>
+              <Tooltip content="Address of contract">
               <input
                 type="text"
                 value={atAddressValue}
@@ -401,6 +408,7 @@ const DeployAndRun = () => {
                 className="flex-1 border p-2 rounded text-sm text-gray-500"
                 disabled={loading}
               />
+              </Tooltip>
             </div>
 
             {/* Constructor Parameters */}
@@ -529,7 +537,7 @@ const DeployAndRun = () => {
             </div>
 
             <div className="flex justify-between items-center">
-              <div className="text-sm font-medium">DEPLOYED CONTRACTS</div>
+              <div className="text-sm font-medium text-gray-500">DEPLOYED CONTRACTS</div>
               {deployedContracts.length > 0 && (
                 <button
                   onClick={clearDeployedContracts}

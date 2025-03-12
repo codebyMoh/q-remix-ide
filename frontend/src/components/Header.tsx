@@ -14,10 +14,18 @@ import {
   Readme,
   Code,
 } from "@/assets/index";
-import { X } from "lucide-react";
+import Tooltip from "@/components/Tooltip"
 import { useEditor } from "../context/EditorContext";
 // Icons array for iteration
-const icons = [Play, Robot, ToggleOff, ZoomOut, ZoomIn];
+
+const icons = [
+  { component: Play, label: "Play", content: "Select .sol or .yul file to compile OR a .ts or .js file to run" },
+  { component: Robot, label: "Robot", content: "To explain a contract,choose a .sol, .vy or .circum file" },
+  { component: ToggleOff, label: "Toggle Off", content: "To use QremixAI Copilot, choose a .sol file" },
+  { component: ZoomOut, label: "Zoom Out", content: "Zoom Out" },
+  { component: ZoomIn, label: "Zoom In", content: "Zoom In" },
+];
+
 
 interface HeaderProps {
   handleZoomIn: () => void;
@@ -93,21 +101,23 @@ const Header: React.FC<HeaderProps> = ({
     <div className="h-[38px] flex items-center px-4 bg-white border-b shadow-sm">
       {/* Icons Section */}
       <div className="flex items-center space-x-3">
+        
         {icons.map((Icon, index) => {
           let onClickHandler;
-          if (Icon === Play) {
+          if (Icon.component === Play) {
             onClickHandler = handleRun;
-          } else if (Icon === ZoomOut) {
+          } else if (Icon.component === ZoomOut) {
             onClickHandler = handleZoomOut;
-          } else if (Icon === ZoomIn) {
+          } else if (Icon.component === ZoomIn) {
             onClickHandler = handleZoomIn;
           }
           return (
-            <Icon
-              key={index}
+                <Tooltip  content={Icon.content}  key={index}>
+            <Icon.component     
               className="cursor-pointer"
               onClick={onClickHandler}
             />
+             </Tooltip>
           );
         })}
       </div>
