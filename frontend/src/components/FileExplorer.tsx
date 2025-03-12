@@ -97,17 +97,29 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
         setIsLoading(true);
 
         const workspaces = await getAllWorkspaces();
-        setAllWorkspace(workspaces);
-
-        if (workspaces.length > 0 && !selectedWorkspace) {
-          setSelectedWorkspace(workspaces[0]); // Set default workspace
+        const sortedWorkspaces = workspaces.sort((a, b) => a.createdAt - b.createdAt);
+        setAllWorkspace(sortedWorkspaces);
+        const savedWorkspaceName = localStorage.getItem('selectedWorkspaceName');
+        if (workspaces.length > 0) {
+          if(savedWorkspaceName){
+            const savedWorkspace=workspaces.find(w=>w.name===savedWorkspaceName);
+            if(savedWorkspace){
+              setSelectedWorkspace(savedWorkspace);
+            }
+            else{
+              setSelectedWorkspace(workspaces[0]);
+            }
+          }
+          else{
+            setSelectedWorkspace(workspaces[0]);
+          }
         }
 
         if (selectedWorkspace) {
           const nodes = await getAllNodes(selectedWorkspace.id);
           const workspaceNodes = nodes.map((node) => ({
             ...node,
-            workspaceId: selectedWorkspace.id, // Ensure all nodes have workspaceId
+            workspaceId: selectedWorkspace.id, 
           })) as WorkspaceFileSystemNode[];
 
           const sortedNodes = sortNodes(workspaceNodes);
@@ -127,7 +139,6 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     setAllNodes,
     setAllFiles,
     setSelectedWorkspace,
-    selectedWorkspace,
   ]);
 
   useEffect(() => {
@@ -154,6 +165,16 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
       return () => clearTimeout(timer);
     }
   }, [errorMessage]);
+
+  useEffect(() => {
+    const fetchNodes = async () => {
+      if (selectedWorkspace) {
+        const nodes = await getAllNodes(selectedWorkspace.id);
+        setAllNodes(sortNodes(nodes as WorkspaceFileSystemNode[]));
+      }
+    };
+    fetchNodes();
+  }, [selectedWorkspace]);
 
   const sortNodes = (nodes: WorkspaceFileSystemNode[]) => {
     return [...nodes].sort((a, b) => {
@@ -421,11 +442,11 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
 
       if (newWorkspace) {
         setAllWorkspace((prevWorkspaces) => [...prevWorkspaces, newWorkspace]);
-        setSelectedWorkspace(newWorkspace); // Update context
+        setSelectedWorkspace(newWorkspace);
       }
     }
   };
-
+ 
   const renderNode = (node: WorkspaceFileSystemNode, level: number = 0) => {
     const isExpanded = expandedFolders.has(node.id);
     const childNodes = sortNodes(
@@ -627,6 +648,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
                         onClick={async () => {
                           setIsOpen(false);
                           setSelectedWorkspace(workspace);
+                          localStorage.setItem('selectedWorkspaceName', workspace.name);
                           const nodes = await getAllNodes(workspace.id);
                           setAllNodes(
                             sortNodes(nodes as WorkspaceFileSystemNode[])
@@ -682,7 +704,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
                 )
               ) : (
                 <div className="text-center py-4 text-gray-500">
-                  Select a workspace to view files
+                 No files or folders
                 </div>
               )}
             </div>
