@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ChevronRight } from "lucide-react";
+import FileImporter from "./FileImporter"
 import { FaRegFolder } from "react-icons/fa";
 import {
   createNode,
@@ -7,6 +8,9 @@ import {
   deleteNode,
   addWorkspace,
   getAllWorkspaces,
+  importFromGitHubRepo,       
+  initFileSystem,      
+  importLocalFile,   
 } from "../utils/IndexDB";
 import type { FileSystemNode } from "../types";
 import {
@@ -33,6 +37,7 @@ import { MdDriveFileRenameOutline } from "react-icons/md";
 import { FaRegFile } from "react-icons/fa";
 import { useEditor } from "../context/EditorContext";
 import Popup from "@/pages/Popup";
+import ImportRepoPopup from "./ImportRepoPopup";
 
 interface FileExplorerProps {
   onFileSelect: (file: FileSystemNode | null) => void;
@@ -48,7 +53,7 @@ interface DeleteConfirmation {
 interface WorkspaceFileSystemNode extends FileSystemNode {
   workspaceId: string;
 }
-
+// Define new interface for import modal state
 const FileExplorer: React.FC<FileExplorerProps> = () => {
   const {
     onFileSelect,
@@ -84,7 +89,6 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     []
   );
  
-
   // Add state for error message when duplicate is detected
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -94,7 +98,8 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
       isOpen: false,
       nodeToDelete: null,
     });
-
+  //new state for import modal
+  const [showRepoPopup, setShowRepoPopup] = useState(false);
   // Load nodes and workspaces on initial mount
   useEffect(() => {
     const loadData = async () => {
@@ -484,7 +489,63 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
       }
     }
   };
-
+  
+  const handleImportLocalFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedWorkspace) {
+      setErrorMessage("Please select a workspace first");
+      return;
+    }
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    try {
+      setIsLoading(true);
+      for (const file of Array.from(files)) {
+        await importLocalFile(file, selectedWorkspace.id);
+      }
+      const updatedNodes = await getAllNodes();
+      const workspaceNodes = updatedNodes.map((node) => ({
+        ...node,
+        workspaceId: node.workspaceId || selectedWorkspace.id,
+      })) as WorkspaceFileSystemNode[];
+      const sortedNodes = sortNodes(workspaceNodes);
+      setAllNodes(sortedNodes);
+      setAllFiles(sortedNodes);
+      setExpandedFolders((prev) => new Set(prev).add(`libs-${selectedWorkspace.id}`));
+    } catch (error) {
+      console.error("Failed to import local file:", error);
+      setErrorMessage("Failed to import file from device");
+    } finally {
+      setIsLoading(false);
+      event.target.value = "";
+    }
+  };
+  
+  const handleImportFromRepo = async (repoUrlOrKey: string, token?: string) => {
+    if (!selectedWorkspace) {
+      setErrorMessage("Please select a workspace first");
+      return;
+    }
+    try {
+      setIsLoading(true);
+      await initFileSystem();
+      await importFromGitHubRepo(repoUrlOrKey, selectedWorkspace.id, token);
+      const updatedNodes = await getAllNodes();
+      const workspaceNodes = updatedNodes.map((node) => ({
+        ...node,
+        workspaceId: node.workspaceId || selectedWorkspace.id,
+      })) as WorkspaceFileSystemNode[];
+      const sortedNodes = sortNodes(workspaceNodes);
+      setAllNodes(sortedNodes);
+      setAllFiles(sortedNodes);
+      setExpandedFolders((prev) => new Set(prev).add(`library-${selectedWorkspace.id}`));
+    } catch (error) {
+      console.error("Failed to import repository:", error);
+      setErrorMessage("Failed to import repository. Check the selection or token and try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   const renderNode = (node: WorkspaceFileSystemNode, level: number = 0) => {
     const isExpanded = expandedFolders.has(node.id);
     const childNodes = sortNodes(
@@ -546,7 +607,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
           ) : (
             <div className="flex justify-between items-center w-full">
               <span className="ml-1 select-none text-[14px] font-[Urbanist] font-medium leading-[16.8px] tracking-[0%] text-[#94969C]">
-                {node.name}
+                  {node.name}
               </span>
               <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 {node.type === "folder" && (
@@ -716,10 +777,14 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
                 onClick={() => handleCreateNode("folder", null)}
               />
               <Upload className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
-              <FolderImport className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
+              <FolderImport 
+                 className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" 
+                 onClick={() => document.getElementById("local-import")?.click()} 
+              />
               <Box className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
-              <Link className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
+              <Link className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" onClick={() => setShowRepoPopup(true)} />
               <GitLink className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900" />
+              <input type="file" id="local-import" multiple onChange={handleImportLocalFile} className="hidden" />
             </div>
             <hr className="border-t border-[#DEDEDE] w-full my-3 "  />
 
@@ -752,6 +817,12 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
           type={deleteConfirmation.nodeToDelete.type}
           closeDeleteConfirmation={closeDeleteConfirmation}
           confirmDelete={confirmDelete}
+        />
+      )}
+      {showRepoPopup && (
+        <ImportRepoPopup
+          onClose={() => setShowRepoPopup(false)}
+          onImport={handleImportFromRepo}
         />
       )}
     </div>
