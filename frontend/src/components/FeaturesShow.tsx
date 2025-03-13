@@ -88,15 +88,15 @@ const FeaturesShow = () => {
     }
   };
   return (
-    <div className="w-full max-w-full overflow-y-auto overflow-x-hidden pt-[3.3rem] px-8">
+    <div className="w-full max-w-full overflow-y-auto overflow-x-hidden pt-[2rem] px-8">
       <div className="max-w-full">
         {/* Select language */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="font-semibold text-2xl">Features</h1>
+        <div className="flex justify-between items-center mb-[0.8rem]">
+          <h1 className="font-semibold text-2xl pl-2">Features</h1>
           <select
             value={selectedLanguage}
             onChange={(e) => setSelectedLanguage(e.target.value)}
-            className="border border-[#E7E7E7] p-2 rounded-md text-[#94969C]"
+            className="border border-[#E7E7E7] px-[16px] py-[6px] rounded-md text-[#94969C] mr-[0.5rem]"
           >
             {languages.map((language) => (
               <option

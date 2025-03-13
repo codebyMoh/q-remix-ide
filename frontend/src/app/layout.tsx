@@ -16,7 +16,6 @@ import SearchFiles from "@/components/SearchFiles";
 import Git from "@/components/Git";
 import Settings from "@/components/Settings";
 import Debugger from "@/components/Debugger";
-import DeployRun from "@/components/DeployRun";
 import Terminal from "@/components/Terminal";
 import Footer from "@/components/Footer";
 import { EditorProvider } from "@/context/EditorContext";
