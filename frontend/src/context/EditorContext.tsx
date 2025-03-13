@@ -77,7 +77,6 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
       throw new Error("Invalid file for compilation");
     }
 
-    console.log("EditorContext - Compiling file:", file.name);
     const worker = new Worker(new URL("../workers/solc.worker.ts", import.meta.url), {
       type: "module",
     });
@@ -99,7 +98,6 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
           const contracts = Array.isArray(event.data.contracts)
             ? event.data.contracts
             : [];
-          console.log("EditorContext - Compilation result:", contracts);
           setCompiledContracts(contracts);
           resolve(contracts);
         }

@@ -38,7 +38,6 @@ export class RemixDeploymentService {
       await db.put("settings", rpcUrl, "rpcUrl");
     }
     await this.initializeProvider();
-    console.log("Environment set to MetaMask");
   }
 
   async getEnvironment(): Promise<{ env: Environment; rpcUrl?: string }> {
@@ -101,7 +100,6 @@ export class RemixDeploymentService {
       };
 
       await db.put("contracts", deployedContract, deployedAddress);
-      console.log("Deployed contract:", deployedContract);
       return deployedContract;
     } catch (error) {
       throw new Error(`Deployment failed: ${error.message}`);

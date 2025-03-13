@@ -56,8 +56,6 @@ const DeployAndRun = () => {
   );
 
   useEffect(() => {
-    console.log("ToggleDeployAndRun - Solidity files:", solidityFiles);
-    console.log("ToggleDeployAndRun - Compiled contracts:", compiledContracts);
     if (solidityFiles.length > 0 && !selectedContract) {
       setSelectedContract(solidityFiles[0].name);
     }
@@ -102,20 +100,12 @@ const DeployAndRun = () => {
     setLoading(true);
     try {
       const selectedFile = allFiles.find((f) => f.name === selectedContract);
-      console.log(
-        "Deploying - Selected contract file:",
-        selectedContract,
-        "Selected file:",
-        selectedFile
-      );
       if (!selectedFile)
         throw new Error("Selected contract file not found in file system");
 
       // If no compiled contracts, trigger compilation
       if (compiledContracts.length === 0) {
-        console.log(
-          "Deploying - No compiled contracts found, compiling now..."
-        );
+
         await compileFile(selectedFile);
       }
 
@@ -127,12 +117,7 @@ const DeployAndRun = () => {
             selectedContract.includes(c.contractName) ||
             c.contractName.includes(fileNameWithoutExt)
         ) || compiledContracts[0];
-      console.log("Deploying - Matching compiled contract:", compiledContract);
       if (!compiledContract) {
-        console.log(
-          "Deploying - Available compiled contracts:",
-          compiledContracts
-        );
         throw new Error(
           "No compiled data found for any contract. Please ensure compilation succeeded."
         );
@@ -152,7 +137,6 @@ const DeployAndRun = () => {
           value: ethers.parseUnits(value, valueUnit).toString(),
         }
       );
-      console.log("Deployed contract:", deployedContract);
 
       // Broadcast deployed contract to terminal
       const deploymentEvent = new CustomEvent("deploymentOutput", {
@@ -181,9 +165,6 @@ const DeployAndRun = () => {
         throw new Error("Selected contract file not found in file system");
 
       if (compiledContracts.length === 0) {
-        console.log(
-          "AccessAtAddress - No compiled contracts found, compiling now..."
-        );
         await compileFile(selectedFile);
       }
 

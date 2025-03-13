@@ -212,7 +212,6 @@ const SolidityCompiler = () => {
     setResults([]);
 
     try {
-      console.log("SolidityCompiler - Compiling file:", activeFile.name);
       const compiledContracts = await compileFile(activeFile, selectedVersion);
       setResults(compiledContracts);
       setCompiledContracts(compiledContracts);
