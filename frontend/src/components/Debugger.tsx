@@ -1,288 +1,11 @@
-// import React, { useState, useEffect } from 'react';
-// import { DebuggerService } from '../../../backend/src/services/debugger/debuggerService';
-
-// interface DebuggerUIProps {
-//   debuggerService: DebuggerService;
-//   txHash?: string;
-//   onClose: () => void;
-// }
-
-// interface DebuggerState {
-//   sourceLocation: any;
-//   callStack: any[];
-//   localVariables: any[];
-//   stateVariables: any[];
-//   memory: any;
-//   stack: any[];
-//   storage: any;
-//   currentStep: number;
-//   totalSteps: number;
-//   isLoading: boolean;
-//   error: string | null;
-// }
-
-// const initialState: DebuggerState = {
-//   sourceLocation: null,
-//   callStack: [],
-//   localVariables: [],
-//   stateVariables: [],
-//   memory: null,
-//   stack: [],
-//   storage: null,
-//   currentStep: 0,
-//   totalSteps: 0,
-//   isLoading: true,
-//   error: null
-// };
-
-// export const DebuggerUI: React.FC<DebuggerUIProps> = ({ 
-//   debuggerService, 
-//   txHash,
-//   onClose 
-// }) => {
-//   const [state, setState] = useState<DebuggerState>(initialState);
-//   const [isInitialized, setIsInitialized] = useState<boolean>(false);
-//   const [transactionHash, setTransactionHash] = useState<string>(txHash || '');
-
-//   // Initialize debugger with transaction hash
-//   const initializeDebugger = async (hash: string) => {
-//     setState(prev => ({ ...prev, isLoading: true, error: null }));
-//     try {
-//       const success = await debuggerService.debug(hash);
-//       if (success) {
-//         setIsInitialized(true);
-//         updateState();
-//       } else {
-//         setState(prev => ({ 
-//           ...prev, 
-//           isLoading: false, 
-//           error: 'Failed to initialize debugger' 
-//         }));
-//       }
-//     } catch (error) {
-//       setState(prev => ({ 
-//         ...prev, 
-//         isLoading: false, 
-//         error: error instanceof Error ? error.message : 'Unknown error' 
-//       }));
-//     }
-//   };
-
-//   // Update state from debugger service
-//   const updateState = async () => {
-//     const currentState = await debuggerService.getCurrentState();
-//     if (currentState) {
-//       setState({
-//         sourceLocation: currentState.sourceLocation,
-//         callStack: currentState.callStack || [],
-//         localVariables: currentState.localVariables || [],
-//         stateVariables: currentState.stateVariables || [],
-//         memory: currentState.memory,
-//         stack: currentState.stack || [],
-//         storage: currentState.storage,
-//         currentStep: currentState.currentStep,
-//         totalSteps: currentState.totalSteps,
-//         isLoading: false,
-//         error: null
-//       });
-//     } else {
-//       setState(prev => ({ 
-//         ...prev, 
-//         isLoading: false, 
-//         error: 'Failed to get current state' 
-//       }));
-//     }
-//   };
-
-//   // Navigation controls
-//   const handleStepInto = async () => {
-//     await debuggerService.stepInto();
-//     updateState();
-//   };
-
-//   const handleStepOver = async () => {
-//     await debuggerService.stepOver();
-//     updateState();
-//   };
-
-//   const handleStepBack = async () => {
-//     await debuggerService.stepBack();
-//     updateState();
-//   };
-
-//   const handleReset = async () => {
-//     await debuggerService.reset();
-//     updateState();
-//   };
-
-//   const handleContinueToEnd = async () => {
-//     await debuggerService.continueToEnd();
-//     updateState();
-//   };
-
-//   // Initialize with transaction hash if provided
-//   useEffect(() => {
-//     if (txHash) {
-//       setTransactionHash(txHash);
-//       initializeDebugger(txHash);
-//     }
-    
-//     // Cleanup on unmount
-//     return () => {
-//       debuggerService.destroy();
-//     };
-//   }, [txHash]);
-
-//   // Handle transaction hash input
-//   const handleTxHashSubmit = (e: React.FormEvent) => {
-//     e.preventDefault();
-//     if (transactionHash) {
-//       initializeDebugger(transactionHash);
-//     }
-//   };
-
-//   return (
-//     <div className="debugger-container">
-//       <div className="debugger-header">
-//         <h2>Transaction Debugger</h2>
-//         <button onClick={onClose} className="close-btn">×</button>
-//       </div>
-      
-//       {!isInitialized ? (
-//         <form onSubmit={handleTxHashSubmit} className="transaction-form">
-//           <input
-//             type="text"
-//             value={transactionHash}
-//             onChange={(e) => setTransactionHash(e.target.value)}
-//             placeholder="Enter transaction hash"
-//             className="tx-hash-input"
-//           />
-//           <button type="submit" className="debug-btn">Debug</button>
-//         </form>
-//       ) : (
-//         <>
-//           {state.isLoading ? (
-//             <div className="loading">Loading debugger...</div>
-//           ) : state.error ? (
-//             <div className="error">{state.error}</div>
-//           ) : (
-//             <div className="debugger-content">
-//               {/* Navigation Controls */}
-//               <div className="debugger-controls">
-//                 <button onClick={handleReset}>Reset</button>
-//                 <button onClick={handleStepBack}>Step Back</button>
-//                 <button onClick={handleStepInto}>Step Into</button>
-//                 <button onClick={handleStepOver}>Step Over</button>
-//                 <button onClick={handleContinueToEnd}>Continue to End</button>
-//                 <span className="step-counter">
-//                   Step {state.currentStep + 1} of {state.totalSteps}
-//                 </span>
-//               </div>
-              
-//               {/* Source Code Display */}
-//               <div className="source-code-panel">
-//                 <h3>Source Location</h3>
-//                 {state.sourceLocation ? (
-//                   <div>
-//                     <p>File: {state.sourceLocation.file}</p>
-//                     <p>Line: {state.sourceLocation.lineNumber}</p>
-//                     <p>Column: {state.sourceLocation.column}</p>
-//                     {/* Here you would display the actual source code with highlighting */}
-//                   </div>
-//                 ) : (
-//                   <p>No source location available</p>
-//                 )}
-//               </div>
-              
-//               {/* Debug Information Panels */}
-//               <div className="debug-panels">
-//                 {/* Call Stack */}
-//                 <div className="panel">
-//                   <h3>Call Stack</h3>
-//                   <ul>
-//                     {state.callStack.map((call, index) => (
-//                       <li key={index}>{call.functionName || `<anonymous function>`}</li>
-//                     ))}
-//                   </ul>
-//                 </div>
-                
-//                 {/* Local Variables */}
-//                 <div className="panel">
-//                   <h3>Local Variables</h3>
-//                   {state.localVariables.length > 0 ? (
-//                     <ul>
-//                       {state.localVariables.map((variable, index) => (
-//                         <li key={index}>
-//                           {variable.name}: {variable.value} ({variable.type})
-//                         </li>
-//                       ))}
-//                     </ul>
-//                   ) : (
-//                     <p>No local variables</p>
-//                   )}
-//                 </div>
-                
-//                 {/* State Variables */}
-//                 <div className="panel">
-//                   <h3>State Variables</h3>
-//                   {state.stateVariables.length > 0 ? (
-//                     <ul>
-//                       {state.stateVariables.map((variable, index) => (
-//                         <li key={index}>
-//                           {variable.name}: {variable.value} ({variable.type})
-//                         </li>
-//                       ))}
-//                     </ul>
-//                   ) : (
-//                     <p>No state variables</p>
-//                   )}
-//                 </div>
-                
-//                 {/* Stack */}
-//                 <div className="panel">
-//                   <h3>Stack</h3>
-//                   {state.stack.length > 0 ? (
-//                     <ul>
-//                       {state.stack.map((item, index) => (
-//                         <li key={index}>{item}</li>
-//                       ))}
-//                     </ul>
-//                   ) : (
-//                     <p>Stack is empty</p>
-//                   )}
-//                 </div>
-                
-//                 {/* Memory */}
-//                 <div className="panel">
-//                   <h3>Memory</h3>
-//                   {state.memory ? (
-//                     <pre>{JSON.stringify(state.memory, null, 2)}</pre>
-//                   ) : (
-//                     <p>No memory data</p>
-//                   )}
-//                 </div>
-                
-//                 {/* Storage */}
-//                 <div className="panel">
-//                   <h3>Storage</h3>
-//                   {state.storage ? (
-//                     <pre>{JSON.stringify(state.storage, null, 2)}</pre>
-//                   ) : (
-//                     <p>No storage data</p>
-//                   )}
-//                 </div>
-//               </div>
-//             </div>
-//           )}
-//         </>
-//       )}
-//     </div>
-//   );
-// };
 "use client";
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useCallback } from "react";
 import { Urbanist } from "next/font/google";
 import { useDebugger } from "../context/DebuggerContext";
+import { useEditor } from "../context/EditorContext";
+import SourceCodeViewer from "./SourceCodeViewer";
+
+// Assuming you have these icons in your assets folder
 import { GreenTick, RightArrow, DownArrow, Bug, StepForward, StepBack, StepInto, StepOut, Breakpoint } from "../assets/index";
 
 const urbanist = Urbanist({
@@ -290,12 +13,20 @@ const urbanist = Urbanist({
   weight: ["400", "600", "700"],
 });
 
+// Using the correct Breakpoint type
+type BreakpointType = {
+  line: number;
+  file: string;
+  // Other potential properties can be added here
+};
+
 const Debugger = () => {
   const {
     isDebugging,
     currentStep,
     totalSteps,
     currentState,
+    breakpoints,
     debugTransaction,
     stepBack,
     stepForward,
@@ -304,14 +35,26 @@ const Debugger = () => {
     jumpToBreakpoint,
     stopDebugging,
     setStep,
+    addBreakpoint,
+    removeBreakpoint,
     error
   } = useDebugger();
+
+  const { highlightCode } = useEditor();
 
   const [isExpanded, setIsExpanded] = React.useState(true);
   const [txHash, setTxHash] = React.useState("");
   const [showSources, setShowSources] = React.useState(false);
   const [activePanel, setActivePanel] = React.useState("stack");
   const slideRef = useRef<HTMLInputElement>(null);
+
+  const handleDebugStep = useCallback((data: { file: string, line: number }) => {
+    highlightCode(data.file, data.line);
+  }, [highlightCode]);
+
+  const handleHighlightRequest = useCallback((file: string, line: number, end?: number) => {
+    highlightCode(file, line, end);
+  }, [highlightCode]);
 
   // Update slider when currentStep changes
   useEffect(() => {
@@ -321,28 +64,12 @@ const Debugger = () => {
   }, [currentStep]);
 
   // Derive UI data from currentState
-  const stackData = currentState?.callStack?.map((call: any) => ({
-    function: call.functionName,
-    source: `${call.sourceLocation?.file}:${call.sourceLocation?.start}`
-  })) || [];
-
-  const localsData = currentState?.localVariables?.map((variable: any) => ({
-    name: variable.name,
-    type: variable.type,
-    value: variable.value
-  })) || [];
-
-  const stateData = currentState?.stateVariables?.map((variable: any) => ({
-    name: variable.name,
-    type: variable.type,
-    value: variable.value
-  })) || [];
-
-  // Mock breakpoints data - in a real app, you'd track these
-  const breakpointsData = [
-    { line: 12, file: "Contract.sol" },
-    { line: 45, file: "Contract.sol" }
-  ];
+  const stackData = currentState?.callStack || [];
+  const localsData = currentState?.localVariables || [];
+  const stateData = currentState?.stateVariables || [];
+  const memoryData = currentState?.memory || [];
+  const storageData = currentState?.storage || {};
+  const opcodeData = currentState?.opcodes;
 
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
@@ -369,12 +96,10 @@ const Debugger = () => {
         await stepOut();
         break;
       case "prevBreakpoint":
-        // For simplicity, using a fixed step jump
-        await setStep(Math.max(0, currentStep - 10));
+        await jumpToBreakpoint(false);
         break;
       case "nextBreakpoint":
-        // For simplicity, using a fixed step jump
-        await setStep(Math.min(totalSteps, currentStep + 10));
+        await jumpToBreakpoint(true);
         break;
       default:
         break;
@@ -384,6 +109,24 @@ const Debugger = () => {
   const handleSliderChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const step = parseInt(e.target.value);
     await setStep(step);
+  };
+
+  // Updated to use the correct breakpoint structure
+  const handleAddBreakpoint = () => {
+    if (currentState?.callStack && currentState.callStack.length > 0) {
+      const topCall = currentState.callStack[currentState.callStack.length - 1];
+      if (topCall.sourceLocation) {
+        const newBreakpoint: BreakpointType = {
+          line: topCall.sourceLocation.start,
+          file: topCall.sourceLocation.file
+        };
+        addBreakpoint(newBreakpoint);
+      }
+    }
+  };
+  
+  const handleRemoveBreakpoint = (index: number) => {
+    removeBreakpoint(index);
   };
 
   return (
@@ -502,6 +245,7 @@ const Debugger = () => {
                       onClick={() => handleStep("stepBack")}
                       className="border p-1 rounded bg-gray-100 hover:bg-gray-200"
                       title="Step back"
+                      disabled={currentStep === 0}
                     >
                       <StepBack className="w-4 h-4" />
                     </button>
@@ -509,6 +253,7 @@ const Debugger = () => {
                       onClick={() => handleStep("prevBreakpoint")}
                       className="border p-1 rounded bg-gray-100 hover:bg-gray-200"
                       title="Jump to previous breakpoint"
+                      disabled={breakpoints.length === 0}
                     >
                       <Breakpoint className="w-4 h-4" />
                     </button>
@@ -516,6 +261,7 @@ const Debugger = () => {
                       onClick={() => handleStep("stepInto")}
                       className="border p-1 rounded bg-gray-100 hover:bg-gray-200"
                       title="Step into"
+                      disabled={currentStep === totalSteps}
                     >
                       <StepInto className="w-4 h-4" />
                     </button>
@@ -523,6 +269,7 @@ const Debugger = () => {
                       onClick={() => handleStep("stepOut")}
                       className="border p-1 rounded bg-gray-100 hover:bg-gray-200"
                       title="Step out"
+                      disabled={currentStep === totalSteps}
                     >
                       <StepOut className="w-4 h-4" />
                     </button>
@@ -530,6 +277,7 @@ const Debugger = () => {
                       onClick={() => handleStep("nextBreakpoint")}
                       className="border p-1 rounded bg-gray-100 hover:bg-gray-200"
                       title="Jump to next breakpoint"
+                      disabled={breakpoints.length === 0}
                     >
                       <Breakpoint className="w-4 h-4" />
                     </button>
@@ -537,6 +285,7 @@ const Debugger = () => {
                       onClick={() => handleStep("stepForward")}
                       className="border p-1 rounded bg-gray-100 hover:bg-gray-200"
                       title="Step forward"
+                      disabled={currentStep === totalSteps}
                     >
                       <StepForward className="w-4 h-4" />
                     </button>
@@ -569,6 +318,14 @@ const Debugger = () => {
                     >
                       Solidity State
                     </button>
+                    <button
+                      className={`py-2 px-3 text-xs font-medium ${
+                        activePanel === "opcodes" ? "border-b-2 border-black" : ""
+                      }`}
+                      onClick={() => setActivePanel("opcodes")}
+                    >
+                      Opcodes
+                    </button>
                   </div>
 
                   {/* Panel Content */}
@@ -576,10 +333,14 @@ const Debugger = () => {
                     {activePanel === "stack" && (
                       <div className="flex flex-col gap-1">
                         {stackData.length > 0 ? (
-                          stackData.map((item: any, index: number) => (
+                          stackData.map((item, index) => (
                             <div key={index} className="text-xs border-b py-2">
-                              <div className="font-medium">{item.function || "Unknown function"}</div>
-                              <div className="text-gray-500">@{item.source || "Unknown location"}</div>
+                              <div className="font-medium">{item.functionName || "Unknown function"}</div>
+                              <div className="text-gray-500">
+                                @{item.sourceLocation ? 
+                                  `${item.sourceLocation.file}:${item.sourceLocation.start}` : 
+                                  "Unknown location"}
+                              </div>
                             </div>
                           ))
                         ) : (
@@ -599,7 +360,7 @@ const Debugger = () => {
                         </thead>
                         <tbody>
                           {localsData.length > 0 ? (
-                            localsData.map((item: any, index: number) => (
+                            localsData.map((item, index) => (
                               <tr key={index}>
                                 <td className="py-1 px-2">{item.name}</td>
                                 <td className="py-1 px-2">{item.type}</td>
@@ -628,7 +389,7 @@ const Debugger = () => {
                         </thead>
                         <tbody>
                           {stateData.length > 0 ? (
-                            stateData.map((item: any, index: number) => (
+                            stateData.map((item, index) => (
                               <tr key={index} className="border-b">
                                 <td className="py-1 px-2">{item.name}</td>
                                 <td className="py-1 px-2 text-gray-500">{item.type}</td>
@@ -645,34 +406,135 @@ const Debugger = () => {
                         </tbody>
                       </table>
                     )}
+
+                    {activePanel === "opcodes" && (
+                      <div className="flex flex-col gap-2">
+                        <div className="text-xs border p-2 rounded">
+                          <div className="font-medium">Current Opcode:</div>
+                          <div className="text-gray-800 font-mono mt-1">
+                            {opcodeData?.current || "N/A"}
+                          </div>
+                        </div>
+                        <div className="text-xs border p-2 rounded">
+                          <div className="font-medium">Program Counter:</div>
+                          <div className="text-gray-800 font-mono mt-1">
+                            {opcodeData?.pc !== undefined ? opcodeData.pc : "N/A"}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Additional Panels Toggle */}
                 <div className="mt-4">
-                  <div className="flex justify-between items-center">
-                    <div className="text-sm font-medium">Other Panels</div>
-                    <DownArrow className="cursor-pointer w-4 h-4" />
-                  </div>
-                  <div className="mt-2 text-xs text-gray-600">
-                    Opcodes, Step Details, Memory, Storage, Call Data, etc.
-                  </div>
+                  <details className="group">
+                    <summary className="flex justify-between items-center cursor-pointer">
+                      <div className="text-sm font-medium">Memory</div>
+                      <DownArrow className="w-4 h-4 group-open:rotate-180 transition-transform" />
+                    </summary>
+                    <div className="mt-2 pl-2">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="py-1 px-2 text-left">Offset</th>
+                            <th className="py-1 px-2 text-left">Value</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {memoryData && memoryData.length > 0 ? (
+                            memoryData.map((item, index) => (
+                              <tr key={index} className="border-b">
+                                <td className="py-1 px-2 font-mono">{item.offset}</td>
+                                <td className="py-1 px-2 font-mono">{item.value}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={2} className="py-1 px-2 text-gray-500">
+                                No memory data in current step
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
                 </div>
-                
-                {/* Breakpoints Section */}
-                <div className="mt-4">
-                  <div className="flex justify-between items-center">
-                    <div className="text-sm font-medium">Breakpoints</div>
-                    <DownArrow className="cursor-pointer w-4 h-4" />
-                  </div>
-                  <div className="mt-2">
-                    {breakpointsData.map((bp, index) => (
-                      <div key={index} className="flex justify-between text-xs py-1 border-b">
-                        <span>{bp.file}:{bp.line}</span>
-                        <button className="text-red-500">Remove</button>
-                      </div>
-                    ))}
-                  </div>
+
+                <div className="mt-2">
+                  <details className="group">
+                    <summary className="flex justify-between items-center cursor-pointer">
+                      <div className="text-sm font-medium">Storage</div>
+                      <DownArrow className="w-4 h-4 group-open:rotate-180 transition-transform" />
+                    </summary>
+                    <div className="mt-2 pl-2">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="py-1 px-2 text-left">Slot</th>
+                            <th className="py-1 px-2 text-left">Value</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.keys(storageData).length > 0 ? (
+                            Object.entries(storageData).map(([slot, value], index) => (
+                              <tr key={index} className="border-b">
+                                <td className="py-1 px-2 font-mono">{slot}</td>
+                                <td className="py-1 px-2 font-mono">{value as string}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={2} className="py-1 px-2 text-gray-500">
+                                No storage data in current step
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                </div>
+
+                {/* Breakpoints Panel - Updated to use the correct breakpoint structure */}
+                <div className="mt-2">
+                  <details className="group">
+                    <summary className="flex justify-between items-center cursor-pointer">
+                      <div className="text-sm font-medium">Breakpoints</div>
+                      <DownArrow className="w-4 h-4 group-open:rotate-180 transition-transform" />
+                    </summary>
+                    <div className="mt-2 pl-2">
+                      {breakpoints.length > 0 ? (
+                        <div className="flex flex-col gap-1">
+                          {breakpoints.map((bp, index) => (
+                            <div key={index} className="flex justify-between items-center text-xs py-1">
+                              <div>
+                                Step {bp.step}
+                              </div>
+                              <button
+                                onClick={() => handleRemoveBreakpoint(index)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-500 py-2">
+                          No breakpoints set. Click 'Add Breakpoint' at the current step to set one.
+                        </div>
+                      )}
+                      
+                      <button
+                        onClick={handleAddBreakpoint}
+                        className="mt-2 w-full border border-black text-black py-1 text-xs hover:bg-gray-100"
+                      >
+                        Add Breakpoint at Current Step
+                      </button>
+                    </div>
+                  </details>
                 </div>
               </div>
             )}
@@ -680,15 +542,23 @@ const Debugger = () => {
         )}
       </div>
 
-      {/* Show Arrow When Collapsed */}
-      {!isExpanded && (
-        <button
-          onClick={() => setIsExpanded(true)}
-          className="absolute left-0 top-5 transition-all"
-        >
-          <RightArrow className="w-5 h-5 text-gray-500" />
-        </button>
-      )}
+      {/* Main Content Area - Updated to use SourceCodeViewer */}
+<div className="flex-1 bg-gray-50 min-h-screen">
+  {isDebugging ? (
+    <SourceCodeViewer />
+  ) : (
+    <div className="h-full flex items-center justify-center">
+      <div className="text-gray-400 text-center">
+        <Bug className="w-12 h-12 mx-auto mb-4 opacity-30" />
+        <p className="text-xl font-medium">Transaction Debugger</p>
+        <p className="mt-2 text-sm max-w-md">
+          Enter a transaction hash on the left panel to start debugging a deployed 
+          contract transaction, or load a transaction first from the transactions panel.
+        </p>
+      </div>
+    </div>
+  )}
+</div>
     </div>
   );
 };
