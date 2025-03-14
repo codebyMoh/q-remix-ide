@@ -1,6 +1,8 @@
 "use client";
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import Editor, { Monaco } from '@monaco-editor/react';
+import { useEffect } from 'react';
+import { useEditor } from '@/context/EditorContext';
 
 // Temporary file structure until context is implemented
 const initialFiles = [
@@ -36,8 +38,19 @@ const EditorComponent = () => {
   const [files, setFiles] = useState(initialFiles);
   const editorRef = useRef<any>(null);
 
+  const { highlightCode: contextHighlightCode } = useEditor();
+
+  const highlightCode = useCallback((file: string, line: number, end?: number) => {
+    contextHighlightCode(file, line, end);
+  }, [contextHighlightCode]);
+
   const handleEditorDidMount = (editor: any, monaco: Monaco) => {
     editorRef.current = editor;
+
+    window.addEventListener('debugger:highlight', (e: any) => {
+      const { file, line, end } = e.detail;
+      highlightCode(file, line, end);
+    });
     // Configure Monaco for Solidity syntax highlighting
     monaco.languages.register({ id: 'solidity' });
     monaco.languages.setMonarchTokensProvider('solidity', {
@@ -64,6 +77,13 @@ const EditorComponent = () => {
       }
     });
   };
+
+   // Clean up event listener
+   useEffect(() => {
+    return () => {
+      window.removeEventListener('debugger:highlight', (e: any) => {});
+    };
+  }, []);
 
   const handleFileClick = (file: any) => {
     if (file.type === 'file') {

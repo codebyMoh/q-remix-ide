@@ -61,3 +61,49 @@ body {
   width: 8px !important;
   height: 8px !important;
 }
+
+.debugger-highlighted-line {
+  background-color: rgba(255, 255, 0, 0.2);
+  border-left: 3px solid #ffcc00;
+}
+
+.debugger-breakpoint-glyph {
+  background-color: #ff0000;
+  border-radius: 50%;
+  width: 8px !important;
+  height: 8px !important;
+  margin-left: 5px;
+}
+
+/* Monaco editor styling */
+.monaco-editor .line-numbers {
+  color: #888;
+}
+
+.monaco-editor .active-line-number {
+  color: #000;
+  font-weight: bold;
+}
+
+/* Debugger interface styling */
+.debugger-panel {
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.debugger-step-buttons button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Debugger variable tables */
+.variable-table th {
+  font-weight: 600;
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid #ddd;
+}
+
+.variable-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid #eee;
+}
