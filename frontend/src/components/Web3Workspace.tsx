@@ -10,6 +10,7 @@ import {
   Search,
   M,
   WorkSpaceArrow,
+  ArrowSpace
 } from "@/assets/index";
 import { useEditor } from "@/context/EditorContext";
 const TAGS = [
@@ -81,9 +82,9 @@ const WorkspaceItem = ({ workspace,setSelectedWorkspace }) => (
   <div className="flex justify-between items-center w-full text-gray-800 font-medium text-sm">
     <div className="flex gap-2 align-center">
       <WorkSpaceArrow />
-    <span className="pt-[7px] cursor-pointer" onClick={()=>setSelectedWorkspace(workspace)}>{workspace.name}</span>
+    <span className="pt-[7px] cursor-pointer text-[ #23202A]" onClick={()=>setSelectedWorkspace(workspace)}>{workspace.name}</span>
     </div>
-    <DownArrow />
+    <ArrowSpace className="mt-[10px]"/>
   </div>
 );
 

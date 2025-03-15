@@ -98,7 +98,7 @@ const Header: React.FC<HeaderProps> = ({
   }, [allNodes, files, onCloseFile]);
 
   return (
-    <div className="h-[38px] flex items-center px-4 bg-white border-b shadow-sm">
+    <div className="h-[38px] flex items-center px-2 bg-white border-b shadow-sm">
       {/* Icons Section */}
       <div className="flex items-center space-x-3">
         
@@ -114,7 +114,7 @@ const Header: React.FC<HeaderProps> = ({
           return (
                 <Tooltip  content={Icon.content}  key={index}>
             <Icon.component     
-              className="cursor-pointer"
+              className="cursor-pointer "
               onClick={onClickHandler}
             />
              </Tooltip>
