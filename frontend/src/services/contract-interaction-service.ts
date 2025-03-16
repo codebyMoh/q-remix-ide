@@ -1,5 +1,6 @@
 import { ethers } from "ethers";
-import { DeployedContract } from "@/types/deployment";
+import { DeployedContract, Environment } from "@/types/deployment";
+import { deploymentService, } from "./deployment-service";
 
 export enum FunctionType {
   CALL = "call",          // Blue - view or pure functions
@@ -26,17 +27,47 @@ export interface FunctionCallResult {
 }
 
 export class ContractInteractionService {
-  private provider!: ethers.BrowserProvider;
+  private provider!: ethers.Provider;
   private signer!: ethers.Signer;
+  private isUsingHardhat: boolean = false;
 
   private async initializeProvider() {
-    if (!window.ethereum) throw new Error("MetaMask is not installed");
-    this.provider = new ethers.BrowserProvider(window.ethereum);
-    this.signer = await this.provider.getSigner();
-    try {
-      await this.provider.ready;
-    } catch (error: any) {
-      throw new Error(`Failed to initialize provider: ${error.message}`);
+    // Checking if we are usig Hardhat or MetaMask
+    const { env } = await deploymentService.getEnvironment();
+    
+    if (env === Environment.RemixVM) {
+      // Use Hardhat
+      this.isUsingHardhat = true;
+      try {
+        // Initialize Hardhat provider
+        const hardhatProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+        this.provider = hardhatProvider;
+        
+        const accounts = await deploymentService.getAccounts();
+        if (accounts.length > 0) {
+          this.signer = await deploymentService.getSignerForInteraction();
+          console.log("Initialized Hardhat provider with signer:", await this.signer.getAddress());
+        } else {
+          throw new Error("No accounts available in Hardhat node");
+        }
+      } catch (error: any) {
+        console.error("Failed to initialize Hardhat provider:", error);
+        throw new Error(`Failed to connect to Hardhat node: ${error.message}`);
+      }
+    } else if (env === Environment.Injected) {
+      // Use MetaMask
+      this.isUsingHardhat = false;
+      if (!window.ethereum) throw new Error("MetaMask is not installed");
+      const browserProvider = new ethers.BrowserProvider(window.ethereum);
+      this.provider = browserProvider;
+      this.signer = await browserProvider.getSigner();
+      try {
+        await browserProvider.ready;
+      } catch (error: any) {
+        throw new Error(`Failed to initialize provider: ${error.message}`);
+      }
+    } else {
+      throw new Error(`Unsupported environment: ${env}`);
     }
   }
 
@@ -98,18 +129,22 @@ export class ContractInteractionService {
   ): Promise<FunctionCallResult> {
     try {
       await this.initializeProvider();
+      
+      // Create contract instance with the appropriate provider
       const ethersContract = new ethers.Contract(
         contract.address,
         contract.abi,
         this.provider
       );
       
+      // Call the function
       const result = await ethersContract[functionName](...args);
       return {
         success: true,
         result
       };
     } catch (error: any) {
+      console.error(`Error calling function ${functionName}:`, error);
       return {
         success: false,
         error: error.message
@@ -128,23 +163,31 @@ export class ContractInteractionService {
   ): Promise<FunctionCallResult> {
     try {
       await this.initializeProvider();
+      
+      // Create contract instance with the signer
       const ethersContract = new ethers.Contract(
         contract.address,
         contract.abi,
         this.signer
       );
       
+      // Execute the transaction
       const tx = await ethersContract[functionName](...args, {
         gasLimit: options.gasLimit ? BigInt(options.gasLimit) : undefined
       });
       
+      // Wait for transaction to be mined
       const receipt = await tx.wait();
+      
+      // Dispatch transaction event with detailed information
+      this.dispatchTransactionEvent(receipt.hash, contract, functionName);
       
       return {
         success: true,
         transactionHash: receipt.hash
       };
     } catch (error: any) {
+      console.error(`Error executing transaction ${functionName}:`, error);
       return {
         success: false,
         error: error.message
@@ -163,24 +206,32 @@ export class ContractInteractionService {
   ): Promise<FunctionCallResult> {
     try {
       await this.initializeProvider();
+      
+      // Create contract instance with the signer
       const ethersContract = new ethers.Contract(
         contract.address,
         contract.abi,
         this.signer
       );
       
+      // Execute the payable transaction
       const tx = await ethersContract[functionName](...args, {
-         value: ethers.parseEther(options.value),
-         gasLimit: options.gasLimit ? BigInt(options.gasLimit) : undefined
+        gasLimit: options.gasLimit ? BigInt(options.gasLimit) : undefined,
+        value: ethers.parseEther(options.value)
       });
       
+      // Wait for transaction to be mined
       const receipt = await tx.wait();
+      
+      // Dispatch transaction event with detailed information
+      this.dispatchTransactionEvent(receipt.hash, contract, functionName);
       
       return {
         success: true,
         transactionHash: receipt.hash
       };
     } catch (error: any) {
+      console.error(`Error executing payable transaction ${functionName}:`, error);
       return {
         success: false,
         error: error.message
@@ -205,21 +256,53 @@ export class ContractInteractionService {
         gasLimit: options.gasLimit ? BigInt(options.gasLimit) : undefined
       });
       
+      // Wait for transaction to be mined
       const receipt = await tx.wait();
       if (!receipt) {
         throw new Error("Transaction receipt is null");
       }
+      
+      // Determine if it's fallback or receive based on data
+      const functionName = tx.data && tx.data !== "0x" ? "(fallback)" : "(receive)";
+      
+      // Dispatch transaction event with detailed information
+      this.dispatchTransactionEvent(receipt.hash, contract, functionName);
       
       return {
         success: true,
         transactionHash: receipt.hash
       };
     } catch (error: any) {
+      console.error("Error sending to fallback/receive:", error);
       return {
         success: false,
         error: error.message
       };
     }
+  }
+  
+  /**
+   * Helper method to dispatch transaction events
+   */
+  private dispatchTransactionEvent(
+    transactionHash: string,
+    contract: DeployedContract,
+    functionName: string
+  ): void {
+    // Create and dispatch the transaction event
+    const transactionEvent = new CustomEvent("transactionOutput", { 
+      detail: {
+        contractName: contract.contractName,
+        functionName: functionName,
+        transactionHash: transactionHash,
+        success: true,
+        contract: contract,
+        isHardhat: this.isUsingHardhat
+      }
+    });
+    
+    console.log(`Dispatching transaction event for ${contract.contractName}.${functionName}:`, transactionHash);
+    window.dispatchEvent(transactionEvent);
   }
 }
 

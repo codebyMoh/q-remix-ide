@@ -28,6 +28,7 @@ interface TransactionOutputEvent {
   transactionHash: string;
   success: boolean;
   contract: DeployedContract;
+  isHardhat?: boolean;
 }
 
 interface TerminalProps {
@@ -192,6 +193,55 @@ const Terminal: React.FC<TerminalProps> = ({ toggleHeight }) => {
           details.logs.forEach((log, index) => {
             xtermRef.current!.writeln(`event #${index + 1}: ${JSON.stringify(log, null, 2)}`);
           });
+        }
+        
+        // Display Hardhat-specific debug info if available
+        if (details.hardhatDebugInfo) {
+          xtermRef.current!.writeln("\r\n=== Debug Information ===");
+          xtermRef.current!.writeln(`gas used: ${details.hardhatDebugInfo.gasUsed}`);
+          xtermRef.current!.writeln(`return value: ${details.hardhatDebugInfo.returnValue}`);
+          
+          // Display memory if available
+          if (details.hardhatDebugInfo.memory && details.hardhatDebugInfo.memory.length > 0) {
+            xtermRef.current!.writeln(`memory: ${details.hardhatDebugInfo.memory.length} slots`);
+            // Show first few memory slots
+            details.hardhatDebugInfo.memory.slice(0, 5).forEach((slot, index) => {
+              xtermRef.current!.writeln(`  [${index}]: ${slot}`);
+            });
+            if (details.hardhatDebugInfo.memory.length > 5) {
+              xtermRef.current!.writeln(`  ... ${details.hardhatDebugInfo.memory.length - 5} more slots`);
+            }
+          }
+          
+          // Display stack if available
+          if (details.hardhatDebugInfo.stack && details.hardhatDebugInfo.stack.length > 0) {
+            xtermRef.current!.writeln(`stack: ${details.hardhatDebugInfo.stack.length} items`);
+            // Show first few stack items
+            details.hardhatDebugInfo.stack.slice(0, 5).forEach((item, index) => {
+              xtermRef.current!.writeln(`  [${index}]: ${item}`);
+            });
+            if (details.hardhatDebugInfo.stack.length > 5) {
+              xtermRef.current!.writeln(`  ... ${details.hardhatDebugInfo.stack.length - 5} more items`);
+            }
+          }
+          
+          // Display storage if available
+          if (details.hardhatDebugInfo.storage && Object.keys(details.hardhatDebugInfo.storage).length > 0) {
+            xtermRef.current!.writeln(`storage: ${Object.keys(details.hardhatDebugInfo.storage).length} slots`);
+            // Show first few storage slots
+            Object.entries(details.hardhatDebugInfo.storage).slice(0, 5).forEach(([slot, value]) => {
+              xtermRef.current!.writeln(`  ${slot}: ${value}`);
+            });
+            if (Object.keys(details.hardhatDebugInfo.storage).length > 5) {
+              xtermRef.current!.writeln(`  ... ${Object.keys(details.hardhatDebugInfo.storage).length - 5} more slots`);
+            }
+          }
+          
+          // Display struct logs count if available
+          if (details.hardhatDebugInfo.structLogs && details.hardhatDebugInfo.structLogs.length > 0) {
+            xtermRef.current!.writeln(`execution trace: ${details.hardhatDebugInfo.structLogs.length} steps`);
+            xtermRef.current!.writeln(`  (use 'debug' command to view detailed execution trace)`);
+          }
         }
         
       } catch (error: any) {

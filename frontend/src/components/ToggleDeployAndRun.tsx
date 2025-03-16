@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Urbanist } from "next/font/google";
 import { deploymentService } from "@/services/deployment-service";
-import { Account, DeployedContract, DeploymentInput } from "@/types/deployment";
+import { Account, DeployedContract, DeploymentInput, Environment } from "@/types/deployment";
 import { ethers } from "ethers";
 import { useEditor } from "@/context/EditorContext";
 import ContractInteraction from "./ContractInteraction";
@@ -19,7 +19,7 @@ interface DeployAndRunProps {
 const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) => {
   const { allFiles, compiledContracts, compileFile } = useEditor();
   const [isExpanded, setIsExpanded] = useState(true);
-  const [environment, setEnvironment] = useState("remixVM");
+  const [environment, setEnvironment] = useState("NULL");
   const [account, setAccount] = useState("");
   const [gasLimit, setGasLimit] = useState("3000000");
   const [value, setValue] = useState("0");
@@ -35,7 +35,8 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
   const [error, setError] = useState<string | null>(null);
 
   const environments = [
-    { id: "remixVM", name: "Remix VM (Cancun)" },
+    { id: "NULL", name: "--Select Environment--" },
+    { id: "remixVM", name: "QRemix VM" },
     { id: "injected", name: "Injected Provider - MetaMask" },
     { id: "mainnetFork", name: "Remix VM - Mainnet fork" },
     { id: "sepoliaFork", name: "Remix VM - Sepolia fork" },
@@ -64,13 +65,27 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
   }, [allFiles, compiledContracts]);
 
   const handleEnvironmentChange = async (newEnv: string) => {
-    setEnvironment(newEnv);
-    if (newEnv === "injected") {
-      setLoading(true);
-      try {
+    setEnvironment(newEnv as Environment);
+    setLoading(true);
+    try {
+      await deploymentService.setEnvironment(newEnv);
+      
+      if (newEnv === Environment.RemixVM) {
+      // Fetch Hardhat accounts
+        try {
+          const hardhatAccounts = await deploymentService.getAccounts();
+          setAccounts(hardhatAccounts);
+          if (hardhatAccounts.length > 0) {
+            setAccount(hardhatAccounts[0].address);
+          }
+        } catch (err: any) {
+          console.error("Failed to fetch Hardhat accounts:", err);
+          setError("Failed to connect to Hardhat node. Make sure it's running at http://127.0.0.1:8545");
+        }
+      } else if (newEnv === Environment.Injected) {
+        // Check if MetaMask is installed
         if (!window.ethereum) throw new Error("MetaMask is not installed");
         await window.ethereum.request({ method: "eth_requestAccounts" });
-        await deploymentService.setEnvironment("injected" as any);
         const fetchedAccounts = await deploymentService.getAccounts();
         setAccounts(fetchedAccounts);
         setAccount(fetchedAccounts[0]?.address || "");
@@ -82,15 +97,31 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
             setAccount(updatedAccounts[0]?.address || "");
           }
         });
-      } catch (err: any) {
-        setError(err.message || "Failed to connect to MetaMask");
-        setEnvironment("remixVM");
-      } finally {
-        setLoading(false);
+      } else {
+        setAccounts([]);
+        setAccount("");
       }
-    } else {
-      setAccounts([]);
-      setAccount("");
+    } catch (err: any) {
+      setError(err.message || "Failed to connect to provider");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAccountChange = async (address: string) => {
+    setAccount(address);
+    
+    // If using Hardhat, set the signer to the selected account
+    if (environment === Environment.RemixVM) {
+      try {
+        const selectedAccount = accounts.find(acc => acc.address === address);
+        if (selectedAccount) {
+          await deploymentService.setHardhatSigner(selectedAccount.index);
+        }
+      } catch (err: any) {
+        console.error("Failed to set Hardhat signer:", err);
+        setError(err.message);
+      }
     }
   };
 
@@ -99,8 +130,8 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
   };
 
   const deployContract = async () => {
-    if (environment !== "injected") {
-      setError("Please connect to MetaMask to deploy contracts");
+    if (environment !== Environment.Injected && environment !== Environment.RemixVM) {
+      setError("Please connect to MetaMask or select Remix VM (Cancun) to deploy contracts");
       return;
     }
     setLoading(true);
@@ -125,6 +156,15 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
       if (!compiledContract) {
         console.log("Deploying - Available compiled contracts:", compiledContracts);
         throw new Error("No compiled data found for any contract. Please ensure compilation succeeded.");
+      }
+
+      // Set the signer to the selected account before deployment
+      if (environment === Environment.RemixVM) {
+        const selectedAccount = accounts.find(acc => acc.address === account);
+        if (selectedAccount) {
+          console.log("Setting Hardhat signer to account index:", selectedAccount.index);
+          await deploymentService.setHardhatSigner(selectedAccount.index);
+        }
       }
 
       const deploymentInput: DeploymentInput = {
@@ -258,27 +298,27 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
                   </option>
                 ))}
               </select>
-              {environment === "external" && (
+              {/* {environment === "external" && (
                 <input
                   type="text"
                   placeholder="http://127.0.0.1:8545"
                   className="border p-2 rounded text-sm mt-1"
                   disabled={loading}
                 />
-              )}
+              )} */}
             </div>
 
             <div className="flex flex-col gap-1 mt-3">
               <div className="text-gray-600 text-xs">ACCOUNT</div>
               <select
                 value={account}
-                onChange={(e) => setAccount(e.target.value)}
+                onChange={(e) => handleAccountChange(e.target.value)}
                 className="border p-2 rounded text-sm"
                 disabled={loading || accounts.length === 0}
               >
                 {accounts.length > 0 ? (
                   accounts.map((acc, index) => (
-                    <option key={acc.address} value={acc.address}>
+                    <option key={`account-${index}`} value={acc.address}>
                       Account {index} ({acc.address.slice(0, 6)}...{acc.address.slice(-4)}) - {acc.balance} ETH
                     </option>
                   ))
@@ -348,7 +388,7 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
             <button
               onClick={deployContract}
               className="flex-1 bg-blue-600 text-white p-2 rounded text-sm hover:bg-blue-700"
-              disabled={loading || !selectedContract || environment !== "injected"}
+              disabled={loading || !selectedContract || (environment !== Environment.Injected && environment !== Environment.RemixVM)}
             >
               {loading ? "Deploying..." : "Deploy"}
             </button>

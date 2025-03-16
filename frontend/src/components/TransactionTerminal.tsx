@@ -13,6 +13,7 @@ interface TransactionOutputEvent {
   transactionHash: string;
   success: boolean;
   contract: DeployedContract;
+  isHardhat?: boolean;
 }
 
 const TransactionTerminal: React.FC<TransactionTerminalProps> = ({ className }) => {
@@ -25,7 +26,7 @@ const TransactionTerminal: React.FC<TransactionTerminalProps> = ({ className }) 
     // Listen for transaction events
     const handleTransactionOutput = async (event: Event) => {
       const customEvent = event as CustomEvent<TransactionOutputEvent>;
-      const { transactionHash, contract, functionName } = customEvent.detail;
+      const { transactionHash, contract, functionName, isHardhat } = customEvent.detail;
       
       if (!transactionHash || !contract) return;
       
@@ -51,6 +52,7 @@ const TransactionTerminal: React.FC<TransactionTerminalProps> = ({ className }) 
             input: false,
             output: false,
             logs: false,
+            hardhatDebug: isHardhat ? true : false,
             rawLogs: false
           }
         }));
@@ -254,19 +256,19 @@ const TransactionTerminal: React.FC<TransactionTerminalProps> = ({ className }) 
                 
                 {isSectionExpanded(tx.transactionHash, 'input') && (
                   <div className="bg-gray-800 bg-opacity-50 p-3 rounded-b">
-                    <div className="mb-3">
-                      <div className="text-xs text-gray-500 mb-1">Raw Input</div>
-                      <div className="bg-gray-800 p-2 rounded text-xs overflow-x-auto font-mono">
-                        {tx.input}
-                      </div>
+                    <div className="mb-2">
+                      <div className="text-xs text-gray-500">Raw Input</div>
+                      <div className="text-sm font-mono break-all">{tx.input}</div>
                     </div>
                     
-                    <div>
-                      <div className="text-xs text-gray-500 mb-1">Decoded Input</div>
-                      <div className="bg-gray-800 p-2 rounded text-xs overflow-x-auto whitespace-pre font-mono">
-                        {renderJsonValue(tx.decodedInput)}
+                    {tx.decodedInput && tx.decodedInput !== "Unable to decode input" && (
+                      <div>
+                        <div className="text-xs text-gray-500">Decoded Input</div>
+                        <pre className="text-sm font-mono bg-gray-900 p-2 rounded overflow-auto">
+                          {renderJsonValue(tx.decodedInput)}
+                        </pre>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -286,57 +288,152 @@ const TransactionTerminal: React.FC<TransactionTerminalProps> = ({ className }) 
                 {isSectionExpanded(tx.transactionHash, 'output') && (
                   <div className="bg-gray-800 bg-opacity-50 p-3 rounded-b">
                     {tx.output && (
-                      <div className="mb-3">
-                        <div className="text-xs text-gray-500 mb-1">Raw Output</div>
-                        <div className="bg-gray-800 p-2 rounded text-xs overflow-x-auto font-mono">
-                          {tx.output}
-                        </div>
+                      <div className="mb-2">
+                        <div className="text-xs text-gray-500">Raw Output</div>
+                        <div className="text-sm font-mono break-all">{tx.output}</div>
                       </div>
                     )}
                     
-                    {tx.decodedOutput && (
+                    {tx.decodedOutput && tx.decodedOutput !== "No output data" && (
                       <div>
-                        <div className="text-xs text-gray-500 mb-1">Decoded Output</div>
-                        <div className="bg-gray-800 p-2 rounded text-xs overflow-x-auto whitespace-pre font-mono">
+                        <div className="text-xs text-gray-500">Decoded Output</div>
+                        <pre className="text-sm font-mono bg-gray-900 p-2 rounded overflow-auto">
                           {renderJsonValue(tx.decodedOutput)}
-                        </div>
+                        </pre>
                       </div>
-                    )}
-                    
-                    {!tx.output && !tx.decodedOutput && (
-                      <div className="text-gray-500 italic">No output data available</div>
                     )}
                   </div>
                 )}
               </div>
               
               {/* Logs Section */}
-              <div className="mb-3">
-                <div 
-                  className="flex items-center cursor-pointer bg-gray-800 p-2 rounded-t"
-                  onClick={() => toggleSection(tx.transactionHash, 'logs')}
-                >
-                  <div className="mr-2">
-                    {isSectionExpanded(tx.transactionHash, 'logs') ? '▼' : '►'}
+              {tx.logs && tx.logs.length > 0 && (
+                <div className="mb-3">
+                  <div 
+                    className="flex items-center cursor-pointer bg-gray-800 p-2 rounded-t"
+                    onClick={() => toggleSection(tx.transactionHash, 'logs')}
+                  >
+                    <div className="mr-2">
+                      {isSectionExpanded(tx.transactionHash, 'logs') ? '▼' : '►'}
+                    </div>
+                    <div className="font-medium">Logs ({tx.logs.length})</div>
                   </div>
-                  <div className="font-medium">Event Logs {tx.logs && tx.logs.length > 0 ? `(${tx.logs.length})` : ''}</div>
+                  
+                  {isSectionExpanded(tx.transactionHash, 'logs') && (
+                    <div className="bg-gray-800 bg-opacity-50 p-3 rounded-b">
+                      {tx.logs.map((log, logIndex) => (
+                        <div key={logIndex} className="mb-3 last:mb-0 border-b border-gray-700 pb-3 last:border-0 last:pb-0">
+                          <div className="text-xs text-gray-500">Event #{logIndex + 1}</div>
+                          <pre className="text-sm font-mono bg-gray-900 p-2 rounded overflow-auto">
+                            {renderJsonValue(log)}
+                          </pre>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                
-                {isSectionExpanded(tx.transactionHash, 'logs') && (
-                  <div className="bg-gray-800 bg-opacity-50 p-3 rounded-b">
-                    {tx.logs && tx.logs.length > 0 ? (
-                      <div className="bg-gray-800 p-2 rounded text-xs overflow-x-auto whitespace-pre font-mono">
-                        {renderJsonValue(tx.logs)}
-                      </div>
-                    ) : (
-                      <div className="text-gray-500 italic">No event logs emitted</div>
-                    )}
+              )}
+              
+              {/* Hardhat Debug Info Section */}
+              {tx.hardhatDebugInfo && (
+                <div className="mb-3">
+                  <div 
+                    className="flex items-center cursor-pointer bg-gray-800 p-2 rounded-t"
+                    onClick={() => toggleSection(tx.transactionHash, 'hardhatDebug')}
+                  >
+                    <div className="mr-2">
+                      {isSectionExpanded(tx.transactionHash, 'hardhatDebug') ? '▼' : '►'}
+                    </div>
+                    <div className="font-medium">Hardhat Debug Info</div>
                   </div>
-                )}
-              </div>
+                  
+                  {isSectionExpanded(tx.transactionHash, 'hardhatDebug') && (
+                    <div className="bg-gray-800 bg-opacity-50 p-3 rounded-b">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <div className="text-xs text-gray-500">Gas Used</div>
+                          <div className="text-sm">{tx.hardhatDebugInfo.gasUsed}</div>
+                        </div>
+                        
+                        <div>
+                          <div className="text-xs text-gray-500">Return Value</div>
+                          <div className="text-sm font-mono break-all">{tx.hardhatDebugInfo.returnValue}</div>
+                        </div>
+                      </div>
+                      
+                      {/* Memory Section */}
+                      {tx.hardhatDebugInfo.memory && tx.hardhatDebugInfo.memory.length > 0 && (
+                        <div className="mb-3">
+                          <div className="text-xs text-gray-500 mb-1">Memory ({tx.hardhatDebugInfo.memory.length} slots)</div>
+                          <div className="bg-gray-900 p-2 rounded overflow-auto max-h-40">
+                            {tx.hardhatDebugInfo.memory.slice(0, 10).map((slot, idx) => (
+                              <div key={idx} className="text-sm font-mono">
+                                <span className="text-gray-500">[{idx}]:</span> {slot}
+                              </div>
+                            ))}
+                            {tx.hardhatDebugInfo.memory.length > 10 && (
+                              <div className="text-sm text-gray-500 italic">
+                                ... {tx.hardhatDebugInfo.memory.length - 10} more slots
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Stack Section */}
+                      {tx.hardhatDebugInfo.stack && tx.hardhatDebugInfo.stack.length > 0 && (
+                        <div className="mb-3">
+                          <div className="text-xs text-gray-500 mb-1">Stack ({tx.hardhatDebugInfo.stack.length} items)</div>
+                          <div className="bg-gray-900 p-2 rounded overflow-auto max-h-40">
+                            {tx.hardhatDebugInfo.stack.slice(0, 10).map((item, idx) => (
+                              <div key={idx} className="text-sm font-mono">
+                                <span className="text-gray-500">[{idx}]:</span> {item}
+                              </div>
+                            ))}
+                            {tx.hardhatDebugInfo.stack.length > 10 && (
+                              <div className="text-sm text-gray-500 italic">
+                                ... {tx.hardhatDebugInfo.stack.length - 10} more items
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Storage Section */}
+                      {tx.hardhatDebugInfo.storage && Object.keys(tx.hardhatDebugInfo.storage).length > 0 && (
+                        <div className="mb-3">
+                          <div className="text-xs text-gray-500 mb-1">Storage ({Object.keys(tx.hardhatDebugInfo.storage).length} slots)</div>
+                          <div className="bg-gray-900 p-2 rounded overflow-auto max-h-40">
+                            {Object.entries(tx.hardhatDebugInfo.storage).slice(0, 10).map(([slot, value], idx) => (
+                              <div key={idx} className="text-sm font-mono">
+                                <span className="text-gray-500">{slot}:</span> {value}
+                              </div>
+                            ))}
+                            {Object.keys(tx.hardhatDebugInfo.storage).length > 10 && (
+                              <div className="text-sm text-gray-500 italic">
+                                ... {Object.keys(tx.hardhatDebugInfo.storage).length - 10} more slots
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Execution Trace */}
+                      {tx.hardhatDebugInfo.structLogs && tx.hardhatDebugInfo.structLogs.length > 0 && (
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">Execution Trace ({tx.hardhatDebugInfo.structLogs.length} steps)</div>
+                          <div className="text-sm text-gray-400">
+                            Execution trace is available but not displayed due to size. Use the terminal for detailed debugging.
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               
               {/* Raw Logs Section */}
-              <div className="mb-3">
+              <div>
                 <div 
                   className="flex items-center cursor-pointer bg-gray-800 p-2 rounded-t"
                   onClick={() => toggleSection(tx.transactionHash, 'rawLogs')}
@@ -349,9 +446,9 @@ const TransactionTerminal: React.FC<TransactionTerminalProps> = ({ className }) 
                 
                 {isSectionExpanded(tx.transactionHash, 'rawLogs') && (
                   <div className="bg-gray-800 bg-opacity-50 p-3 rounded-b">
-                    <div className="bg-gray-800 p-2 rounded text-xs overflow-x-auto whitespace-pre font-mono">
+                    <pre className="text-sm font-mono bg-gray-900 p-2 rounded overflow-auto max-h-60">
                       {tx.rawLogs}
-                    </div>
+                    </pre>
                   </div>
                 )}
               </div>

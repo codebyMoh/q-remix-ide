@@ -1,5 +1,6 @@
 import { ethers } from "ethers";
-import { DeployedContract } from "@/types/deployment";
+import { DeployedContract, Environment } from "@/types/deployment";
+import { deploymentService } from "./deployment-service";
 
 export interface TransactionDetails {
   status: string;
@@ -21,18 +22,81 @@ export interface TransactionDetails {
   timestamp: number;
   contractName: string;
   functionName: string;
+  hardhatDebugInfo?: {
+    gasUsed: string;
+    returnValue: string;
+    structLogs?: any[];
+    memory?: string[];
+    stack?: string[];
+    storage?: Record<string, string>;
+  };
 }
 
 export class TerminalOutputService {
-  private provider!: ethers.BrowserProvider;
+  private provider!: ethers.Provider;
+  private hardhatProvider: ethers.JsonRpcProvider | null = null;
+  private isUsingHardhat: boolean = false;
 
   private async initializeProvider() {
-    if (!window.ethereum) throw new Error("MetaMask is not installed");
-    this.provider = new ethers.BrowserProvider(window.ethereum);
+    // getting the env
+    const { env } = await deploymentService.getEnvironment();
+    
+    if (env === Environment.RemixVM) {
+      this.isUsingHardhat = true;
+      try {
+        this.hardhatProvider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+        this.provider = this.hardhatProvider;
+        console.log("Initialized Hardhat provider for terminal output");
+      } catch (error: any) {
+        console.error("Failed to initialize Hardhat provider:", error);
+        throw new Error(`Failed to connect to Hardhat node: ${error.message}`);
+      }
+    } else if (env === Environment.Injected) {
+      // Use MetaMask
+      this.isUsingHardhat = false;
+      if (!window.ethereum) throw new Error("MetaMask is not installed");
+      const browserProvider = new ethers.BrowserProvider(window.ethereum);
+      this.provider = browserProvider;
+      try {
+        await browserProvider.ready;
+      } catch (error: any) {
+        throw new Error(`Failed to initialize provider: ${error.message}`);
+      }
+    } else {
+      throw new Error(`Unsupported environment: ${env}`);
+    }
+  }
+
+  /**
+   * Get Hardhat-specific transaction debug information
+   */
+  private async getHardhatDebugInfo(txHash: string): Promise<any> {
+    if (!this.hardhatProvider || !this.isUsingHardhat) {
+      return null;
+    }
+
     try {
-      await this.provider.ready;
-    } catch (error: any) {
-      throw new Error(`Failed to initialize provider: ${error.message}`);
+      // using Hardhat's debug_traceTransaction method to get detailed execution info
+
+
+      const traceResult = await this.hardhatProvider.send("debug_traceTransaction", [txHash, {}]);
+      
+      
+      // get transaction receipt for gas used
+      
+      const receipt = await this.hardhatProvider.getTransactionReceipt(txHash);
+      
+      return {
+        gasUsed: receipt?.gasUsed?.toString() || "0",
+        returnValue: traceResult.returnValue || "0x",
+        structLogs: traceResult.structLogs || [],
+        memory: traceResult.memory || [],
+        stack: traceResult.stack || [],
+        storage: traceResult.storage || {}
+      };
+    } catch (error) {
+      console.error("Error getting Hardhat debug info:", error);
+      return null;
     }
   }
 
@@ -149,6 +213,10 @@ export class TerminalOutputService {
       // This is an estimate as we don't have the exact execution cost
       const executionCost = transactionCost * BigInt(80) / BigInt(100);
       
+      // Get Hardhat-specific debug info if using Hardhat
+      const hardhatDebugInfo = this.isUsingHardhat ? 
+        await this.getHardhatDebugInfo(txHash) : undefined;
+      
       return {
         status: receipt.status === 1 ? "Success" : "Failed",
         transactionHash: txHash,
@@ -168,7 +236,8 @@ export class TerminalOutputService {
         rawLogs: JSON.stringify(receipt.logs, null, 2),
         timestamp: block.timestamp ? Number(block.timestamp) * 1000 : Date.now(),
         contractName: contract.contractName,
-        functionName
+        functionName,
+        hardhatDebugInfo
       };
     } catch (error: any) {
       console.error("Error getting transaction details:", error);

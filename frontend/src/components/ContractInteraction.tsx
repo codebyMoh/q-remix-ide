@@ -140,23 +140,9 @@ const ContractInteraction: React.FC<ContractInteractionProps> = ({
       
       setFunctionResults({ ...functionResults, [func.name]: result });
       
-      // Broadcast transaction to terminal if it's a transaction
-      if (result.transactionHash) {
-        const transactionEvent = new CustomEvent("transactionOutput", { 
-          detail: {
-            contractName: contract.contractName,
-            functionName: func.name,
-            transactionHash: result.transactionHash,
-            success: result.success,
-            contract: contract
-          }
-        });
-        window.dispatchEvent(transactionEvent);
-        
-        // Call the callback to notify that a transaction was executed
-        if (onTransactionExecuted) {
-          onTransactionExecuted();
-        }
+      // Call the callback to notify that a transaction was executed
+      if (result.transactionHash && onTransactionExecuted) {
+        onTransactionExecuted();
       }
       
     } catch (error: any) {
