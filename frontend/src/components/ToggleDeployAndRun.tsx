@@ -64,6 +64,11 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
     }
   }, [allFiles, compiledContracts]);
 
+  const fetchHardhatAccounts = async () =>{
+    const hardhatAccounts = await deploymentService.getAccounts();
+    setAccounts(hardhatAccounts);
+  }
+
   const handleEnvironmentChange = async (newEnv: string) => {
     setEnvironment(newEnv as Environment);
     setLoading(true);
@@ -386,7 +391,12 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
             </div>
             
             <button
-              onClick={deployContract}
+              onClick={async () => {
+                await deployContract();
+                if (environment === Environment.RemixVM) {
+                  await fetchHardhatAccounts();
+                }
+              }}
               className="flex-1 bg-blue-600 text-white p-2 rounded text-sm hover:bg-blue-700"
               disabled={loading || !selectedContract || (environment !== Environment.Injected && environment !== Environment.RemixVM)}
             >
@@ -519,19 +529,24 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
               </div>
               <div className="mt-2 max-h-60 overflow-auto">
                 {deployedContracts.map((contract, idx) => (
-                  <div key={idx} className="border rounded p-2 mb-2">
+                    <div key={idx} className="border rounded p-2 mb-2">
                     <div className="flex justify-between items-center">
                       <div className="font-medium text-sm">{contract.contractName}</div>
                       <div className="text-xs text-gray-500 truncate max-w-[120px]" title={contract.address}>
-                        at {contract.address.slice(0, 6)}...{contract.address.slice(-4)}
+                      at {contract.address.slice(0, 6)}...{contract.address.slice(-4)}
                       </div>
                     </div>
                     <ContractInteraction 
                       contract={contract} 
                       gasLimit={gasLimit} 
-                      onTransactionExecuted={onTransactionExecuted}
+                      onTransactionExecuted={async () => {
+                      onTransactionExecuted;
+                      if (environment === Environment.RemixVM) {
+                       await fetchHardhatAccounts();
+                      }
+                      }}
                     />
-                  </div>
+                    </div>
                 ))}
                 {deployedContracts.length === 0 && (
                   <div className="text-sm text-gray-500">No contracts deployed yet</div>
