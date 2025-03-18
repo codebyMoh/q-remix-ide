@@ -1,12 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ChevronRight, Plus, Trash, Edit2 } from "lucide-react";
 import { FaRegFolder } from "react-icons/fa";
-import {
-  createNode,
-  getAllNodes,
-  deleteNode,
-  updateNode,
-} from "../utils/IndexDB";
+import { createNode, getAllNodes, deleteNode, updateNode } from "../utils/IndexDB";
 import type { FileSystemNode } from "../types";
 import {
   GreenTick,
@@ -32,34 +27,26 @@ import { MdDriveFileRenameOutline } from "react-icons/md";
 import { FaRegFile } from "react-icons/fa";
 import { useEditor } from "../context/EditorContext";
 
-
-interface FileExplorerProps {
-  onFileSelect: (file: FileSystemNode | null) => void;
-}
-
-const FileExplorer: React.FC<FileExplorerProps> = () => {
-  const { onFileSelect } = useEditor();
+const FileExplorer: React.FC = () => {
+  const { onFileSelect, setAllFiles } = useEditor(); // Use setAllFiles
   const [allNodes, setAllNodes] = useState<FileSystemNode[]>([]);
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    new Set()
-  );
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [editingNode, setEditingNode] = useState<string | null>(null);
   const [newNodeName, setNewNodeName] = useState("");
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingNewNode, setPendingNewNode] = useState<FileSystemNode | null>(null);
-
-  const [selectedWorkspace, setSelectedWorkspace] =
-    useState("Default Workspace");
+  const [selectedWorkspace, setSelectedWorkspace] = useState("Default Workspace");
   const [isExpanded, setIsExpanded] = useState(true);
 
-  // Load all nodes at once
   useEffect(() => {
     const loadAllNodes = async () => {
       try {
         setIsLoading(true);
         const nodes = await getAllNodes();
-        setAllNodes(sortNodes(nodes));
+        const sortedNodes = sortNodes(nodes);
+        setAllNodes(sortedNodes);
+        setAllFiles(sortedNodes); // Update context
       } catch (error) {
         console.error("Failed to load nodes:", error);
       } finally {
@@ -68,7 +55,8 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     };
 
     loadAllNodes();
-  }, []);
+  }, [setAllFiles]);
+
   const sortNodes = (nodes: FileSystemNode[]) => {
     return [...nodes].sort((a, b) => {
       if (a.type !== b.type) {
@@ -78,14 +66,10 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     });
   };
 
-  const handleCreateNode = async (
-    type: "file" | "folder",
-    parentId: string | null
-  ) => {
+  const handleCreateNode = async (type: "file" | "folder", parentId: string | null) => {
     const effectiveParentId =
       parentId ??
-      (selectedNode &&
-      allNodes.find((n) => n.id === selectedNode)?.type === "folder"
+      (selectedNode && allNodes.find((n) => n.id === selectedNode)?.type === "folder"
         ? selectedNode
         : null);
 
@@ -100,7 +84,6 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     };
 
     try {
-      // Create the node but keep it in a pending state
       setPendingNewNode(newNode);
       setEditingNode(newNode.id);
       setNewNodeName("");
@@ -108,9 +91,12 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
       if (effectiveParentId) {
         setExpandedFolders((prev) => new Set(prev).add(effectiveParentId));
       }
-      
-      // Add it temporarily to UI
-      setAllNodes((prev) => sortNodes([...prev, newNode]));
+
+      setAllNodes((prev) => {
+        const updatedNodes = sortNodes([...prev, newNode]);
+        setAllFiles(updatedNodes);
+        return updatedNodes;
+      });
     } catch (error) {
       console.error("Failed to create node:", error);
     }
@@ -134,9 +120,11 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
 
     try {
       await Promise.all(idsToDelete.map((id) => deleteNode(id)));
-      setAllNodes((prev) =>
-        prev.filter((node) => !idsToDelete.includes(node.id))
-      );
+      setAllNodes((prev) => {
+        const updatedNodes = prev.filter((node) => !idsToDelete.includes(node.id));
+        setAllFiles(updatedNodes); // Update context
+        return updatedNodes;
+      });
 
       if (selectedNode && idsToDelete.includes(selectedNode)) {
         setSelectedNode(null);
@@ -155,38 +143,43 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
 
   const handleRename = async (node: FileSystemNode) => {
     setEditingNode(null);
-    
-    // If it's a new name and not empty, save it
+
     if (newNodeName.trim()) {
       const updatedNode = { ...node, name: newNodeName, updatedAt: Date.now() };
-      
       try {
-        // Only save to DB if it's not a default name
         await createNode(updatedNode);
-        setAllNodes((prev) =>
-          sortNodes(prev.map((n) => (n.id === node.id ? updatedNode : n)))
-        );
+        setAllNodes((prev) => {
+          const updatedNodes = sortNodes(prev.map((n) => (n.id === node.id ? updatedNode : n)));
+          setAllFiles(updatedNodes); // Update context
+          return updatedNodes;
+        });
       } catch (error) {
         console.error("Failed to rename node:", error);
       }
     } else {
-      // If empty name or cancelled, remove the pending node
       if (pendingNewNode && node.id === pendingNewNode.id) {
-        setAllNodes((prev) => prev.filter((n) => n.id !== node.id));
+        setAllNodes((prev) => {
+          const updatedNodes = prev.filter((n) => n.id !== node.id);
+          setAllFiles(updatedNodes);
+          return updatedNodes;
+        });
         setPendingNewNode(null);
       }
     }
-    
+
     setNewNodeName("");
   };
 
   const cancelRename = (node: FileSystemNode) => {
-    // If this is a pending new node, remove it from the UI
     if (pendingNewNode && node.id === pendingNewNode.id) {
-      setAllNodes((prev) => prev.filter((n) => n.id !== node.id));
+      setAllNodes((prev) => {
+        const updatedNodes = prev.filter((n) => n.id !== node.id);
+        setAllFiles(updatedNodes);
+        return updatedNodes;
+      });
       setPendingNewNode(null);
     }
-    
+
     setEditingNode(null);
     setNewNodeName("");
   };
@@ -204,14 +197,13 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
   };
 
   const handleNodeClick = (node: FileSystemNode) => {
-    // Don't do anything if we're currently editing
     if (editingNode) return;
-    
     setSelectedNode(node.id);
     if (node.type === "file") {
       onFileSelect(node);
     }
   };
+
   const getIconForType = (name, type) => {
     const extension = name?.split(".").pop() || "unknown";
     switch (extension) {
@@ -241,9 +233,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
 
   const renderNode = (node: FileSystemNode, level: number = 0) => {
     const isExpanded = expandedFolders.has(node.id);
-    const childNodes = sortNodes(
-      allNodes.filter((n) => n.parentId === node.id)
-    );
+    const childNodes = sortNodes(allNodes.filter((n) => n.parentId === node.id));
     const indent = level * 16;
     const isSelected = selectedNode === node.id;
 
@@ -264,11 +254,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
               }}
               className="p-1 hover:bg-gray-200 rounded"
             >
-              {isExpanded ? (
-                <ChevronDown size={16} />
-              ) : (
-                <ChevronRight size={16} />
-              )}
+              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
             </button>
           )}
           {node.type === "folder" ? (
@@ -287,7 +273,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
                 if (e.key === "Enter") handleRename(node);
                 if (e.key === "Escape") cancelRename(node);
               }}
-            className="ml-1 px-1 border border-gray-500 rounded bg-white focus:outline-none w-full "
+              className="ml-1 px-1 border border-gray-500 rounded bg-white focus:outline-none w-full"
               autoFocus
               onClick={(e) => e.stopPropagation()}
             />
@@ -296,8 +282,6 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
               <span className="ml-1 select-none text-[14px] font-[Urbanist] font-medium leading-[16.8px] tracking-[0%] text-[#94969C]">
                 {node.name}
               </span>
-
-              {/* Buttons wrapper with group-hover to show on hover */}
               <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 {node.type === "folder" && (
                   <>
@@ -330,7 +314,6 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
                 >
                   <MdDriveFileRenameOutline size={14} />
                 </button>
-
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -352,17 +335,14 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     );
   };
 
-  const rootNodes = sortNodes(
-    allNodes.filter((node) => node.parentId === null)
-  );
+  const rootNodes = sortNodes(allNodes.filter((node) => node.parentId === null));
 
   return (
-    <div className=" bg-white border-r border-[#DEDEDE] h-screen overflow-y-auto" >
+    <div className="bg-white border-r border-[#DEDEDE] h-screen overflow-y-auto">
       <div
         className={`${
           isExpanded ? "w-80 px-4" : "w-0 px-0"
-        } bg-white flex flex-col   py-4 transition-all duration-300 overflow-hidden 
-        }`}
+        } bg-white flex flex-col py-4 transition-all duration-300 overflow-hidden}`}
       >
         <div className="mb-2 flex items-center justify-between">
           <span className={`${isExpanded ? "opacity-100" : "opacity-0"}`}>
@@ -374,10 +354,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
                 isExpanded ? "opacity-100" : "opacity-0"
               }`}
             />
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="transition-all"
-            >
+            <button onClick={() => setIsExpanded(!isExpanded)} className="transition-all">
               <RightArrow
                 className={`w-5 h-5 text-gray-500 transition-transform ${
                   isExpanded ? "rotate-180" : "rotate-0"
@@ -399,10 +376,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
               </button>
             </div>
             <div className="flex gap-4 justify-center items-center w-full mt-4">
-              <File
-                className="cursor-pointer"
-                onClick={() => handleCreateNode("file", null)}
-              />
+              <File className="cursor-pointer" onClick={() => handleCreateNode("file", null)} />
               <Folder
                 className="w-6 h-6 text-gray-600 cursor-pointer hover:text-gray-900"
                 onClick={() => handleCreateNode("folder", null)}
@@ -431,7 +405,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
       {!isExpanded && (
         <button
           onClick={() => setIsExpanded(true)}
-          className="absolute left-[80px] top-5 transition-all cursor-pointer z-10 "
+          className="absolute left-[80px] top-5 transition-all cursor-pointer z-10"
         >
           <RightArrow className="w-5 h-5 text-gray-500" />
         </button>
