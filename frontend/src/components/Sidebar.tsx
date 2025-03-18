@@ -1,91 +1,112 @@
 "use client";
 import React, { useState } from "react";
-import Logo from "@/assets/svg/logo.svg";
-import Workspace from "@/assets/svg/workspace.svg";
-import Search from "@/assets/svg/search.svg"
-import Compile from "@/assets/svg/compile.svg"
-import Deploy from "@/assets/svg/deploy.svg"
-import Git from "@/assets/svg/git.svg"
-import Settings from "@/assets/svg/settings-up.svg"
-import SettingsD from "@/assets/svg/settings-down.svg"
-import Plugin from "@/assets/svg/plugin.svg"
+import {
+  Logo,
+  Workspace,
+  Search,
+  Compile,
+  Deploy,
+  Bug,
+  Git,
+  Settings,
+  SettingsD,
+  Plugin,
+} from "@/assets/index";
+import { useEditor } from "../context/EditorContext";
+import Tooltip from "@/components/Tooltip"
+interface SidebarProps {
+  onSectionChange: (section: string) => void;
+}
 
-const Sidebar = () => {
-  const [active, setActive] = useState("workspace"); 
+const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
+  const [active, setActive] = useState("workspace");
+  const { setActiveFileId, setShowHome } = useEditor();
 
+
+  const navItems = [
+    { id: "workspace", icon: Workspace, label: "Workspace", section: "workspace" },
+    { id: "search", icon: Search, label: "Search", section: "search", customClass: " " },
+    { id: "compile", icon: Compile, label: "Compile", section: "compiler" },
+    { id: "deploy-run", icon: Deploy, label: "Deploy & Run", section: "deploy-run" },
+    { id: "debugger", icon: Bug, label: "Debugger", section: "debugger", customClass: "mx-2 w-5 h-5" },
+    { id: "git", icon: Git, label: "Git", section: "git" },
+    { id: "settings", icon: Settings, label: "Settings", section: "settings" },
+  ];
+
+  const bottomItems = [
+    { id: "settingsd", icon: SettingsD, label: "Settings Down", section: "settingsd" },
+    { id: "plugin", icon: Plugin, label: "Plugin", section: "plugin" },
+  ];
+
+  const handleNavClick = (id: string, section: string) => {
+    setActive(id);
+    onSectionChange(section);
+  };
+
+  const handleLogoClick = () => {
+    setActive("workspace");
+    onSectionChange("workspace");
+    setActiveFileId("Home");
+    setShowHome(true);
+  };
   return (
-    <div className="w-20 bg-white flex flex-col gap-1 border-[#DEDEDE] items-center py-2 border-r ">
-      <div className="mb-2 mt-2">
+    <div className="w-20 bg-white flex flex-col gap-1 border border-gray-300 items-center p-2">
+      <div className="mb-2 mt-2 cursor-pointer" onClick={handleLogoClick}>
+      <Tooltip content="Home">
         <Logo className="w-10 h-10 rounded-full" />
+      </Tooltip>
       </div>
       <div className="mb-6 w-full flex justify-center">
-  <hr className="w-10 border-t-2 border-[#DEDEDE]" />
-</div>
+        <hr className="w-10 border-t-2 border-gray-300" />
+      </div>
 
       <nav className="flex flex-col gap-1">
-      <button
-  className={`p-2 rounded-lg ${active === "workspace" ? "bg-[#FFEAEA]" : "hover:bg-gray-700"} flex items-center justify-center`}
-  onClick={() => setActive("workspace")}
->
-  <Workspace
-    className={`w-8 h-8 ${active === "workspace" ? "text-[#CE192D]" : "text-black"}`}
-  />
-</button>
-
-
-
-        {/* Search Button */}
-        <button
-          className={`p-2 rounded-lg ${active === "search" ? "bg-[#FFEAEA]" : "hover:bg-gray-700"}`}
-          onClick={() => setActive("search")}
-        >
-          <Search className={`w-8 h-8 ${active === "search" ? "text-[#CE192D]" : "text-black"}`} />
-        </button>
-
-        {/* Code Button */}
-        <button
-          className={`p-2 rounded-lg ${active === "compile" ? "bg-[#FFEAEA]" : "hover:bg-gray-700"}`}
-          onClick={() => setActive("compile")}
-        >
-          <Compile className={`w-8 h-8 ${active === "compile" ? "text-[#CE192D]" : "text-black"}`} />
-        </button>
-
-        <button
-          className={`p-2 rounded-lg ${active === "deploy" ? "bg-[#FFEAEA]" : "hover:bg-gray-700"}`}
-          onClick={() => setActive("deploy")}
-        >
-          <Deploy className={`w-8 h-8 ${active === "deploy" ? "text-[#CE192D]" : "text-black"}`} />
-        </button>
-
-        <button
-          className={`p-2 rounded-lg ${active === "git" ? "bg-[#FFEAEA]" : "hover:bg-gray-700"}`}
-          onClick={() => setActive("git")}
-        >
-          <Git className={`w-8 h-8 ${active === "git" ? "text-[#CE192D]" : "text-black"}`} />
-        </button>
-
-        <button
-          className={`p-2 rounded-lg ${active === "settings" ? "bg-[#FFEAEA]" : "hover:bg-gray-700"}`}
-          onClick={() => setActive("settings")}
-        >
-          <Settings className={`w-8 h-8 ${active === "settings" ? "text-[#CE192D]" : "text-black"}`} />
-        </button>
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Tooltip content={item.label}   key={item.label}>
+            <button
+            
+              className={`p-2 rounded-lg ${
+                active === item.id ? "bg-gray-200" : "hover:bg-gray-300"
+              } ${item.label === "Search" ? "pl-[19px]" : ""}`}
+              
+              onClick={() => handleNavClick(item.id, item.section)}
+              aria-label={item.label}
+            >
+              <Icon
+                className={`${item.customClass || "w-8 h-8"} ${
+                  active === item.id ? "text-[#CE192D] fill current" : "text-black"
+                }`}
+              />
+            </button>
+            </Tooltip>
+          );
+        })}
       </nav>
 
       <div className="mt-auto flex flex-col gap-2">
-        <button
-          className={`p-2 rounded-lg ${active === "settingsd" ? "bg-[#FFEAEA]" : "hover:bg-gray-700"}`}
-          onClick={() => setActive("settingsd")}
-        >
-          <SettingsD className={`w-8 h-8 ${active === "settingsd" ? "text-[#CE192D]" : "text-black"}`}/>
-        </button>
-
-        <button
-          className={`p-2 rounded-lg ${active === "plugin" ? "bg-[#FFEAEA]" : "hover:bg-gray-700"}`}
-          onClick={() => setActive("plugin")}
-        >
-          <Plugin className={`w-8 h-8 ${active === "plugin" ? "text-[#CE192D]" : "text-black"}`}/>
-        </button>
+        {bottomItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Tooltip content={item.label}    key={item.id}>
+            <button
+           
+              className={`p-2 rounded-lg ${
+                active === item.id ? "bg-gray-200" : "hover:bg-gray-300"
+              }`}
+              onClick={() => handleNavClick(item.id, item.section)}
+              aria-label={item.label}
+            >
+              <Icon
+                className={`w-8 h-8 ${
+                  active === item.id ? "text-[#CE192D]" : "text-black"
+                }`}
+              />
+            </button>
+            </Tooltip>
+          );
+        })}
       </div>
     </div>
   );

@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Q-Remix IDE Project
 
-## Getting Started
+## Important NPM Installation Note
 
-First, run the development server:
+When installing dependencies for this project, **always** use the following command:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Frontend Setup
+cd frontend
+npm install --legacy-peer-deps
+```
+```bash
+# Backend Setup
+cd backend
+npm install --legacy-peer-deps
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Example Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# Correct way to install dependencies
+npm install --legacy-peer-deps
 
-## Learn More
+# When adding new packages
+npm install [package-name] --legacy-peer-deps
+```
 
-To learn more about Next.js, take a look at the following resources:
+**Note:** This approach helps avoid potential "Conflicting peer dependencies" errors during project setup and package installation.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## To Run Artifacts*
+### cd to backend directory
+### Run a contract to generate artifacts
+ ```bash
+ node compile.js
+ ```
+### Automate using chokidar
+ ```bash
+ node watch.js
+ ```

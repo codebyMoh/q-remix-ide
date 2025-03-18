@@ -6,17 +6,74 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  color-scheme: light !important;
 }
 
+/* Override dark mode preferences entirely */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Keep the same light mode values */
+    --background: #ffffff;
+    --foreground: #171717;
+    color-scheme: light !important;
   }
+}
+
+/* Force light mode for Tailwind dark mode class */
+.dark {
+  --background: #ffffff !important;
+  --foreground: #171717 !important;
+  color-scheme: light !important;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: 'Urbanist', sans-serif;
+  overflow-y: scroll !important; /* Prevent Layout Shift */
 }
+
+/* RainbowKit Modal Fix */
+.rainbowkit-modal-container {
+  position: fixed !important;
+  z-index: 10000 !important;
+  inset: 0 !important;
+}
+
+@supports (-webkit-touch-callout: none) {
+  .rainbowkit-modal-container {
+    position: absolute !important;
+  }
+}
+
+/* Mobile Viewport Fix */
+@viewport {
+  width: device-width;
+  zoom: 1.0;
+}
+
+.custom-dot-list-style {
+  bottom: 0.5rem !important;
+  left: 5.25rem !important;
+}
+
+.custom-dot-list-style .react-multi-carousel-dot button {
+  width: 8px !important;
+  height: 8px !important;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  scrollbar-width: none;
+}
+
+.hide-scrollbar {
+  scrollbar-width: none;
+}
+
+.hide-scrollbar {
+  scrollbar-width: none;
+}
+select {
+  outline: none !important;
+  border: 1px solid #e5e7eb !important; 
+}
+
