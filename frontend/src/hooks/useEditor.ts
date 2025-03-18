@@ -16,7 +16,6 @@ const useEditor = () => {
     setActiveFileId(file.id);
   
   };
-  console.log("op enFiles", openFiles);
   const handleCloseFile = (fileId: string) => {
     setOpenFiles((prev) => prev.filter((f) => f.id !== fileId));
     if (activeFileId === fileId) {

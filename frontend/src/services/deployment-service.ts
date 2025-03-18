@@ -275,7 +275,6 @@ export class RemixDeploymentService {
       };
 
       await db.put("contracts", deployedContract, deployedAddress);
-      console.log("Deployed contract:", deployedContract);
       return deployedContract;
     } catch (error: any) {
       console.error("Deployment error:", error);

@@ -3,7 +3,7 @@ import wrapper from "solc/wrapper";
 self.onmessage = async (event) => {
   try {
     const { contractCode, filename, compilerVersion, timestamp } = event.data;
-    console.log(`Worker: Loading compiler version: ${compilerVersion} (timestamp: ${timestamp})`);
+
     
     // Append timestamp to avoid caching
     const compilerURL = `https://binaries.soliditylang.org/bin/soljson-v${compilerVersion}.js?t=${timestamp}`;
@@ -14,7 +14,7 @@ self.onmessage = async (event) => {
     }
 
     const compiler = wrapper(self.Module);
-    console.log(`Worker: Compiler loaded for version: ${compilerVersion}`);
+
     
     const sourceCode = {
       language: "Solidity",
@@ -29,7 +29,7 @@ self.onmessage = async (event) => {
     };
     
     const output = JSON.parse(compiler.compile(JSON.stringify(sourceCode)));
-    console.log("Worker: Compilation output:", output);
+;
     
     const warnings: string[] = [];
     const errors: string[] = [];
@@ -62,8 +62,6 @@ self.onmessage = async (event) => {
         byteCode: contractData.evm?.bytecode?.object || "0x",
       });
     }
-    
-    console.log(`Worker: Compilation successful. Found ${contracts.length} contracts.`);
     self.postMessage({ contracts, warnings, timestamp });
   } catch (error) {
     console.error("Worker error:", error);

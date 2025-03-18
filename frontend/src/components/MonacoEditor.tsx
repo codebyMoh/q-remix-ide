@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
 import { getNodeById, updateNode } from "../utils/IndexDB";
 import type { FileSystemNode } from "../types";
@@ -15,42 +15,41 @@ interface MonacoEditorProps {
 
 const MonacoEditor: React.FC<MonacoEditorProps> = ({
   file,
-  zoom,
-  editCode,
   error,
+  code,
   compilationResult,
 }) => {
-  // Use file.content if defined; if not, fallback to editCode (if provided)
-  const initialContent =
-    file.content !== undefined && file.content !== "undefined"
-      ? file.content
-      : editCode || "";
-  const [content, setContent] = useState(initialContent);
+  const [content, setContent] = useState(file?.content || code);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const editorRef = useRef<any>(null);
 
-  // When file changes externally, load its latest content from IndexedDB.
   useEffect(() => {
     const loadContent = async () => {
-      const latestFile = await getNodeById(file.id);
+      const latestFile = await getNodeById(file?.id);
       if (latestFile) {
         setContent(latestFile.content || "");
         setIsDirty(false);
       }
     };
     loadContent();
-  }, [file.id]);
+  }, [file?.id]);
 
   const { updateActiveFileContent } = useEditor();
 
   const handleSave = async () => {
     try {
       setIsSaving(true);
+      
+      // Ensure we fetch latest content directly from Monaco Editor
+      const latestContent = editorRef.current?.getValue() || content;
+
       const updatedFile = {
         ...file,
-        content,
+        content: latestContent,
         updatedAt: Date.now(),
       };
+
       await updateNode(updatedFile);
       setIsDirty(false);
     } catch (error) {
@@ -61,6 +60,11 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
     }
   };
 
+  // Capture editor instance on mount
+  const handleEditorDidMount = (editor: any) => {
+    editorRef.current = editor;
+  };
+
   // When the editor changes, update local state and context.
   const handleEditorChange = (value: string | undefined) => {
     const newValue = value || "";
@@ -69,6 +73,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
     updateActiveFileContent(newValue);
   };
 
+  // Handle Ctrl + S save
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "s") {
       e.preventDefault();
@@ -95,7 +100,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   }, [isDirty, isSaving]);
 
   const getLanguage = (fileName: string) => {
-    const ext = fileName.split(".").pop()?.toLowerCase();
+    const ext = fileName?.split('.').pop()?.toLowerCase();
     switch (ext) {
       case "js":
         return "javascript";
@@ -118,7 +123,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="bg-gray-50 border-b px-4 py-2 flex justify-between items-center">
+      <div className="bg-gray-50 flex justify-between items-center">
         <div className="flex items-center gap-2">
           {isDirty && (
             <span className="text-sm text-gray-500">(unsaved changes)</span>
@@ -128,10 +133,11 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       <div className="flex-1 relative" style={{ minHeight: "200px" }}>
         <Editor
           height="100%"
-          defaultLanguage={getLanguage(file.name)}
+          defaultLanguage={getLanguage(file?.name)}
           value={content}
           theme="vs-light"
           onChange={handleEditorChange}
+          onMount={handleEditorDidMount}
           options={{
             fontSize: 14,
             minimap: { enabled: false },
@@ -141,7 +147,6 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
             readOnly: false,
             cursorStyle: "line",
           }}
-          onKeyDown={handleKeyDown}
           loading={<div className="p-4">Loading editor...</div>}
         />
       </div>

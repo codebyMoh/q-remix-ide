@@ -15,7 +15,6 @@ const useIndexedDB = () => {
 
     request.onsuccess = (event) => {
       dbRef.current = event.target.result;
-      console.log("DB opened successfully");
     };
 
     request.onerror = (event) => {
@@ -35,7 +34,6 @@ const useIndexedDB = () => {
     const request = store.put({ name: fileName, content: fileContent });
 
     request.onsuccess = () => {
-      console.log("File saved!");
     };
 
     request.onerror = (event) => {
