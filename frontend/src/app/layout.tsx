@@ -22,6 +22,7 @@ import DeployRun from "@/components/DeployRun";
 import Terminal from "@/components/Terminal";
 import Footer from "@/components/Footer";
 import { EditorProvider } from "@/context/EditorContext";
+import { DebuggerProvider } from "@/context/DebuggerContext";
 
 /* 4) Google font example */
 import { Urbanist } from "next/font/google";
@@ -118,6 +119,7 @@ export default function RootLayout({
         <WagmiConfig config={config}>
           <QueryClientProvider client={queryClient}>
             <RainbowKitProvider>
+              <DebuggerProvider>
               <EditorProvider>
                 <div className="flex h-screen">
                   {/* Sidebar */}
@@ -176,6 +178,7 @@ export default function RootLayout({
                   <Footer />
                 </div>
               </EditorProvider>
+              </DebuggerProvider>
             </RainbowKitProvider>
           </QueryClientProvider>
         </WagmiConfig>

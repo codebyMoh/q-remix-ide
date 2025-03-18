@@ -97,7 +97,7 @@ const MonacoEditor = forwardRef<EditorRef, MonacoEditorProps>(({
     highlightCode
   }));
 
-  const { updateActiveFileContent } = useEditor();
+  // const { updateActiveFileContent } = useEditor();
 
   const handleSave = async () => {
     try {
@@ -150,15 +150,13 @@ const MonacoEditor = forwardRef<EditorRef, MonacoEditorProps>(({
     };
   }, [isDirty, isSaving]);
 
-  const getLanguage = (fileName: string) => {
+  const getLanguage = (fileName: string): string => {
     const ext = fileName.split(".").pop()?.toLowerCase();
     switch (ext) {
       case "js":
-        return "javascript";
-      case "ts":
-        return "typescript";
       case "jsx":
         return "javascript";
+      case "ts":
       case "tsx":
         return "typescript";
       case "json":
@@ -167,23 +165,29 @@ const MonacoEditor = forwardRef<EditorRef, MonacoEditorProps>(({
         return "markdown";
       case "sol":
         return "solidity";
+      case "css":
+        return "css";
+      case "html":
+        return "html";
       default:
         return "plaintext";
-  }, [isDirty, isSaving]);
-
-  const getLanguage = (fileName: string): string | undefined => {
-    // Implement logic to determine the language based on the file name
-    if (fileName.endsWith('.ts') || fileName.endsWith('.tsx')) {
-      return 'typescript';
-    } else if (fileName.endsWith('.js') || fileName.endsWith('.jsx')) {
-      return 'javascript';
-    } else if (fileName.endsWith('.css')) {
-      return 'css';
-    } else if (fileName.endsWith('.html')) {
-      return 'html';
     }
-    return undefined;
   };
+  
+
+  // const getLanguage = (fileName: string): string | undefined => {
+  //   // Implement logic to determine the language based on the file name
+  //   if (fileName.endsWith('.ts') || fileName.endsWith('.tsx')) {
+  //     return 'typescript';
+  //   } else if (fileName.endsWith('.js') || fileName.endsWith('.jsx')) {
+  //     return 'javascript';
+  //   } else if (fileName.endsWith('.css')) {
+  //     return 'css';
+  //   } else if (fileName.endsWith('.html')) {
+  //     return 'html';
+  //   }
+  //   return undefined;
+  // };
 
   return (
     <div className="flex flex-col h-full">
@@ -195,24 +199,25 @@ const MonacoEditor = forwardRef<EditorRef, MonacoEditorProps>(({
         </div>
       </div>
       <div className="flex-1 relative" style={{ minHeight: "200px" }}>
-        <Editor
-          height="100%"
-          defaultLanguage={getLanguage(file.name)}
-          value={content}
-          theme="vs-light"
-          onChange={handleEditorChange}
-          options={{
-            fontSize: 14,
-            minimap: { enabled: false },
-            automaticLayout: true,
-            lineNumbers: "on",
-            roundedSelection: false,
-            readOnly: false,
-            cursorStyle: "line",
-          }}
-          onMount={handleEditorDidMount}
-          loading={<div className="p-4">Loading editor...</div>}
-        />
+      <Editor
+  height="100%"
+  defaultLanguage={getLanguage(file.name)}
+  value={content}
+  theme="vs-light"
+  onChange={handleEditorChange}
+  options={{
+    fontSize: 14,
+    minimap: { enabled: false },
+    automaticLayout: true,
+    lineNumbers: "on",
+    roundedSelection: false,
+    readOnly: false,
+    cursorStyle: "line",
+  }}
+  onMount={handleEditorDidMount}
+  loading={<div className="p-4">Loading editor...</div>}
+/>
+
       </div>
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2">

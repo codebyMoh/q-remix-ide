@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Urbanist } from "next/font/google";
 import { useDebugger } from "../context/DebuggerContext";
 import { useEditor } from "../context/EditorContext";
@@ -17,6 +17,7 @@ const urbanist = Urbanist({
 type BreakpointType = {
   line: number;
   file: string;
+  step?: number; // Added step property which appears to be used later
   // Other potential properties can be added here
 };
 
@@ -37,6 +38,11 @@ const Debugger = () => {
     setStep,
     addBreakpoint,
     removeBreakpoint,
+    nodeStatus,
+    checkNodeDebugSupport,
+    isVMDebugging,
+    initializeVMDebugger,
+    debugVMTransaction,
     error
   } = useDebugger();
 
@@ -47,6 +53,20 @@ const Debugger = () => {
   const [showSources, setShowSources] = React.useState(false);
   const [activePanel, setActivePanel] = React.useState("stack");
   const slideRef = useRef<HTMLInputElement>(null);
+
+  const [vmAccounts, setVMAccounts] = useState<Array<{ address: string, balance: string }>>([
+    { address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", balance: "10000000000000000000" }
+  ]);
+  const [vmContracts, setVMContracts] = useState<Array<{ address: string, bytecode: string, abi: any[] }>>([]);
+  const [vmTx, setVMTx] = useState<{ from: string, to: string, data: string, value?: string, gasLimit?: string }>({
+    from: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    to: "",
+    data: "",
+    value: "0",
+    gasLimit: "2000000"
+  });
+  const [contractSource, setContractSource] = useState<string>("");
+  const [showVMOptions, setShowVMOptions] = useState<boolean>(false);
 
   const handleDebugStep = useCallback((data: { file: string, line: number }) => {
     highlightCode(data.file, data.line);
@@ -79,6 +99,15 @@ const Debugger = () => {
     if (txHash.trim() !== "") {
       await debugTransaction(txHash, showSources);
     }
+    console.log("Debugging started...");
+  };
+
+  const startVMDebugging = async () => {
+    // First initialize the VM with accounts and contracts
+    await initializeVMDebugger(vmAccounts, vmContracts);
+    
+    // Then debug the transaction
+    await debugVMTransaction(vmTx, contractSource);
   };
 
   const handleStep = async (action: string) => {
@@ -118,7 +147,8 @@ const Debugger = () => {
       if (topCall.sourceLocation) {
         const newBreakpoint: BreakpointType = {
           line: topCall.sourceLocation.start,
-          file: topCall.sourceLocation.file
+          file: topCall.sourceLocation.file,
+          step: currentStep // Added step property to match usage later in the component
         };
         addBreakpoint(newBreakpoint);
       }
@@ -186,12 +216,60 @@ const Debugger = () => {
                     className="flex-1 border p-2 rounded text-sm"
                   />
                   <button
-                    onClick={startDebugging}
+                    onClick={startVMDebugging}
                     className="border p-2 rounded bg-black text-white text-sm"
                   >
                     Debug
                   </button>
                 </div>
+
+                {/* Node Configuration Info */}
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <h3 className="text-sm font-medium text-blue-800">Debug Node Requirements</h3>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Transaction debugging requires a node with debug APIs enabled. Public providers like Infura/Alchemy
+                    typically restrict these methods.
+                  </p>
+                  <div className="mt-2 text-xs text-blue-700">
+                    <p className="font-medium">Options:</p>
+                    <ol className="list-decimal pl-5 mt-1 space-y-1">
+                      <li>Run your own local Geth node with <code className="bg-blue-100 px-1 rounded">--http.api "eth,net,web3,debug,trace"</code></li>
+                      <li>Use a debug-supported provider (premium plan might be required)</li>
+                      <li>Configure backend API forwarding if you have a private node</li>
+                    </ol>
+                  </div>
+                </div>
+                
+                {/* Connection Status */}
+                <div className="mt-2">
+                  <button 
+                    onClick={checkNodeDebugSupport}
+                    className="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded"
+                  >
+                    Check Node Debug Support
+                  </button>
+                  {nodeStatus && (
+                    <div className={`mt-2 p-2 text-xs rounded ${
+                      nodeStatus.supportsDebug ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
+                    }`}>
+                      {nodeStatus.message}
+                    </div>
+                  )}
+                </div>
+
+                {error && (
+                  <div className="bg-red-100 text-red-700 p-3 rounded text-sm mb-3 border border-red-200">
+                    <p className="font-medium">Error:</p>
+                    <p>{error}</p>
+                    {error.includes && error.includes('debug_traceTransaction') && (
+                      <div className="mt-2 text-xs">
+                        <p className="font-medium">Suggested fix:</p>
+                        <p>Connect to a node with debug APIs enabled. See the requirements section above.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="mt-3">
                   <label className="flex items-center text-[13px] mb-3">
                     <input
@@ -338,7 +416,8 @@ const Debugger = () => {
                               <div className="font-medium">{item.functionName || "Unknown function"}</div>
                               <div className="text-gray-500">
                                 @{item.sourceLocation ? 
-                                  `${item.sourceLocation.file}:${item.sourceLocation.start}` : 
+                                  `${item.sourceLocation.file}:${item.sourceLocation.start
+                                  }` : 
                                   "Unknown location"}
                               </div>
                             </div>
@@ -543,22 +622,22 @@ const Debugger = () => {
       </div>
 
       {/* Main Content Area - Updated to use SourceCodeViewer */}
-<div className="flex-1 bg-gray-50 min-h-screen">
-  {isDebugging ? (
-    <SourceCodeViewer />
-  ) : (
-    <div className="h-full flex items-center justify-center">
-      <div className="text-gray-400 text-center">
-        <Bug className="w-12 h-12 mx-auto mb-4 opacity-30" />
-        <p className="text-xl font-medium">Transaction Debugger</p>
-        <p className="mt-2 text-sm max-w-md">
-          Enter a transaction hash on the left panel to start debugging a deployed 
-          contract transaction, or load a transaction first from the transactions panel.
-        </p>
+      <div className="flex-1 bg-gray-50 min-h-screen">
+        {isDebugging ? (
+          <SourceCodeViewer />
+        ) : (
+          <div className="h-full flex items-center justify-center">
+            <div className="text-gray-400 text-center">
+              <Bug className="w-12 h-12 mx-auto mb-4 opacity-30" />
+              <p className="text-xl font-medium">Transaction Debugger</p>
+              <p className="mt-2 text-sm max-w-md">
+                Enter a transaction hash on the left panel to start debugging a deployed 
+                contract transaction, or load a transaction first from the transactions panel.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
-  )}
-</div>
     </div>
   );
 };
