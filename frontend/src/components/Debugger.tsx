@@ -295,6 +295,20 @@ const Debugger = () => {
                   <div className="text-sm font-medium overflow-hidden text-ellipsis">
                     {txHash}
                   </div>
+                  <div className="text-gray-600 text-sm mt-2">
+                    Debug a transaction from the deployed contracts or start debugging
+                    with the currently loaded transaction.
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {/* Navigation Controls */}
+                <div className="flex flex-col gap-1">
+                  <div className="text-gray-600 text-sm">Current transaction</div>
+                  <div className="text-sm font-medium overflow-hidden text-ellipsis">
+                    {txHash}
+                  </div>
 
                   {/* Slider & Step counter */}
                   <div className="mt-3">
@@ -316,7 +330,115 @@ const Debugger = () => {
                       className="w-full"
                     />
                   </div>
+                  {/* Slider & Step counter */}
+                  <div className="mt-3">
+                    <div className="flex justify-between text-xs mb-1">
+                      <span>
+                        Step {currentStep} of {totalSteps}
+                      </span>
+                      <button onClick={stopDebugging} className="text-red-500">
+                        Stop Debugging
+                      </button>
+                    </div>
+                    <input
+                      ref={slideRef}
+                      type="range"
+                      min="0"
+                      max={totalSteps}
+                      value={currentStep}
+                      onChange={handleSliderChange}
+                      className="w-full"
+                    />
+                  </div>
 
+                  {/* Navigation Buttons */}
+                  <div className="flex justify-between mt-2">
+                    <button
+                      onClick={() => handleStep("stepBack")}
+                      className="border p-1 rounded bg-gray-100 hover:bg-gray-200"
+                      title="Step back"
+                      disabled={currentStep === 0}
+                    >
+                      <StepBack className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleStep("prevBreakpoint")}
+                      className="border p-1 rounded bg-gray-100 hover:bg-gray-200"
+                      title="Jump to previous breakpoint"
+                      disabled={breakpoints.length === 0}
+                    >
+                      <Breakpoint className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleStep("stepInto")}
+                      className="border p-1 rounded bg-gray-100 hover:bg-gray-200"
+                      title="Step into"
+                      disabled={currentStep === totalSteps}
+                    >
+                      <StepInto className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleStep("stepOut")}
+                      className="border p-1 rounded bg-gray-100 hover:bg-gray-200"
+                      title="Step out"
+                      disabled={currentStep === totalSteps}
+                    >
+                      <StepOut className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleStep("nextBreakpoint")}
+                      className="border p-1 rounded bg-gray-100 hover:bg-gray-200"
+                      title="Jump to next breakpoint"
+                      disabled={breakpoints.length === 0}
+                    >
+                      <Breakpoint className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleStep("stepForward")}
+                      className="border p-1 rounded bg-gray-100 hover:bg-gray-200"
+                      title="Step forward"
+                      disabled={currentStep === totalSteps}
+                    >
+                      <StepForward className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                {/* Panel Tabs */}
+                <div className="mt-4">
+                  <div className="flex border-b">
+                    <button
+                      className={`py-2 px-3 text-xs font-medium ${
+                        activePanel === "stack" ? "border-b-2 border-black" : ""
+                      }`}
+                      onClick={() => setActivePanel("stack")}
+                    >
+                      Function Stack
+                    </button>
+                    <button
+                      className={`py-2 px-3 text-xs font-medium ${
+                        activePanel === "locals" ? "border-b-2 border-black" : ""
+                      }`}
+                      onClick={() => setActivePanel("locals")}
+                    >
+                      Solidity Locals
+                    </button>
+                    <button
+                      className={`py-2 px-3 text-xs font-medium ${
+                        activePanel === "state" ? "border-b-2 border-black" : ""
+                      }`}
+                      onClick={() => setActivePanel("state")}
+                    >
+                      Solidity State
+                    </button>
+                    <button
+                      className={`py-2 px-3 text-xs font-medium ${
+                        activePanel === "opcodes" ? "border-b-2 border-black" : ""
+                      }`}
+                      onClick={() => setActivePanel("opcodes")}
+                    >
+                      Opcodes
+                    </button>
+                  </div>
                   {/* Navigation Buttons */}
                   <div className="flex justify-between mt-2">
                     <button
@@ -456,7 +578,36 @@ const Debugger = () => {
                         </tbody>
                       </table>
                     )}
+                    {activePanel === "locals" && (
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="py-1 px-2 text-left">Name</th>
+                            <th className="py-1 px-2 text-left">Type</th>
+                            <th className="py-1 px-2 text-left">Value</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {localsData.length > 0 ? (
+                            localsData.map((item, index) => (
+                              <tr key={index}>
+                                <td className="py-1 px-2">{item.name}</td>
+                                <td className="py-1 px-2">{item.type}</td>
+                                <td className="py-1 px-2">{item.value}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={3} className="py-1 px-2 text-gray-500">
+                                No local variables in current step
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    )}
 
+                    {activePanel === "state" && (
                     {activePanel === "state" && (
                       <table className="w-full text-xs">
                         <thead className="bg-gray-50">
@@ -467,6 +618,21 @@ const Debugger = () => {
                           </tr>
                         </thead>
                         <tbody>
+                          {stateData.length > 0 ? (
+                            stateData.map((item, index) => (
+                              <tr key={index} className="border-b">
+                                <td className="py-1 px-2">{item.name}</td>
+                                <td className="py-1 px-2 text-gray-500">{item.type}</td>
+                                <td className="py-1 px-2 font-mono">{item.value}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={3} className="py-1 px-2 text-gray-500">
+                                No state variables in current step
+                              </td>
+                            </tr>
+                          )}
                           {stateData.length > 0 ? (
                             stateData.map((item, index) => (
                               <tr key={index} className="border-b">
@@ -498,7 +664,22 @@ const Debugger = () => {
                           <div className="font-medium">Program Counter:</div>
                           <div className="text-gray-800 font-mono mt-1">
                             {opcodeData?.pc !== undefined ? opcodeData.pc : "N/A"}
+                    {activePanel === "opcodes" && (
+                      <div className="flex flex-col gap-2">
+                        <div className="text-xs border p-2 rounded">
+                          <div className="font-medium">Current Opcode:</div>
+                          <div className="text-gray-800 font-mono mt-1">
+                            {opcodeData?.current || "N/A"}
                           </div>
+                        </div>
+                        <div className="text-xs border p-2 rounded">
+                          <div className="font-medium">Program Counter:</div>
+                          <div className="text-gray-800 font-mono mt-1">
+                            {opcodeData?.pc !== undefined ? opcodeData.pc : "N/A"}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                         </div>
                       </div>
                     )}
@@ -506,7 +687,116 @@ const Debugger = () => {
                 </div>
 
                 {/* Additional Panels Toggle */}
+
+                {/* Additional Panels Toggle */}
                 <div className="mt-4">
+                  <details className="group">
+                    <summary className="flex justify-between items-center cursor-pointer">
+                      <div className="text-sm font-medium">Memory</div>
+                      <DownArrow className="w-4 h-4 group-open:rotate-180 transition-transform" />
+                    </summary>
+                    <div className="mt-2 pl-2">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="py-1 px-2 text-left">Offset</th>
+                            <th className="py-1 px-2 text-left">Value</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {memoryData && memoryData.length > 0 ? (
+                            memoryData.map((item, index) => (
+                              <tr key={index} className="border-b">
+                                <td className="py-1 px-2 font-mono">{item.offset}</td>
+                                <td className="py-1 px-2 font-mono">{item.value}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={2} className="py-1 px-2 text-gray-500">
+                                No memory data in current step
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                </div>
+
+                <div className="mt-2">
+                  <details className="group">
+                    <summary className="flex justify-between items-center cursor-pointer">
+                      <div className="text-sm font-medium">Storage</div>
+                      <DownArrow className="w-4 h-4 group-open:rotate-180 transition-transform" />
+                    </summary>
+                    <div className="mt-2 pl-2">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="py-1 px-2 text-left">Slot</th>
+                            <th className="py-1 px-2 text-left">Value</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.keys(storageData).length > 0 ? (
+                            Object.entries(storageData).map(([slot, value], index) => (
+                              <tr key={index} className="border-b">
+                                <td className="py-1 px-2 font-mono">{slot}</td>
+                                <td className="py-1 px-2 font-mono">{value as string}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={2} className="py-1 px-2 text-gray-500">
+                                No storage data in current step
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                </div>
+
+                {/* Breakpoints Panel - Updated to use the correct breakpoint structure */}
+                <div className="mt-2">
+                  <details className="group">
+                    <summary className="flex justify-between items-center cursor-pointer">
+                      <div className="text-sm font-medium">Breakpoints</div>
+                      <DownArrow className="w-4 h-4 group-open:rotate-180 transition-transform" />
+                    </summary>
+                    <div className="mt-2 pl-2">
+                      {breakpoints.length > 0 ? (
+                        <div className="flex flex-col gap-1">
+                          {breakpoints.map((bp, index) => (
+                            <div key={index} className="flex justify-between items-center text-xs py-1">
+                              <div>
+                                Step {bp.step}
+                              </div>
+                              <button
+                                onClick={() => handleRemoveBreakpoint(index)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-500 py-2">
+                          No breakpoints set. Click 'Add Breakpoint' at the current step to set one.
+                        </div>
+                      )}
+                      
+                      <button
+                        onClick={handleAddBreakpoint}
+                        className="mt-2 w-full border border-black text-black py-1 text-xs hover:bg-gray-100"
+                      >
+                        Add Breakpoint at Current Step
+                      </button>
+                    </div>
+                  </details>
                   <details className="group">
                     <summary className="flex justify-between items-center cursor-pointer">
                       <div className="text-sm font-medium">Memory</div>

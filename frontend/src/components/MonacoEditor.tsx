@@ -3,7 +3,14 @@ import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperat
 import Editor, { Monaco } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
 import { getNodeById, updateNode } from "../utils/IndexDB";
+"use client";
+import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
+import Editor, { Monaco } from "@monaco-editor/react";
+import * as monaco from "monaco-editor";
+import { getNodeById, updateNode } from "../utils/IndexDB";
 import type { FileSystemNode } from "../types";
+import { useEditor } from "../context/EditorContext";
+import { useDebugger } from '../context/DebuggerContext';
 import { useEditor } from "../context/EditorContext";
 import { useDebugger } from '../context/DebuggerContext';
 
