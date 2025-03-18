@@ -7,6 +7,7 @@ import {
   deleteNode,
   addWorkspace,
   getAllWorkspaces,
+  updateNode,
 } from "../utils/IndexDB";
 import type { FileSystemNode } from "../types";
 import Tooltip from "@/components/Tooltip";
@@ -46,6 +47,11 @@ interface DeleteConfirmation {
 
 interface WorkspaceFileSystemNode extends FileSystemNode {
   workspaceId: string;
+}
+
+interface DragItem {
+  nodeId: string;
+  type: "file" | "folder";
 }
 
 const FileExplorer: React.FC<FileExplorerProps> = () => {
@@ -90,6 +96,8 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
       isOpen: false,
       nodeToDelete: null,
     });
+  const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -446,6 +454,122 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
       }
     }
   };
+
+
+  const handleDragStart = (e: React.DragEvent, node: WorkspaceFileSystemNode) => {
+    if (editingNode) return;
+    
+    e.stopPropagation();
+    setDraggedItem({
+      nodeId: node.id,
+      type: node.type,
+    });
+    
+ 
+    e.dataTransfer.effectAllowed = "move";
+    
+
+    e.dataTransfer.setData("application/json", JSON.stringify({
+      id: node.id,
+      type: node.type,
+      name: node.name
+    }));
+  };
+
+  const handleDragOver = (e: React.DragEvent, node: WorkspaceFileSystemNode) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+
+    if (node.type === "folder") {
+      e.dataTransfer.dropEffect = "move";
+      setDropTarget(node.id);
+    } else {
+      e.dataTransfer.dropEffect = "none";
+    }
+  };
+  
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDropTarget(null);
+  };
+
+  const isChildOf = (nodeId: string, potentialParentId: string): boolean => {
+
+    let current = filteredNodes.find(n => n.id === potentialParentId);
+    while (current && current.parentId) {
+      if (current.parentId === nodeId) {
+        return true;
+      }
+      current = filteredNodes.find(n => n.id === current!.parentId);
+    }
+    return false;
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetNode: WorkspaceFileSystemNode) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDropTarget(null);
+    
+    if (!draggedItem || !targetNode || targetNode.type !== "folder") return;
+    
+    const draggedNode = filteredNodes.find(n => n.id === draggedItem.nodeId);
+    if (!draggedNode) return;
+    
+  
+    if (draggedNode.id === targetNode.id || isChildOf(draggedNode.id, targetNode.id)) {
+      setErrorMessage("Cannot move a folder into itself or its subfolder");
+      return;
+    }
+    
+
+    if (isDuplicate(draggedNode.type, draggedNode.name, targetNode.id)) {
+      setErrorMessage(`A ${draggedNode.type} with name "${draggedNode.name}" already exists in this folder`);
+      return;
+    }
+    
+    // Move the node
+    const updatedNode = { ...draggedNode, parentId: targetNode.id, updatedAt: Date.now() };
+    
+    try {
+      // Persist to IndexedDB
+      await updateNode(updatedNode);
+      
+      setAllNodes(prev => {
+        const updatedNodes = prev.map(n => {
+          if (n.id === draggedNode.id) {
+            return updatedNode;
+          }
+          return n;
+        });
+        return sortNodes(updatedNodes as WorkspaceFileSystemNode[]);
+      });
+      
+      // Expand the target folder
+      setExpandedFolders(prev => new Set(prev).add(targetNode.id));
+      
+      // Reload files
+      setAllFiles(prev => 
+        prev.map(n => {
+          if (n.id === draggedNode.id) {
+            return updatedNode;
+          }
+          return n;
+        })
+      );
+      
+      setDraggedItem(null);
+    } catch (error) {
+      console.error("Failed to move node:", error);
+      setErrorMessage("Failed to move item");
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+    setDropTarget(null);
+  };
  
   const renderNode = (node: WorkspaceFileSystemNode, level: number = 0) => {
     const isExpanded = expandedFolders.has(node.id);
@@ -454,11 +578,16 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     );
     const indent = level * 16;
     const isSelected = selectedNode === node.id;
+    const isDropping = dropTarget === node.id;
+    const isDragging = draggedItem?.nodeId === node.id;
+    
     return (
       <div key={node.id}>
         <div
           className={`flex items-center p-1 hover:bg-gray-100 group relative cursor-pointer ${
             isSelected ? "bg-blue-50" : ""
+          } ${isDropping ? "bg-blue-100 border border-blue-300" : ""} ${
+            isDragging ? "opacity-50" : ""
           }`}
           style={{
             paddingLeft:
@@ -475,6 +604,12 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
               toggleFolder(node.id);
             }
           }}
+          draggable={!editingNode}
+          onDragStart={(e) => handleDragStart(e, node)}
+          onDragOver={(e) => handleDragOver(e, node)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, node)}
+          onDragEnd={handleDragEnd}
         >
           {node.type === "folder" && (
             <button className="p-1">
