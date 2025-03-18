@@ -1,16 +1,10 @@
-import express from 'express';
-import cors from 'cors';
-import bodyParser from 'body-parser';
-import editorRoutes from './routes/editorRoutes';
-
-import morgan from 'morgan';
+import express from "express";
+import editorRoutes from "./routes/editorRoutes";  // Add this
 
 const app = express();
-app.use(cors());
-app.use(bodyParser.json());
-app.get('/', (req, res) => {
-    res.send('Welcome to the Solidity Compiler Backend!');
-});
-app.use('/api/editor', editorRoutes);
-app.use(morgan('combined'));
+app.use(express.json());  // Ensure this is present to parse JSON bodies
+
+// Existing routes...
+app.use("/api/editor", editorRoutes);  // Add this
+
 export default app;

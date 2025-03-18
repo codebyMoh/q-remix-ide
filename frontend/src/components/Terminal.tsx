@@ -1,5 +1,6 @@
+"use client";
 import React, { useEffect, useRef } from "react";
-import { Terminal as XTerminal } from "xterm";
+import * as xterm from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
 import { TerminalDownArrow, Search, AlertOctagon } from "@/assets/index";
@@ -16,61 +17,77 @@ interface DeployedContract {
 }
 
 const Terminal = ({ toggleHeight }) => {
-  const terminalContainerRef = useRef(null);
-  const xtermRef = useRef<XTerminal | null>(null);
+  const terminalContainerRef = useRef<HTMLDivElement>(null);
+  const xtermRef = useRef<xterm.Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const currentCommandRef = useRef("");
 
   useEffect(() => {
-    xtermRef.current = new XTerminal({
-      cursorBlink: true,
-      theme: {
-        background: "#ffffff",
-        foreground: "#000000",
-      },
-      convertEol: true,
-      rows: 10,
-      cols: 100,
-      scrollback: 1000,
-    });
+    if (!terminalContainerRef.current) return;
 
-    fitAddonRef.current = new FitAddon();
-    xtermRef.current.loadAddon(fitAddonRef.current);
+    const initializeTerminal = () => {
+      if (!xtermRef.current) {
+        try {
+          xtermRef.current = new xterm.Terminal({
+            cursorBlink: true,
+            theme: {
+              background: "#ffffff",
+              foreground: "#000000",
+            },
+            convertEol: true,
+            rows: 10,
+            cols: 100,
+            scrollback: 1000,
+          });
 
-    if (terminalContainerRef.current) {
-      xtermRef.current.open(terminalContainerRef.current);
-      setTimeout(() => {
-        fitAddonRef.current?.fit();
-      }, 0);
-    }
+          fitAddonRef.current = new FitAddon();
+          xtermRef.current.loadAddon(fitAddonRef.current);
 
-    xtermRef.current.writeln("Welcome Q-Remix BETA.");
-    xtermRef.current.write("$ ");
-
-    xtermRef.current.onData((data) => {
-      const code = data.charCodeAt(0);
-      if (code === 13) {
-        xtermRef.current!.write("\r\n");
-        processCommand();
-      } else if (code === 127) {
-        if (currentCommandRef.current.length > 0) {
-          currentCommandRef.current = currentCommandRef.current.slice(0, -1);
-          xtermRef.current!.write("\b \b");
+          // Check if container has valid dimensions before opening
+          const { width, height } = terminalContainerRef.current.getBoundingClientRect();
+          if (width > 0 && height > 0) {
+            xtermRef.current.open(terminalContainerRef.current);
+            fitAddonRef.current.fit();
+            xtermRef.current.writeln("Welcome Q-Remix BETA.");
+            xtermRef.current.write("$ ");
+          } else {
+            console.warn("Terminal container not ready, retrying...");
+            requestAnimationFrame(initializeTerminal); // Retry next frame
+          }
+        } catch (err) {
+          console.error("Failed to initialize Terminal:", err);
+          return;
         }
-      } else {
-        currentCommandRef.current += data;
-        xtermRef.current!.write(data);
       }
-    });
+    };
+
+    // Delay initialization to ensure DOM is ready
+    requestAnimationFrame(initializeTerminal);
+
+    if (xtermRef.current) {
+      xtermRef.current.onData((data) => {
+        const code = data.charCodeAt(0);
+        if (code === 13) {
+          xtermRef.current!.write("\r\n");
+          processCommand();
+        } else if (code === 127) {
+          if (currentCommandRef.current.length > 0) {
+            currentCommandRef.current = currentCommandRef.current.slice(0, -1);
+            xtermRef.current!.write("\b \b");
+          }
+        } else {
+          currentCommandRef.current += data;
+          xtermRef.current!.write(data);
+        }
+      });
+    }
 
     const processCommand = () => {
       const command = currentCommandRef.current.trim();
       if (command === "clear") {
         xtermRef.current!.clear();
       } else if (command === "help") {
-        xtermRef.current!.writeln(
-          "Available commands: help, clear, echo [message]"
-        );
+        xtermRef.current!.writeln("Available commands: help, clear, echo [message]");
       } else if (command.startsWith("echo ")) {
         xtermRef.current!.writeln(command.slice(5));
       } else if (command.length > 0) {
@@ -80,9 +97,8 @@ const Terminal = ({ toggleHeight }) => {
       xtermRef.current!.write("$ ");
     };
 
-    // Listen for compilation output
     const handleCompilationOutput = (event: CustomEvent) => {
-      const contracts = event.detail as ContractData[];
+      const contracts = event.detail as any[];
       xtermRef.current!.writeln("\r\n=== Compilation Output ===");
       contracts.forEach((contract) => {
         xtermRef.current!.writeln(`Contract: ${contract.contractName}`);
@@ -95,11 +111,14 @@ const Terminal = ({ toggleHeight }) => {
       xtermRef.current!.write("$ ");
     };
 
-    // Listen for deployment output
     const handleDeploymentOutput = (event: CustomEvent) => {
       const deployedContract = event.detail as DeployedContract;
       xtermRef.current!.writeln("\r\n=== Deployed Contract ===");
-      xtermRef.current!.writeln(`[vm] from: ${deployedContract.deployedBy.slice(0, 6)}...${deployedContract.deployedBy.slice(-4)} to: ${deployedContract.contractName} (constructor) value: ${deployedContract.network.chainId === "11155111" ? "0 wei" : "0 ETH"} data: ${deployedContract.txHash.slice(0, 6)}...${deployedContract.txHash.slice(-6)}`);
+      xtermRef.current!.writeln(
+        `[vm] from: ${deployedContract.deployedBy.slice(0, 6)}...${deployedContract.deployedBy.slice(-4)} to: ${
+          deployedContract.contractName
+        } (constructor) value: ${deployedContract.network.chainId === "11155111" ? "0 wei" : "0 ETH"} data: ${deployedContract.txHash.slice(0, 6)}...${deployedContract.txHash.slice(-6)}`
+      );
       xtermRef.current!.writeln(`status: ${deployedContract.txHash ? "success" : "pending"}`);
       xtermRef.current!.writeln(`transaction hash: ${deployedContract.txHash}`);
       xtermRef.current!.writeln(`block hash: ${deployedContract.txHash || "pending"}`);
@@ -132,9 +151,7 @@ const Terminal = ({ toggleHeight }) => {
     };
 
     const resizeObserver = new ResizeObserver(handleResize);
-    if (terminalContainerRef.current) {
-      resizeObserver.observe(terminalContainerRef.current);
-    }
+    resizeObserver.observe(terminalContainerRef.current);
 
     window.addEventListener("resize", handleResize);
 
@@ -145,9 +162,10 @@ const Terminal = ({ toggleHeight }) => {
       resizeObserver.disconnect();
       if (xtermRef.current) {
         xtermRef.current.dispose();
+        xtermRef.current = null;
       }
     };
-  }, []);
+  }, [toggleHeight]);
 
   return (
     <div className="flex flex-col h-full">
@@ -156,9 +174,7 @@ const Terminal = ({ toggleHeight }) => {
           <TerminalDownArrow />
         </div>
         <div className="flex items-center gap-4">
-          <div className="text-[#94969C] font-medium text-sm">
-            List All the Transitions
-          </div>
+          <div className="text-[#94969C] font-medium text-sm">List All the Transitions</div>
           <div className="relative w-[356px]">
             <input
               type="text"
@@ -174,10 +190,8 @@ const Terminal = ({ toggleHeight }) => {
       </div>
       <div
         ref={terminalContainerRef}
-        className="flex-1 overflow-auto"
-        style={{
-          minHeight: 0,
-        }}
+        className="flex-1 overflow-auto bg-white" // Added bg-white for visibility
+        style={{ minHeight: "50px" }} // Enforce a minimum height
       />
     </div>
   );

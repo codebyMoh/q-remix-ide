@@ -1,20 +1,17 @@
-import express, { Request, Response, NextFunction } from 'express';
-import { compileCode } from '../controllers/editorController';
-import rateLimit from 'express-rate-limit';
+import express from "express";
+import axios from "axios";
 
 const router = express.Router();
 
-const compileLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-});
-
-router.post(
-  '/compile',
-  compileLimiter,
-  (req: Request, res: Response, next: NextFunction) => {
-    compileCode(req, res).catch(next); // Handle promise rejection
+router.post("/ai-suggestion", async (req, res) => {
+  const { prompt } = req.body;
+  try {
+    const response = await axios.post("http://localhost:8000/generate", { prompt });
+    res.json(response.data);
+  } catch (error) {
+    console.error("AI suggestion error:", error);
+    res.status(500).json({ error: "Failed to generate suggestion" });
   }
-);
+});
 
 export default router;

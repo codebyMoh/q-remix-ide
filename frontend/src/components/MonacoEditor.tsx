@@ -4,71 +4,51 @@ import Editor from "@monaco-editor/react";
 import { getNodeById, updateNode } from "../utils/IndexDB";
 import type { FileSystemNode } from "../types";
 import { useEditor } from "../context/EditorContext";
-import * as monaco from "monaco-editor";
-import "monaco-editor/esm/vs/basic-languages/solidity/solidity.contribution";
-
+import axios from "axios";
 
 interface MonacoEditorProps {
-  file: FileSystemNode;
-  zoom: number;
+  file?: FileSystemNode;
+  zoom?: number;
   editCode?: string;
   error?: string;
   compilationResult?: any;
+  code?: string;
 }
-
-
-monaco.editor.defineTheme("my-light-theme", {
-  base: "vs",
-  inherit: true,
-  rules: [
-    { token: "keyword", foreground: "0070f3", fontStyle: "bold" },
-    { token: "type", foreground: "D73A49" },
-    { token: "number", foreground: "098658" },
-    { token: "string", foreground: "A31515" },
-  ],
-  colors: {
-    "editor.foreground": "#000000",
-    "editor.background": "#FFFFFF",
-  },
-});
 
 const MonacoEditor: React.FC<MonacoEditorProps> = ({
   file,
   error,
-  code,
   compilationResult,
+  code,
 }) => {
-  const [content, setContent] = useState(file?.content || code);
+  const [content, setContent] = useState(file?.content || code || "");
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const editorRef = useRef<any>(null);
+  const { updateActiveFileContent } = useEditor();
 
   useEffect(() => {
     const loadContent = async () => {
-      const latestFile = await getNodeById(file?.id);
-      if (latestFile) {
-        setContent(latestFile.content || "");
-        setIsDirty(false);
+      if (file?.id) {
+        const latestFile = await getNodeById(file.id);
+        if (latestFile) {
+          setContent(latestFile.content || "");
+          setIsDirty(false);
+        }
       }
     };
     loadContent();
   }, [file?.id]);
 
-  const { updateActiveFileContent } = useEditor();
-
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      
-      // Ensure we fetch latest content directly from Monaco Editor
       const latestContent = editorRef.current?.getValue() || content;
-
       const updatedFile = {
         ...file,
         content: latestContent,
         updatedAt: Date.now(),
       };
-
       await updateNode(updatedFile);
       setIsDirty(false);
     } catch (error) {
@@ -79,12 +59,120 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
     }
   };
 
-  // Capture editor instance on mount
-  const handleEditorDidMount = (editor: any) => {
+  const handleEditorDidMount = (editor: any, monaco: any) => {
     editorRef.current = editor;
+
+    monaco.editor.defineTheme("my-light-theme", {
+      base: "vs",
+      inherit: true,
+      rules: [
+        { token: "keyword", foreground: "0070f3", fontStyle: "bold" },
+        { token: "type", foreground: "D73A49" },
+        { token: "number", foreground: "098658" },
+        { token: "string", foreground: "A31515" },
+      ],
+      colors: {
+        "editor.foreground": "#000000",
+        "editor.background": "#FFFFFF",
+      },
+    });
+
+    import("monaco-editor/esm/vs/basic-languages/solidity/solidity.contribution")
+      .then(() => {
+        console.log("Solidity contribution loaded");
+
+        // Register AI completion provider
+        const disposable = monaco.languages.registerCompletionItemProvider("solidity", {
+          triggerCharacters: [" ", "(", "{"],
+          provideCompletionItems: async (model, position) => {
+            console.log("Completion provider triggered"); // Debug 1
+            const textUntilPosition = model.getValueInRange({
+              startLineNumber: 1,
+              startColumn: 1,
+              endLineNumber: position.lineNumber,
+              endColumn: position.column,
+            });
+            console.log("Text until position:", textUntilPosition); // Debug 2
+
+            const wordUntil = model.getWordUntilPosition(position);
+            const range = new monaco.Range(
+              position.lineNumber,
+              wordUntil.startColumn,
+              position.lineNumber,
+              wordUntil.endColumn
+            );
+
+            try {
+              console.log("Sending AI request..."); // Debug 3
+              const response = await axios.post("/api/ai-suggestion", {
+                prompt: textUntilPosition,
+              });
+              console.log("AI response:", response.data); // Debug 4
+              const suggestion = response.data.suggestion || "No suggestion from AI";
+
+              return {
+                suggestions: [
+                  {
+                    label: "pragma solidity",
+                    kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: "pragma solidity ^0.8.0;",
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    range,
+                  },
+                  {
+                    label: "contract",
+                    kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: "contract ${1:ContractName} {\n\t$0\n}",
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    range,
+                  },
+                  {
+                    label: "function",
+                    kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: "function ${1:myFunction}() public {\n\t$0\n}",
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    range,
+                  },
+                  {
+                    label: `AI: ${suggestion.slice(0, 20)}...`,
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: suggestion,
+                    detail: "Generated by AI",
+                    range,
+                  },
+                  // Hardcoded test suggestion
+                  {
+                    label: "TEST: Hello World",
+                    kind: monaco.languages.CompletionItemKind.Text,
+                    insertText: "Hello from test!",
+                    detail: "Hardcoded test",
+                    range,
+                  },
+                ],
+              };
+            } catch (error) {
+              console.error("AI completion error:", error); // Debug 5
+              return {
+                suggestions: [
+                  {
+                    label: "ERROR: AI Failed",
+                    kind: monaco.languages.CompletionItemKind.Text,
+                    insertText: "AI suggestion failed",
+                    detail: "Check console",
+                    range,
+                  },
+                ],
+              };
+            }
+          },
+        });
+
+        // Log when provider is registered
+        console.log("Completion provider registered"); // Debug 6
+      })
+      .catch((err) => console.error("Failed to load Solidity contribution:", err));
   };
 
-  // When the editor changes, update local state and context.
   const handleEditorChange = (value: string | undefined) => {
     const newValue = value || "";
     setContent(newValue);
@@ -92,20 +180,21 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
     updateActiveFileContent(newValue);
   };
 
-  // Handle Ctrl + S save
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-      e.preventDefault();
-      if (!isSaving && isDirty) {
-        handleSave();
-      }
+  const getLanguage = (fileName?: string) => {
+    const ext = fileName?.split(".").pop()?.toLowerCase();
+    switch (ext) {
+      case "js": return "javascript";
+      case "ts": return "typescript";
+      case "jsx": return "javascript";
+      case "tsx": return "typescript";
+      case "json": return "json";
+      case "md": return "markdown";
+      case "sol": return "solidity";
+      default: return "plaintext";
     }
   };
 
-
-  // Global keyboard save shortcut
   useEffect(() => {
-    
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
@@ -115,97 +204,8 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       }
     };
     document.addEventListener("keydown", handleGlobalKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleGlobalKeyDown);
-    };
+    return () => document.removeEventListener("keydown", handleGlobalKeyDown);
   }, [isDirty, isSaving]);
-
-  const getLanguage = (fileName: string) => {
-    const ext = fileName?.split('.').pop()?.toLowerCase();
-    switch (ext) {
-      case "js":
-        return "javascript";
-      case "ts":
-        return "typescript";
-      case "jsx":
-        return "javascript";
-      case "tsx":
-        return "typescript";
-      case "json":
-        return "json";
-      case "md":
-        return "markdown";
-      case "sol":
-        return "solidity";
-      default:
-        return "plaintext";
-    }
-  };
-  useEffect(() => {
-    monaco.languages.registerCompletionItemProvider("solidity", {
-      provideCompletionItems: (model, position) => {
-        const wordUntil = model.getWordUntilPosition(position);
-        const range = new monaco.Range(
-          position.lineNumber,
-          wordUntil.startColumn,
-          position.lineNumber,
-          wordUntil.endColumn
-        );
-        console.log("Available languages:", monaco.languages.getLanguages());
-        return {
-          suggestions: [
-            {
-              label: "pragma solidity",
-              kind: monaco.languages.CompletionItemKind.Keyword,
-              insertText: "pragma solidity ^0.8.0;",
-              insertTextRules:
-                monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              range,
-            },
-            {
-              label: "contract",
-              kind: monaco.languages.CompletionItemKind.Keyword,
-              insertText:
-                "contract ${1:ContractName} {\n\t$0\n}",
-              insertTextRules:
-                monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              range,
-            },
-            {
-              label: "function",
-              kind: monaco.languages.CompletionItemKind.Keyword,
-              insertText:
-                "function ${1:myFunction}() public {\n\t$0\n}",
-              insertTextRules:
-                monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              range,
-            },
-            {
-              label: "mapping",
-              kind: monaco.languages.CompletionItemKind.Keyword,
-              insertText:
-                "mapping(${1:keyType} => ${2:valueType}) public ${3:myMapping};",
-              insertTextRules:
-                monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              range,
-            },
-            {
-              label: "event",
-              kind: monaco.languages.CompletionItemKind.Keyword,
-              insertText:
-                "event ${1:EventName}(${2:Type} indexed ${3:param});",
-              insertTextRules:
-                monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              range,
-            },
-          ],
-        };
-      },
-    });
-  }, []);
- 
-  console.log(monaco.languages.getLanguages().find(lang => lang.id === "solidity"));
-
 
   return (
     <div className="flex flex-col h-full">
@@ -217,8 +217,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
         </div>
       </div>
       <div className="flex-1 relative" style={{ minHeight: "200px" }}>
-        <Editor  
-
+        <Editor
           height="100%"
           language={getLanguage(file?.name)}
           value={content}
@@ -252,4 +251,4 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   );
 };
 
-export default MonacoEditor; 
+export default MonacoEditor;

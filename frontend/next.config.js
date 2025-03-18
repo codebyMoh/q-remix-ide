@@ -6,6 +6,7 @@ module.exports = {
     config.module.rules.push({
       test: /\.svg$/,
       use: ["@svgr/webpack"],
+      
     });
 
     // Add fallbacks for browser APIs in non-server environment
