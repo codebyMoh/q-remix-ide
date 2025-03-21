@@ -27,9 +27,10 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
   const [value, setValue] = useState("0");
   const [valueUnit, setValueUnit] = useState("wei");
   const [selectedContract, setSelectedContract] = useState("");
-  const [deployedContracts, setDeployedContracts] = useState<
-    DeployedContract[]
-  >([]);
+  const [deployedContracts, setDeployedContracts] = useState<DeployedContract[]>(() => {
+    const savedContracts = sessionStorage.getItem('deployedContracts');
+    return savedContracts ? JSON.parse(savedContracts) : [];
+  });
   const [atAddressValue, setAtAddressValue] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [transactionsRecorded, setTransactionsRecorded] = useState(0);
@@ -37,7 +38,10 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
   const [constructorArgs, setConstructorArgs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  useEffect(() => {
+    sessionStorage.setItem('deployedContracts', JSON.stringify(deployedContracts));
+    setTransactionsRecorded(deployedContracts.length)
+  }, [deployedContracts]);
   const environments = [
     { id: "NULL", name: "--Select Environment--" },
     { id: "remixVM", name: "QRemix VM" },
@@ -495,7 +499,7 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
             <div className="mt-6 bg-gray-50 rounded">
               <div className="flex justify-between items-center">
                 <div className="text-sm font-medium">
-                  Transactions Recorded: {transactionsRecorded}
+                  Transactions Recorded : {transactionsRecorded}
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -557,7 +561,7 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
 
             <div className="mt-4">
               <div className="flex justify-between items-center">
-                <div className="text-sm font-medium">DEPLOYED CONTRACTS</div>
+                <div className="text-sm font-medium">DEPLOYED CONTRACTS : {transactionsRecorded}</div>
                 {deployedContracts.length > 0 && (
                   <button
                     onClick={clearDeployedContracts}
