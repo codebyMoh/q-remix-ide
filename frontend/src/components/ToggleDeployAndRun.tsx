@@ -418,7 +418,7 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
                   await fetchHardhatAccounts();
                 }
               }}
-              className="flex-1 bg-blue-600 text-white p-2 rounded text-sm hover:bg-blue-700"
+              className="flex-1 p-2 text-white rounded text-sm bg-[#CE192D]"
               disabled={loading || !selectedContract || (environment !== Environment.Injected && environment !== Environment.RemixVM)}
             >
               {loading ? "Deploying..." : "Deploy"}

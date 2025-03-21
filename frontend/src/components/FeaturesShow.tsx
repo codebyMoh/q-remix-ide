@@ -88,7 +88,7 @@ const FeaturesShow = () => {
     }
   };
   return (
-    <div className="w-full max-w-full overflow-y-auto overflow-x-hidden pt-[2rem] px-8">
+    <div className="w-full max-w-full overflow-y-auto overflow-x-hidden pt-[2rem] pl-[1.5rem] pr-[0.5rem]">
       <div className="max-w-full">
         {/* Select language */}
         <div className="flex justify-between items-center mb-[0.8rem]">
@@ -151,7 +151,7 @@ const FeaturesShow = () => {
         <div>
           <h2 className="font-semibold text-[22px] pt-[0.7rem] ml-[9px]">Features Plugins</h2>
         </div>
-        <div className="relative mt-[10px]">
+        <div className="relative mt-[10px] pr-[0.5rem]">
           <div className="overflow-hidden">
             <div
               className="flex gap-4 transition-transform duration-500 ease-in-out ml-[9px]"

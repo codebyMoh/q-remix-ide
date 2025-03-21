@@ -46,7 +46,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
   const handleLogoClick = () => {
     setActive("workspace");
     onSectionChange("workspace");
-    setActiveFileId("Home");
+    // setActiveFileId("Home");
     setShowHome(true);
   };
   return (
