@@ -230,7 +230,7 @@ const SolidityCompiler = () => {
           isExpanded ? "w-80 px-4" : "w-0 px-0"
         } bg-white flex flex-col transition-all duration-300 overflow-hidden overflow-y-auto h-full ${
           urbanist.className
-        }`}
+        }custom-scroll`}
       >
         <div className="mb-2 flex items-center justify-between sticky top-0 bg-white z-10 h-[3rem] bg-white flex-shrink-0">
           <span className={`${isExpanded ? "opacity-100" : "opacity-0"}`}>
