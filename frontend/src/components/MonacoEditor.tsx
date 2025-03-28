@@ -7,6 +7,32 @@ import { useEditor } from "../context/EditorContext";
 import axios from "axios";
 import * as monaco from 'monaco-editor';
 
+// Add API URL configuration
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// Create axios instance with default config
+const axiosInstance = axios.create({
+  baseURL: API_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Add simple retry logic
+const fetchWithRetry = async (url: string, options: any, maxRetries = 2) => {
+  for (let i = 0; i <= maxRetries; i++) {
+    try {
+      const response = await axiosInstance(options);
+      return response;
+    } catch (error) {
+      if (i === maxRetries) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+  throw new Error('Failed after retries');
+};
+
 interface MonacoEditorProps {
   file?: FileSystemNode;
   error?: string;
@@ -40,10 +66,10 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
     const loadContent = async () => {
       if (file?.id) {
         try {
-          const latestFile = await getNodeById(file.id);
-          if (latestFile) {
-            setContent(latestFile.content || "");
-            setIsDirty(false);
+        const latestFile = await getNodeById(file.id);
+        if (latestFile) {
+          setContent(latestFile.content || "");
+          setIsDirty(false);
           }
         } catch (error) {
           console.error("Failed to load file content:", error);
@@ -80,11 +106,40 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   }, [file, content]);
 
   // Editor Mount Handler
-  const handleEditorDidMount: OnMount = (editor, monaco) => {
+  const handleEditorDidMount = (editor: any, monaco: any) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
 
-    // Custom Theme
+    // Register Solidity language
+    monaco.languages.register({ id: 'solidity' });
+
+    // Define Solidity syntax highlighting
+    monaco.languages.setMonarchTokensProvider('solidity', {
+      keywords: [
+        'pragma', 'solidity', 'contract', 'function', 'returns', 'memory',
+        'storage', 'calldata', 'address', 'uint', 'bool', 'string', 'public',
+        'private', 'internal', 'external', 'view', 'pure', 'payable', 'event',
+        'emit', 'constructor', 'modifier', 'require', 'if', 'else', 'for',
+        'while', 'do', 'break', 'continue', 'return', 'import', 'is'
+      ],
+      tokenizer: {
+        root: [
+          [/\/\/.*/, 'comment'],
+          [/\/\*/, 'comment', '@comment'],
+          [/(contract|function|event|struct|enum|modifier|interface|library)\b/, 'keyword'],
+          [/["'].*["']/, 'string'],
+          [/[0-9]+/, 'number'],
+          [/\b(address|uint256|bool|string)\b/, 'type'],
+          [/(\bpublic\b|\bprivate\b|\binternal\b|\bexternal\b)/, 'modifier'],
+        ],
+        comment: [
+          [/[^\/*]+/, 'comment'],
+          [/\*\//, 'comment', '@pop'],
+          [/[\/*]/, 'comment']
+        ]
+      }
+    });
+
     monaco.editor.defineTheme("my-light-theme", {
       base: "vs",
       inherit: true,
@@ -93,6 +148,8 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
         { token: "type", foreground: "D73A49" },
         { token: "number", foreground: "098658" },
         { token: "string", foreground: "A31515" },
+        { token: "comment", foreground: "6A9955" },
+        { token: "modifier", foreground: "C586C0" },
       ],
       colors: {
         "editor.foreground": "#000000",
@@ -100,74 +157,316 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       },
     });
 
-    // Register Solidity Language Support
-    monaco.languages.register({ id: 'solidity' });
-    
-    // Register AI Completion Provider
-    monaco.languages.registerCompletionItemProvider('solidity', {
-      triggerCharacters: TRIGGER_CHARS,
-      provideCompletionItems: async (model, position) => {
-        try {
-          const textUntilPosition = model.getValueInRange({
-            startLineNumber: 1,
-            startColumn: 1,
-            endLineNumber: position.lineNumber,
-            endColumn: position.column,
-          });
+    // Add CSS for ghost text
+    const style = document.createElement('style');
+    style.textContent = `
+      .ghost-text {
+        color: #666;
+        opacity: 0.9;
+        font-family: inherit;
+        padding-left: 4px;
+        background: rgba(0, 112, 243, 0.08);
+        border-radius: 3px;
+        margin-left: 2px;
+      }
+      .multiline-ghost {
+        border-left: 2px solid #0070f3;
+        padding-left: 8px;
+        margin-top: 4px;
+        background: rgba(0, 112, 243, 0.08);
+      }
+    `;
+    document.head.appendChild(style);
 
-          const response = await axios.post("/api/ai-suggestion", {
-            prompt: textUntilPosition,
-          });
+    let currentGhostTextDecoration: monaco.editor.IEditorDecorationsCollection | null = null;
+    let currentTabHandler: monaco.IDisposable | null = null;
+    let currentSuggestion: string | null = null;
+    let currentAIRequest: AbortController | null = null;
 
-          const suggestion = response.data.suggestion || "No suggestion from AI";
-          const wordUntil = model.getWordUntilPosition(position);
-          const range = new monaco.Range(
-            position.lineNumber,
-            wordUntil.startColumn,
-            position.lineNumber,
-            wordUntil.endColumn
-          );
+    // Register Monaco's default completion provider for Solidity
+    monaco.languages.registerCompletionItemProvider("solidity", {
+      triggerCharacters: [".", " "],
+      provideCompletionItems: (model: monaco.editor.ITextModel, position: monaco.Position) => {
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn
+        };
 
+        // Get current line text
+        const lineContent = model.getLineContent(position.lineNumber);
+        const wordBeforeCursor = lineContent.substring(0, position.column - 1).trim().split(/\s+/).pop() || "";
+
+        // Define common Solidity snippets
+        const suggestions = [
+          {
+            label: "pragma solidity",
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: "pragma solidity ^0.8.0;",
+            detail: "Specify Solidity version",
+            documentation: "Declares the Solidity compiler version",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "contract",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: [
+              "contract ${1:ContractName} {",
+              "\t// State variables",
+              "\taddress public owner;",
+              "\t",
+              "\t// Constructor",
+              "\tconstructor() {",
+              "\t\towner = msg.sender;",
+              "\t}",
+              "\t",
+              "\t$0",
+              "}"
+            ].join('\n'),
+            detail: "Create a new contract",
+            documentation: "Creates a new Solidity contract with basic structure",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "function",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: [
+              "function ${1:functionName}(${2:parameters}) ${3:public} ${4:returns (${5:returnType})} {",
+              "\t$0",
+              "}"
+            ].join('\n'),
+            detail: "Create a new function",
+            documentation: "Declares a new function with customizable visibility and return type",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "event",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "event ${1:EventName}(${2:address indexed sender}, ${3:uint256 value});",
+            detail: "Declare an event",
+            documentation: "Creates a new event declaration",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "modifier",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: [
+              "modifier ${1:modifierName}() {",
+              "\t${2:require(msg.sender == owner, \"Not authorized\");}",
+              "\t_;",
+              "}"
+            ].join('\n'),
+            detail: "Create a modifier",
+            documentation: "Creates a new modifier for function access control",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          // Data types
+          { label: "uint256", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "uint256", range },
+          { label: "address", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "address", range },
+          { label: "bool", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bool", range },
+          { label: "string", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "string", range },
+          { label: "bytes32", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes32", range },
+          
+          // Common statements
+          {
+            label: "require",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: 'require(${1:condition}, "${2:error message}");',
+            detail: "Add a require statement",
+            documentation: "Adds a condition check that reverts if false",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "mapping",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "mapping(${1:keyType} => ${2:valueType})",
+            detail: "Create a mapping",
+            documentation: "Declares a new mapping type",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          }
+        ];
+
+        // Add visibility modifiers if after a function declaration
+        if (wordBeforeCursor === "function") {
           return {
             suggestions: [
-              // Standard Solidity Suggestions
-              {
-                label: "pragma solidity",
-                kind: monaco.languages.CompletionItemKind.Keyword,
-                insertText: "pragma solidity ^0.8.0;",
-                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                range,
-              },
-              {
-                label: "contract",
-                kind: monaco.languages.CompletionItemKind.Keyword,
-                insertText: "contract ${1:ContractName} {\n\t$0\n}",
-                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                range,
-              },
-              {
-                label: "function",
-                kind: monaco.languages.CompletionItemKind.Keyword,
-                insertText: "function ${1:myFunction}() public {\n\t$0\n}",
-                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                range,
-              },
-              // AI Suggestion
-              {
-                label: `AI: ${suggestion.slice(0, 20)}...`,
-                kind: monaco.languages.CompletionItemKind.Snippet,
-                insertText: suggestion,
-                detail: "Generated by AI",
-                range,
-              }
-            ],
+              { label: "public", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "public", range },
+              { label: "private", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "private", range },
+              { label: "internal", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "internal", range },
+              { label: "external", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "external", range }
+            ]
           };
+        }
+
+        return { suggestions };
+      }
+    });
+
+    // Register AI completion provider separately
+    const aiProvider = monaco.languages.registerCompletionItemProvider("solidity", {
+      triggerCharacters: [" ", ".", "(", "{", "=", "\n"],
+      provideCompletionItems: async (model: monaco.editor.ITextModel, position: monaco.Position) => {
+        try {
+          // Get current line and position info
+          const lineContent = model.getLineContent(position.lineNumber);
+          
+          // Get context from previous lines
+          const context = model.getValueInRange({
+            startLineNumber: Math.max(1, position.lineNumber - 3),
+            startColumn: 1,
+            endLineNumber: position.lineNumber,
+            endColumn: position.column
+          });
+
+          // Don't make API call if context is too short
+          if (context.trim().length < 2) {
+            return { suggestions: [] };
+          }
+
+          // Cancel previous request if any
+          if (currentAIRequest) {
+            currentAIRequest.abort();
+          }
+
+          const controller = new AbortController();
+          currentAIRequest = controller;
+
+          // Make API request with proper error handling
+          try {
+            console.log('Making AI request with context:', context);
+            const response = await axiosInstance.post('/generate', 
+              { prompt: context },
+              { 
+                signal: controller.signal,
+                timeout: 10000
+              }
+            );
+
+            console.log('AI response:', response.data);
+
+            if (!response?.data?.suggestion) {
+              console.log('No suggestion in response');
+              return { suggestions: [] };
+            }
+
+            const suggestion = response.data.suggestion.trim();
+            if (!suggestion) {
+              console.log('Empty suggestion after trim');
+              return { suggestions: [] };
+            }
+
+            // Clear existing decorations
+            if (currentGhostTextDecoration) {
+              currentGhostTextDecoration.clear();
+              currentGhostTextDecoration = null;
+            }
+            if (currentTabHandler) {
+              currentTabHandler.dispose();
+              currentTabHandler = null;
+            }
+
+            // Store suggestion and create decoration
+            currentSuggestion = suggestion;
+            const isMultiline = suggestion.includes("\n");
+
+            // Create ghost text decoration with better visibility
+            currentGhostTextDecoration = editor.createDecorationsCollection([{
+              range: {
+                startLineNumber: position.lineNumber,
+                startColumn: position.column,
+                endLineNumber: position.lineNumber,
+                endColumn: position.column
+              },
+              options: {
+                isWholeLine: false,
+                after: {
+                  content: suggestion,
+                  inlineClassName: 'ghost-text'
+                },
+                className: isMultiline ? 'multiline-ghost' : ''
+              }
+            }]);
+
+            // Handle Tab key press
+            currentTabHandler = editor.onKeyDown((e: monaco.IKeyboardEvent) => {
+              if (e.keyCode === monaco.KeyCode.Tab && currentSuggestion) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const insertText = currentSuggestion;
+                const insertPosition = editor.getPosition();
+                if (!insertPosition) return;
+
+                editor.executeEdits('ai-suggestion', [{
+                  range: {
+                    startLineNumber: insertPosition.lineNumber,
+                    startColumn: insertPosition.column,
+                    endLineNumber: insertPosition.lineNumber,
+                    endColumn: insertPosition.column
+                  },
+                  text: insertText
+                }]);
+
+                // Clear ghost text
+                if (currentGhostTextDecoration) {
+                  currentGhostTextDecoration.clear();
+                  currentGhostTextDecoration = null;
+                }
+
+                // Move cursor to end of inserted text
+                const lines = insertText.split('\n');
+                const lastLineLength = lines[lines.length - 1].length;
+                const newPosition = {
+                  lineNumber: insertPosition.lineNumber + lines.length - 1,
+                  column: lines.length === 1 
+                    ? insertPosition.column + lastLineLength 
+                    : lastLineLength + 1
+                };
+                editor.setPosition(newPosition);
+
+                currentSuggestion = null;
+                if (currentTabHandler) {
+                  currentTabHandler.dispose();
+                  currentTabHandler = null;
+                }
+              }
+            });
+
+            return { suggestions: [] };
+          } catch (error: any) {
+            if (axios.isCancel(error)) {
+              console.log('Request was cancelled');
+            } else {
+              console.error('AI suggestion error:', error?.message || error);
+            }
+            return { suggestions: [] };
+          }
         } catch (error) {
-          console.error("AI Completion Error:", error);
+          console.error('Provider error:', error);
           return { suggestions: [] };
         }
       }
     });
+
+    // Clean up providers on unmount
+    return () => {
+      aiProvider.dispose();
+      if (currentGhostTextDecoration) {
+        currentGhostTextDecoration.clear();
+      }
+      if (currentTabHandler) {
+        currentTabHandler.dispose();
+      }
+    };
   };
 
   // Editor Change Handler
@@ -212,9 +511,9 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
     <div className="flex flex-col h-full">
       {/* Status Indicators */}
       <div className="bg-gray-50 flex justify-between items-center">
-        {isDirty && (
+          {isDirty && (
           <span className="text-sm text-gray-500 p-2">(unsaved changes)</span>
-        )}
+          )}
       </div>
 
       {/* Monaco Editor */}
