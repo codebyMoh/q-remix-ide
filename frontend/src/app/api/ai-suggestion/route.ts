@@ -18,7 +18,13 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json(response.data);
+    return NextResponse.json(response.data, {
+         headers: {
+              "Access-Control-Allow-Origin": "*", // Allow all origins (Change in production)
+              "Access-Control-Allow-Methods": "POST, OPTIONS",
+             "Access-Control-Allow-Headers": "Content-Type",
+           },
+          });
   } catch (error) {
     console.error("Frontend AI error:", error);
     if (axios.isAxiosError(error)) {
@@ -32,4 +38,15 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+// Handle OPTIONS request for CORS
+export function OPTIONS() {
+  return NextResponse.json({}, {
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    },
+  });
 }
