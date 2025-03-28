@@ -32,8 +32,8 @@ export class UnifiedDebugger {
   private provider: ethers.Provider | null = null;
   private hardhatProvider: ethers.JsonRpcProvider | null = null;
   private contracts: Map<string, { code: Buffer | string, abi: any[] }> = new Map();
-  private isUsingHardhat: boolean = false;
-  private isUsingVM: boolean = false;
+  public isUsingHardhat: boolean = false;
+  public isUsingVM: boolean = false;
 
   constructor() {}
 
