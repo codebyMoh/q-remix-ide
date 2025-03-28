@@ -29,20 +29,20 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
     const [allNodes, setAllNodes] = useState<FileSystemNode[]>([]);
     const [allWorkspace, setAllWorkspace] = useState<FileSystemNode[]>([]);
   // State for tracking the active file ID
-  const [activeFileId, setActiveFileId] = useState<string | null>("Home");
+  const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const [showHome, setShowHome] = useState(true);
   // Handler for selecting/opening a file
   const [allFiles, setAllFiles] = useState<FileSystemNode[]>([]);
   const [compiledContracts, setCompiledContracts] = useState<ContractData[]>([]);
 
-  const handleFileSelect = (file: FileSystemNode | null) => {
-    if (!file || file.type !== "file") return;
-
-    if (!openFiles.find((f) => f.id === file.id)) {
-      setOpenFiles((prev) => [...prev, file]);
-    }
-    setActiveFileId(file.id);
-  };
+ const handleFileSelect = (file: FileSystemNode | null) => {
+  if (!file || file.type !== "file") return;
+  if (!openFiles.find((f) => f.id === file.id)) {
+    setOpenFiles((prev) => [...prev, file]);
+  }
+  setActiveFileId(file.id);
+  setShowHome(false); // Add this line
+};
 
   const handleCloseFile = (fileId: string) => {
     setOpenFiles((prev) => prev.filter((f) => f.id !== fileId));
@@ -106,16 +106,10 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Debug logging
   useEffect(() => {
-    if (openFiles.length == 0 && activeFileId !== "editor") {
-      if (showHome) {
-        setActiveFileId("Home");
-      } else {
-        setActiveFileId("editor");
-      }
-    } else if (openFiles.length != 0 && activeFileId === "editor") {
-      setActiveFileId(openFiles[openFiles.length - 1].id);
+    if (activeFileId === null) {
+      setActiveFileId(showHome ? "Home" : "editor");
     }
-  }, [openFiles, activeFileId, handleCloseFile]);
+  }, [activeFileId, showHome]);
 
   // Provide context values
   const contextValue: EditorContextProps = {
