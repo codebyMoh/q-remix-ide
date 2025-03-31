@@ -215,8 +215,8 @@ const QremixAI = () => {
 
   return (
     <div className="h-[32.8rem] relative bg-white flex flex-col">
-      <div className="flex flex-col gap-4 flex-grow">
-        {/* Header */}
+      {/* Header */}
+      {chatHistory.length === 0 && (
         <div className="flex flex-col items-center justify-center pt-4">
           <img
             src="https://img.icons8.com/ios-filled/50/FA5252/bot.png"
@@ -226,40 +226,42 @@ const QremixAI = () => {
           <div className="text-gray-800 font-semibold text-xl">Qremix AI</div>
           <div className="text-gray-600 text-sm">Your Web3 AI Assistant</div>
         </div>
-
+      )}
+      
         {/* Chat Container */}
-        <div 
-          ref={chatContainerRef} 
-          className="flex-grow overflow-y-auto px-4 pb-4 max-h-[20rem]"
-          style={{ scrollBehavior: "smooth" }}
-        >
-          {chatHistory.length === 0 ? (
-            <p className="text-gray-600 text-center">Ask me anything or try a suggestion!</p>
-          ) : (
-            chatHistory.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`mb-4 ${msg.role === "user" ? "text-right" : "text-left"}`}
-              >
+      <div
+        ref={chatContainerRef}
+        className="flex-1 overflow-y-auto px-4 pb-2"
+        style={{ scrollBehavior: "smooth" }}
+      >
+        {chatHistory.length === 0 ? (
+          <p className="text-gray-600 text-center mt-5">Ask me anything or try a suggestion!</p>
+        ) : (
+          chatHistory.map((msg, idx) => (
+            <div
+              key={idx}
+              className={`mb-4 ${msg.role === "user" ? "text-right" : "text-left"}`}
+            >
                 <div className={`inline-block max-w-[80%] ${
                   msg.role === "user" 
                     ? "bg-blue-100 text-left" 
                     : "bg-gray-100"
                 } p-3 rounded-lg shadow-sm`}>
-                  <div className="font-medium text-xs mb-1 text-gray-500">
-                    {msg.role === "user" ? "You" : "QremixAI"}
-                  </div>
-                  <div className="whitespace-pre-wrap text-sm break-words">
-                    {formatMessage(msg.content)}
-                  </div>
+                <div className="font-medium text-xs mb-1 text-gray-500">
+                  {msg.role === "user" ? "You" : "QremixAI"}
+                </div>
+                <div className="whitespace-pre-wrap text-sm break-words">
+                  {formatMessage(msg.content)}
                 </div>
               </div>
-            ))
-          )}
-        </div>
-
-        {/* Dynamic Suggestion Cards */}
-        <div className="flex gap-2 justify-center px-2 mb-2">
+            </div>
+          ))
+        )}
+      </div>
+  
+      {/* Dynamic Suggestion Cards */}
+      <div className="px-2">
+        <div className="flex gap-2 justify-center mt-2 mb-2">
           {suggestions.map((suggestion, index) => (
             <div
               key={index}
@@ -271,9 +273,9 @@ const QremixAI = () => {
           ))}
         </div>
       </div>
-
+  
       {/* Input Area */}
-      <div className="flex items-center sticky bottom-0 left-0 w-full bg-white p-2 border-t border-gray-200">
+      <div className="flex items-center w-full p-2 border-t border-gray-200">
         <button
           onClick={clearChatHistory}
           className="p-2 rounded-full hover:bg-gray-100 transition-colors mr-2"
@@ -293,8 +295,8 @@ const QremixAI = () => {
           <button
             type="submit"
             className={`py-2 px-4 rounded-r flex items-center justify-center ${
-              query && !loading 
-                ? "bg-[#CE192D] text-white cursor-pointer" 
+              query && !loading
+                ? "bg-[#CE192D] text-white cursor-pointer"
                 : "bg-gray-300 text-gray-600"
             }`}
             disabled={!query.trim() || loading}
