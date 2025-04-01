@@ -720,7 +720,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
   ];
   return (
     <div
-      className="bg-white border-r border-[#DEDEDE] relative"
+      className="bg-white  relative"
       onClick={(e) => e.stopPropagation()}
     >
       {errorMessage && (

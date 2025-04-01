@@ -139,7 +139,7 @@ export default function RootLayout({
           <EditorProvider>
             <div className="flex h-screen">
               <Sidebar onSectionChange={handleActiveSectionChange} />
-              <div className="h-full pb-[36px]">{renderActiveSection()}</div>
+              <div className="h-full pb-[36px] border-r border-[#DEDEDE] ">{renderActiveSection()}</div>
               <div className="flex-1 flex flex-col h-screen overflow-hidden">
                 <div
                   className="flex-1 overflow-auto"

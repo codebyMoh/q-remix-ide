@@ -176,7 +176,7 @@ const DeployRun = () => {
       <div
         className={`${
           isExpanded ? "w-80 px-4" : "w-0 px-0"
-        } bg-white flex flex-col border-r border-[#DEDEDE] py-4 transition-all duration-300 overflow-hidden ${
+        } bg-white flex flex-col py-4 transition-all duration-300 overflow-hidden ${
           urbanist.className
         }`}
       >

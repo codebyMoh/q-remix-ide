@@ -3,7 +3,7 @@ import { GreenTick, RightArrow } from "@/assets/index";
 const Git = () => {
   const [isExpanded, setIsExpanded] = useState(true);
   return (
-    <div className="relative flex border-r border-[#DEDEDE] h-full">
+    <div className="relative flex  h-full">
       <div
         className={`${
           isExpanded ? "w-80 px-4" : "w-0 px-0"

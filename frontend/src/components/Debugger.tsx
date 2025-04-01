@@ -97,7 +97,7 @@ const Debugger = () => {
   };
 
   return (
-    <div className="relative flex border-r border-[#DEDEDE] h-full">
+    <div className="relative flex  h-full">
       {/*Sidebar*/}
       <div
         className={`${
