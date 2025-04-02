@@ -50,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onSectionChange }) => {
     setShowHome(true);
   };
   return (
-    <div className="w-20 bg-white flex flex-col gap-1 border border-gray-300 items-center p-2">
+    <div className="w-20 bg-white flex flex-col gap-1 border-r border-gray-300 items-center p-2">
       <div className="mb-2 mt-2 cursor-pointer" onClick={handleLogoClick}>
       <Tooltip content="Home">
         <Logo className="w-10 h-10 rounded-full" />
