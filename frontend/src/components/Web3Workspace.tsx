@@ -130,7 +130,7 @@ const Web3Workspace = () => {
 
   return (
     <div>
-      <div className="w-[400px] p-8 flex flex-col gap-4 h-full">
+      <div className="w-[400px] p-8 flex flex-col gap-4 h-full border-r border-[#DEDEDE]">
         {/* Header Section */}
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-semibold">Remix</h1>
