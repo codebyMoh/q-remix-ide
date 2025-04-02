@@ -152,7 +152,7 @@ const Debugger = () => {
                     value={txHash}
                     onChange={(e) => setTxHash(e.target.value)}
                     placeholder="Enter transaction hash..."
-                    className="flex-1 border p-2 rounded text-sm"
+                    className="flex-1 border p-2 rounded text-sm focus:outline-none"
                   />
                   <button
                     onClick={startDebugging}

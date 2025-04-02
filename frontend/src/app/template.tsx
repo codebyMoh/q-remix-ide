@@ -165,7 +165,7 @@ export default function RootLayout({
                         : "bg-gray-300"
                     }`}
                   />
-                  <Terminal toggleHeight={toggleHeight} />
+                  <Terminal toggleHeight={toggleHeight} terminalHeight={terminalHeight} />
                 </div>
               </div>
               <Footer />

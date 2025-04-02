@@ -639,7 +639,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
                 if (e.key === "Enter") handleRename(node);
                 if (e.key === "Escape") cancelRename(node);
               }}
-              className="ml-1 px-1 border border-gray-500 rounded bg-white focus:outline-none w-full"
+              className="ml-1 px-1 border border-gray-500 rounded bg-white focus:outline-none w-full "
               autoFocus
               onClick={(e) => e.stopPropagation()}
             />
