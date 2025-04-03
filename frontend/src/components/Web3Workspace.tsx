@@ -142,7 +142,7 @@ const Web3Workspace = () => {
           <input
             type="text"
             placeholder="Search document"
-            className="w-full p-2 pr-10 border border-gray-200 rounded-md placeholder:text-sm"
+            className="w-full p-2 pr-10 border border-gray-200 rounded-md placeholder:text-sm focus:outline-none"
           />
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>

@@ -273,7 +273,7 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
   };
 
   return (
-    <div className="relative flex border-r border-[#DEDEDE] h-full">
+    <div className="relative flex h-full">
     <div
       className={`${
         isExpanded ? "w-80 px-4" : "w-0 px-0"
@@ -324,14 +324,6 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
                   </option>
                 ))}
               </select>
-              {/* {environment === "external" && (
-                <input
-                  type="text"
-                  placeholder="http://127.0.0.1:8545"
-                  className="border p-2 rounded text-sm mt-1"
-                  disabled={loading}
-                />
-              )} */}
             </div>
 
             <div className="flex flex-col gap-1 mt-3">
@@ -361,7 +353,7 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
                 type="text"
                 value={gasLimit}
                 onChange={(e) => setGasLimit(e.target.value)}
-                className="border p-2 rounded text-sm text-gray-500 w-full "
+                className="border p-2 rounded text-sm text-gray-500 w-full focus:outline-none "
                 disabled={loading}
               />
               </Tooltip>
@@ -375,7 +367,7 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
                   type="text"
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
-                  className="border p-2 rounded text-sm flex-1 text-gray-500 w-full "
+                  className="border p-2 rounded text-sm flex-1 text-gray-500 w-full focus:outline-none "
                   disabled={loading}
                 />
                 </Tooltip>
@@ -443,7 +435,7 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
                 value={atAddressValue}
                 onChange={(e) => setAtAddressValue(e.target.value)}
                 placeholder="Contract Address"
-                className="flex-1 border p-2 rounded text-sm text-gray-500"
+                className="flex-1 border p-2 rounded text-sm text-gray-500 focus:outline-none"
                 disabled={loading}
               />
               </Tooltip>
@@ -478,7 +470,7 @@ const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) =>
                         <input
                           type="text"
                           placeholder={param.type === "bytes32[]" ? '["0x1234", "0x5678"]' : param.type === "string" ? "My Token" : ""}
-                          className="border p-2 rounded text-sm mt-1"
+                          className="border p-2 rounded text-sm mt-1 focus:outline-none"
                           onChange={(e) => {
                             const newArgs = [...constructorArgs];
                             newArgs[idx] = e.target.value; // Add parsing logic if needed

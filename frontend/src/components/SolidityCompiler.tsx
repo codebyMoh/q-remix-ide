@@ -224,7 +224,7 @@ const SolidityCompiler = () => {
   };
 
   const restOfTheComponent = (
-    <div className="relative flex border-r border-[#DEDEDE] h-full">
+    <div className="relative flex h-full">
       <div
         className={`${
           isExpanded ? "w-80 px-4" : "w-0 px-0"
@@ -303,10 +303,10 @@ const SolidityCompiler = () => {
 
             <div className="flex flex-col gap-2 mt-3">
               {checkboxOptions.map((checkbox, index) => (
-                <label key={index} className="flex items-center text-[13px]">
+                <label key={index} className="flex items-center text-[13px] cursor-pointer ">
                   <input
-                    type="checkbox"
-                    className="accent-black"
+                    type="checkbox" 
+                    className="accent-black cursor-pointer "
                     checked={checkbox.checked || false}
                     onChange={checkbox.onChange || (() => {})}
                   />

@@ -222,16 +222,9 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
         ? selectedNode
         : null);
 
-    const defaultName = `New ${type}`;
+    // Changed this part to use empty string instead of "New file" or "New folder"
+    const defaultName = "";
     let uniqueName = defaultName;
-    if (isDuplicate(type, defaultName, effectiveParentId)) {
-      let counter = 1;
-      uniqueName = `${defaultName} (${counter})`;
-      while (isDuplicate(type, uniqueName, effectiveParentId)) {
-        counter++;
-        uniqueName = `${defaultName} (${counter})`;
-      }
-    }
 
     const newNode: WorkspaceFileSystemNode = {
       id: crypto.randomUUID(),
@@ -331,7 +324,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
 
   const handleRename = async (node: WorkspaceFileSystemNode) => {
     setEditingNode(null);
-
+  
     if (newNodeName.trim()) {
       if (
         newNodeName !== node.name &&
@@ -344,9 +337,9 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
         }
         return;
       }
-
+  
       const updatedNode = { ...node, name: newNodeName, updatedAt: Date.now() };
-
+  
       try {
         await createNode(updatedNode); // Persist to IndexedDB
         setAllNodes(
@@ -355,7 +348,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
               prev.map((n) => (n.id === node.id ? updatedNode : n))
             ) as WorkspaceFileSystemNode[]
         );
-
+  
         if (
           pendingNewNode &&
           node.id === pendingNewNode.id &&
@@ -375,9 +368,19 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
           return updatedNodes;
         });
         setPendingNewNode(null);
+        
+        // Delete from IndexedDB if it was already created there
+        try {
+          await deleteNode(node.id);
+        } catch (error) {
+          console.error("Failed to delete empty node:", error);
+        }
+      } else {
+        // For existing nodes that are being renamed to empty, show error
+        setErrorMessage(`${node.type} name cannot be empty`);
       }
     }
-
+  
     setNewNodeName("");
   };
 
@@ -636,7 +639,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
                 if (e.key === "Enter") handleRename(node);
                 if (e.key === "Escape") cancelRename(node);
               }}
-              className="ml-1 px-1 border border-gray-500 rounded bg-white focus:outline-none w-full"
+              className="ml-1 px-1 border border-gray-500 rounded bg-white focus:outline-none w-full "
               autoFocus
               onClick={(e) => e.stopPropagation()}
             />
@@ -718,9 +721,15 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
     { component: Link, label: "Import files with https" },
     { component: GitLink, label: "Git Integration" },
   ];
+  const handleEmptyAreaClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setSelectedNode(null);
+      onFileSelect?.(null);
+    }
+  };
   return (
     <div
-      className="bg-white border-r border-[#DEDEDE] relative"
+      className="bg-white  relative"
       onClick={(e) => e.stopPropagation()}
     >
       {errorMessage && (
@@ -826,7 +835,7 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
               ))}
             </div>
             <hr className="border-t border-[#DEDEDE] w-full my-3" />
-            <div className="py-2 overflow-y-auto h-full">
+            <div className="py-2 overflow-y-auto h-full" onClick={handleEmptyAreaClick}>
               {isLoading ? (
                 <div className="text-center py-4 text-gray-500">Loading...</div>
               ) : selectedWorkspace && allNodes?.length > 0 ? (
