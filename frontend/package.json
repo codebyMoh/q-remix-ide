@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently \"npx hardhat node\" \"next dev\"",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "hardhat": "npx hardhat node"
   },
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
@@ -24,6 +25,7 @@
     "@tanstack/react-query": "^5.66.0",
     "@wagmi/core": "^2.16.5",
     "ethers": "^6.13.5",
+    "frontend": "file:",
     "idb": "^8.0.2",
     "ipfs-http-client": "^60.0.1",
     "lucide-react": "^0.474.0",
@@ -31,7 +33,7 @@
     "pino-pretty": "^13.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-icons": "^5.4.0",
+    "react-icons": "^5.5.0",
     "react-multi-carousel": "^2.8.5",
     "solc": "^0.8.28",
     "string-similarity": "^4.0.4",
@@ -44,12 +46,15 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@svgr/webpack": "^8.1.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.1.2",
     "eslint": "^9",
     "eslint-config-next": "15.1.6",
+    "hardhat": "^2.22.19",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"

@@ -99,5 +99,3 @@ Object.entries(output.contracts).forEach(([file, contracts]) => {
     );
   });
 });
-
-console.log(`Compilation successful! Artifacts saved to ${artifactsDir}`);

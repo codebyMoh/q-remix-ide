@@ -48,9 +48,10 @@ import WorkSpaceArrow from "./svg/workspaceArrow.svg";
 import Bug from "./svg/bug.svg";
 import { StepForward } from "lucide-react";
 import { StepBack } from "lucide-react";
-import StepInto from "./svg/bug.svg"
+import StepInto from "./svg/bug.svg";
 import StepOut from "./svg/bug.svg";
 import Breakpoint from "./svg/bug.svg";
+import ArrowSpace from "./svg/ArrowWorkspace.svg";
 
 // Export all the SVGs
 export {
@@ -100,5 +101,11 @@ export {
   Send,
   M,
   WorkSpaceArrow,
-  Bug, StepForward, StepBack, StepInto, StepOut, Breakpoint
+  Bug,
+  StepForward,
+  StepBack,
+  StepInto,
+  StepOut,
+  Breakpoint,
+  ArrowSpace,
 };

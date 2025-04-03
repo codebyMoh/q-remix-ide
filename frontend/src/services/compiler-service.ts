@@ -73,15 +73,14 @@ class RemixCompilerService implements CompilerService {
 
       const [fileName, fileData] = Object.entries(targets)[0];
       const content = fileData?.content;
-      console.log("Compiler-service.ts: Received content:", content);
+
       if (!content) throw new Error("No content provided for compilation");
 
       let warnings: Warning[] | undefined;
       const version = await this.getCompatibleVersion(content);
-      console.log("Compiler-service.ts: Final version selected:", version);
+
       const result = await compile(content, version, (w) => (warnings = w));
 
-      console.log("Compiler-service.ts: Compilation result:", result);
       return {
         success: true,
         data: result,
@@ -111,7 +110,6 @@ class RemixCompilerService implements CompilerService {
 
   async getVersions(): Promise<string[]> {
     if (this.versionCache) {
-      console.log("Returning cached versions:", this.versionCache);
       return this.versionCache;
     }
     try {
@@ -141,45 +139,44 @@ class RemixCompilerService implements CompilerService {
         return aMajor - bMajor || aMinor - bMinor || aPatch - bPatch;
       });
 
-      console.log("Fetched major versions:", majorVersions);
       this.versionCache = majorVersions;
       return majorVersions;
     } catch (error) {
       console.error("Error fetching versions, using fallback:", error);
       const fallbackVersions = Object.values(FALLBACK_VERSIONS);
-      console.log("Fallback versions:", fallbackVersions);
+;
       this.versionCache = fallbackVersions;
       return fallbackVersions;
     }
   }
 
   async getCompatibleVersion(content: string): Promise<string> {
-    console.log("getCompatibleVersion: Processing content:", content);
+
     if (!content || typeof content !== "string") {
       console.warn("getCompatibleVersion: No valid content, defaulting to 0.8.19+commit.7dd6d404");
       return "0.8.19+commit.7dd6d404";
     }
     const pragmaMatch = content.match(/pragma\s+solidity\s+[^0-8]*(\d+\.\d+\.\d+)/);
     const requiredVersion = pragmaMatch ? pragmaMatch[1] : null;
-    console.log("getCompatibleVersion: Parsed pragma version:", requiredVersion);
+
 
     if (!requiredVersion) {
-      console.log("getCompatibleVersion: No pragma found, defaulting to 0.8.19+commit.7dd6d404");
+     
       return "0.8.19+commit.7dd6d404";
     }
 
-    console.log("getCompatibleVersion: Checking FALLBACK_VERSIONS for:", requiredVersion);
+  
     if (FALLBACK_VERSIONS[requiredVersion]) {
-      console.log("getCompatibleVersion: Found in FALLBACK_VERSIONS:", FALLBACK_VERSIONS[requiredVersion]);
+
       return FALLBACK_VERSIONS[requiredVersion];
     }
 
     const versions = await this.getVersions();
-    console.log("getCompatibleVersion: Available versions:", versions);
+
     const compatible = versions.find((v) => v.startsWith(requiredVersion));
 
     if (compatible) {
-      console.log("getCompatibleVersion: Matched version from fetched list:", compatible);
+
       return compatible;
     }
 

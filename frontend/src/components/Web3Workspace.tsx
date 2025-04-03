@@ -1,38 +1,61 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Linkedin from "@/assets/svg/in.svg";
-
-import {  Insta,
+import Tooltip from "@/components/Tooltip";
+import {
+  Insta,
   X,
   Send,
   DownArrow,
   Search,
   M,
-  WorkSpaceArrow} from "@/assets/index"
-// Constants for static data
+  WorkSpaceArrow,
+  ArrowSpace
+} from "@/assets/index";
+import { useEditor } from "@/context/EditorContext";
 const TAGS = [
-  "Start Coding",
-  "ZK Semaphore",
-  "ERC 20",
-  "Uniswap V4 Hooks",
-  "NFT/ERC721",
-  "MultiSig",
+  {
+    label: "Start Coding",
+    content: "Start coding using the default template.",
+  },
+  {
+    label: "ZK Semaphore",
+    content: "Create a new ZK Project with circum using this template.",
+  },
+  { label: "ERC 20", content: "Create a new ERC20 token using this template." },
+  {
+    label: "Uniswap V4 Hooks",
+    content: "Create a new workspace based on this template.",
+  },
+  {
+    label: "NFT/ERC721",
+    content: "Create a new ERC721 token using this template.",
+  },
+  {
+    label: "MultiSig",
+    content: "Create a new MultiSig wallet using this template.",
+  },
 ];
-const WORKSPACES = ["Default Workspace", "Team Workspace"];
+
+// const WORKSPACES = ["Default Workspace", "Team Workspace"];
 const SOCIAL_LINKS = [
-  { Icon: X, href: "https://x.com/quranium_org", label: "X (Twitter)" },
+  { Icon: X, href: "https://x.com/quranium_org", label: "X Profile" },
   {
     Icon: Linkedin,
     href: "https://www.linkedin.com/company/quranium/",
-    label: "LinkedIn",
+    label: "LinkedIn Profile",
   },
   {
     Icon: Insta,
     href: "https://www.instagram.com/quraniumofficial/",
-    label: "Instagram",
+    label: "Instagram Profile",
   },
-  { Icon: Send, href: "https://t.me/quraniumofficial", label: "Send" },
-  { Icon: M, href: "https://quranium-org.medium.com/", label: "M" },
+  {
+    Icon: Send,
+    href: "https://t.me/quraniumofficial",
+    label: "Join us on Discord",
+  },
+  { Icon: M, href: "https://quranium-org.medium.com/", label: "Medium Posts" },
 ];
 
 // Reusable SocialIcon component
@@ -55,26 +78,31 @@ const Tag = ({ tag, selectedTag, onClick }) => (
 );
 
 // Reusable WorkspaceItem component
-const WorkspaceItem = ({ workspace }) => (
-  <div className="flex justify-between items-center w-full p-2 text-gray-800 font-medium text-sm">
-    <span>{workspace}</span>
-    <DownArrow />
+const WorkspaceItem = ({ workspace,setSelectedWorkspace }) => (
+  <div className="flex justify-between items-center w-full text-gray-800 font-medium text-sm">
+    <div className="flex gap-2 align-center">
+      <WorkSpaceArrow />
+    <span className="pt-[7px] cursor-pointer text-[ #23202A]" onClick={()=>setSelectedWorkspace(workspace)}>{workspace.name}</span>
+    </div>
+    <ArrowSpace className="mt-[10px]"/>
   </div>
 );
 
 const Web3Workspace = () => {
-  const [selectedTag, setSelectedTag] = useState(TAGS[0]);
+  const [selectedTag, setSelectedTag] = useState(TAGS[0].label);
+  const { allWorkspace,setSelectedWorkspace} = useEditor();
+  const RecentWorkspace = useMemo(
+    () => [...allWorkspace].slice(-3).reverse(),
+    [allWorkspace]
+  );
 
   // Memoize static data to avoid unnecessary recalculations
   const socialIcons = useMemo(
     () =>
       SOCIAL_LINKS.map((link, index) => (
-        <SocialIcon
-          key={index}
-          Icon={link.Icon}
-          href={link.href}
-          label={link.label}
-        />
+        <Tooltip content={link.label} key={index}>
+          <SocialIcon Icon={link.Icon} href={link.href} label={link.label} />
+        </Tooltip>
       )),
     []
   );
@@ -82,27 +110,27 @@ const Web3Workspace = () => {
   const tags = useMemo(
     () =>
       TAGS.map((tag) => (
-        <Tag
-          key={tag}
-          tag={tag}
-          selectedTag={selectedTag}
-          onClick={setSelectedTag}
-        />
+        <Tooltip content={tag.content} key={tag.label}>
+          <Tag
+            tag={tag.label}
+            selectedTag={selectedTag}
+            onClick={setSelectedTag}
+          />
+        </Tooltip>
       )),
     [selectedTag]
   );
-
   const workspaces = useMemo(
     () =>
-      WORKSPACES.map((workspace, index) => (
-        <WorkspaceItem key={index} workspace={workspace} />
+      RecentWorkspace.map((workspace, index) => (
+        <WorkspaceItem key={index} workspace={workspace}setSelectedWorkspace={setSelectedWorkspace} />
       )),
-    []
+    [RecentWorkspace]
   );
 
   return (
     <div>
-      <div className="w-[400px] p-8 flex flex-col gap-4 border-r border-[#DEDEDE]">
+      <div className="w-[400px] p-8 flex flex-col gap-4 h-full border-r border-[#DEDEDE]">
         {/* Header Section */}
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-semibold">Remix</h1>
@@ -114,14 +142,14 @@ const Web3Workspace = () => {
           <input
             type="text"
             placeholder="Search document"
-            className="w-full p-2 pr-10 border border-gray-200 rounded-md placeholder:text-sm"
+            className="w-full p-2 pr-10 border border-gray-200 rounded-md placeholder:text-sm focus:outline-none"
           />
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
 
         {/* Description */}
-        <div className="text-gray-500 text-base text-[16px]">
-          <p>The Native IDE for web3 Development</p>
+        <div className="text-gray-500 text-base ">
+          <p className="text-[16px]">The Native IDE for web3 Development</p>
           <div className="flex gap-5 underline">
             <span className="text-[16px]">
               <a
@@ -157,12 +185,10 @@ const Web3Workspace = () => {
 
         {/* Recent Workspace */}
         <div>
-          <h2 className="text-md font-semibold">Recent Workspace</h2>
-          <div className="flex gap-2 items-center mt-2">
-            <WorkSpaceArrow />
-            <div className="flex flex-col w-full">{workspaces}</div>
+          <h2 className="text-md font-semibold pb-[4px]">Recent Workspace</h2>
+            <div className="flex flex-col w-full gap-[0.2rem]">{workspaces}</div>
           </div>
-        </div>
+      
       </div>
     </div>
   );

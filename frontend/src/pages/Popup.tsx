@@ -29,7 +29,7 @@ const Popup = ({
             <label className="text-sm text-gray-600 mb-4">Workspace name</label>
             <input
               onChange={(e) => Inputworkspace(e.target.value)}
-              className="border border-gray-300 rounded w-full p-1 focus:outline-none"
+      className="border border-gray-300 bg-gray-100 rounded w-full p-2 focus:outline-none pt-1"
             />
           </div>
         ) : (
