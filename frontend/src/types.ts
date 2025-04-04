@@ -3,6 +3,7 @@ export interface FileSystemNode {
     name: string;
     type: 'file' | 'folder';
     content?: string;
+    ipfsCid?: string;//STores the IPFS CID, for testing now
     parentId: string | null;
     createdAt: number;
     updatedAt: number;
