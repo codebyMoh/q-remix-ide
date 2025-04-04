@@ -15,6 +15,7 @@ import {
 } from "../utils/IndexDB";
 import type { FileSystemNode } from "../types";
 import Tooltip from "@/components/Tooltip";
+import Popup from "@/pages/Popup"
 import {
   GreenTick,
   RightArrow,
@@ -38,7 +39,6 @@ import { MdDeleteOutline } from "react-icons/md";
 import { MdDriveFileRenameOutline } from "react-icons/md";
 import { FaRegFile } from "react-icons/fa";
 import { useEditor } from "../context/EditorContext";
-import Popup from "@/pages/Popup";
 import ImportRepoPopup from "./ImportRepoPopup";
 
 interface FileExplorerProps {
@@ -946,9 +946,11 @@ const FileExplorer: React.FC<FileExplorerProps> = () => {
         />
       )}
       {showRepoPopup && (
-        <ImportRepoPopup
-          onClose={() => setShowRepoPopup(false)}
-          onImport={handleImportFromRepo}
+        <Popup
+        onClose={() => setShowRepoPopup(false)}
+        onImport={handleImportFromRepo}
+         github="true"
+
         />
       )}
     </div>
