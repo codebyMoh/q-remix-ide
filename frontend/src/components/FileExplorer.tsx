@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ChevronRight } from "lucide-react";
-import FileImporter from "./FileImporter"
 import { FaRegFolder } from "react-icons/fa";
 import {
   createNode,
@@ -39,7 +38,7 @@ import { MdDeleteOutline } from "react-icons/md";
 import { MdDriveFileRenameOutline } from "react-icons/md";
 import { FaRegFile } from "react-icons/fa";
 import { useEditor } from "../context/EditorContext";
-import ImportRepoPopup from "./ImportRepoPopup";
+
 
 interface FileExplorerProps {
   onFileSelect?: (file: FileSystemNode | null) => void;
