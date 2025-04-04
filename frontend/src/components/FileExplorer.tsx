@@ -60,6 +60,11 @@ interface DragItem {
   type: "file" | "folder";
 }
 
+interface DragItem {
+  nodeId: string;
+  type: "file" | "folder";
+}
+
 const FileExplorer: React.FC<FileExplorerProps> = () => {
   const {
     onFileSelect,
