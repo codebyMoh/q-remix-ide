@@ -70,59 +70,56 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
 
   const findImports = async (importPath: string) => {
     try {
-      const pathParts = importPath.split('/');
-      let targetPath = importPath;
-      let currentNodes = [];
-      
-      if (selectedWorkspace) {
-        currentNodes = await getAllNodes(selectedWorkspace.id);
-        if (importPath.startsWith('../')) {
-          pathParts.shift();
-          if (pathParts.length >= 2) {
-            const folderName = pathParts[0];
-            const fileName = pathParts[pathParts.length - 1];
-
-            const folderNode = currentNodes.find(
-              node => node.type === 'folder' && node.name === folderName && node.parentId === null
+      if (!selectedWorkspace) {
+        return { error: 'No workspace selected' };
+      }
+      const currentNodes = await getAllNodes(selectedWorkspace.id);
+      if (importPath.startsWith('../')) {
+        const pathParts = importPath.split('/');
+        pathParts.shift(); 
+        
+        if (pathParts.length >= 2) {
+          const folderName = pathParts[0];
+          const fileName = pathParts[pathParts.length - 1];
+          const folderNode = currentNodes.find(
+            node => node.type === 'folder' && 
+                   node.name === folderName && 
+                   node.parentId === null
+          );    
+          if (folderNode) {
+            const importedFile = currentNodes.find(
+              node => node.type === 'file' &&
+                     node.name === fileName &&
+                     node.parentId === folderNode.id
             );
             
-            if (folderNode) {
-  
-              const importedFile = currentNodes.find(
-                node => node.type === 'file' && 
-                       node.name === fileName && 
-                       node.parentId === folderNode.id
-              );
-              
-              if (!importedFile || !importedFile.content) {
-                return { error: `File ${importPath} not found` };
-              }
-              
-              return { contents: importedFile.content };
+            if (!importedFile || !importedFile.content) {
+              return { error: `File ${importPath} not found in workspace "${selectedWorkspace.name}"` };
             }
+            
+            return { contents: importedFile.content };
           }
-        } else {
-          const cleanPath = importPath.replace(/^\.\//, '');
-          console.log("cleanpath", cleanPath);
-          
-          const importedFile = currentNodes.find(
-            node => node.type === 'file' && node.name === cleanPath
-          );
-          
-          if (!importedFile || !importedFile.content) {
-            return { error: `File ${importPath} not found` };
-          }
-          
-          console.log("check", importedFile);
-          console.log("contentntntnt", importedFile.content);
-          
-          return { contents: importedFile.content };
         }
+      } 
+      else {
+        const cleanPath = importPath.replace(/^\.\//, '');
+        const importedFile = currentNodes.find(
+          node => node.type === 'file' && 
+                 node.name === cleanPath &&
+                 node.workspaceId === selectedWorkspace.id 
+        );
+        
+        if (!importedFile || !importedFile.content) {
+          return { error: `File ${importPath} not found in workspace "${selectedWorkspace.name}"` };
+        }
+        
+        return { contents: importedFile.content };
       }
-      return { error: `File ${importPath} not found or workspace not selected` };
+      
+      return { error: `File ${importPath} not found in workspace "${selectedWorkspace.name}"` };
     } catch (error) {
       console.error('Error in findImports:', error);
-      return { error: `Error importing ${importPath}` };
+      return { error: `Error importing ${importPath} in workspace "${selectedWorkspace.name}"` };
     }
   };
 
