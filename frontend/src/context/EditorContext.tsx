@@ -1,7 +1,7 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect } from "react";
 import type { FileSystemNode } from "../types";
-
+import { getAllNodes } from "../utils/IndexDB";
 export interface ContractData {
   contractName: string;
   abi: any[];
@@ -67,20 +67,59 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
       prev.map((f) => (f.id === activeFileId ? { ...f, content } : f))
     );
   };
+
   const findImports = async (importPath: string) => {
     try {
-      const cleanPath = importPath.replace(/^\.\//, '');
-      console.log("cleanpath",cleanPath)
-      const importedFile = allNodes.find(
-        node => node.type === 'file' && node.name === cleanPath
-      );
+      const pathParts = importPath.split('/');
+      let targetPath = importPath;
+      let currentNodes = [];
+      
+      if (selectedWorkspace) {
+        currentNodes = await getAllNodes(selectedWorkspace.id);
+        if (importPath.startsWith('../')) {
+          pathParts.shift();
+          if (pathParts.length >= 2) {
+            const folderName = pathParts[0];
+            const fileName = pathParts[pathParts.length - 1];
 
-      if (!importedFile || !importedFile.content) {
-        return { error: `File ${importPath} not found` };
+            const folderNode = currentNodes.find(
+              node => node.type === 'folder' && node.name === folderName && node.parentId === null
+            );
+            
+            if (folderNode) {
+  
+              const importedFile = currentNodes.find(
+                node => node.type === 'file' && 
+                       node.name === fileName && 
+                       node.parentId === folderNode.id
+              );
+              
+              if (!importedFile || !importedFile.content) {
+                return { error: `File ${importPath} not found` };
+              }
+              
+              return { contents: importedFile.content };
+            }
+          }
+        } else {
+          const cleanPath = importPath.replace(/^\.\//, '');
+          console.log("cleanpath", cleanPath);
+          
+          const importedFile = currentNodes.find(
+            node => node.type === 'file' && node.name === cleanPath
+          );
+          
+          if (!importedFile || !importedFile.content) {
+            return { error: `File ${importPath} not found` };
+          }
+          
+          console.log("check", importedFile);
+          console.log("contentntntnt", importedFile.content);
+          
+          return { contents: importedFile.content };
+        }
       }
-      console.log("chekc",importedFile)
-    console.log("contentntntnt",importedFile.content)
-      return { contents: importedFile.content };
+      return { error: `File ${importPath} not found or workspace not selected` };
     } catch (error) {
       console.error('Error in findImports:', error);
       return { error: `Error importing ${importPath}` };
