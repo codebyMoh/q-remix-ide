@@ -1,4 +1,6 @@
 export enum Environment {
+    RemixVM = "remixVM",
+    Injected = "injected",
     LocalVM = "local-vm",
     ExternalChain = "external-chain",
   }

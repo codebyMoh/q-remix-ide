@@ -1,6 +1,19 @@
 import app from "./app";
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+
+server.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+    return { message: 'Backend server is running!' };
 });
+
+const start = async () => {
+  try {
+    await server.listen({ port: Number(PORT), host: '0.0.0.0' });
+    console.log(`Backend server is running on port ${PORT}`);
+  } catch (err) {
+    server.log.error(err);
+    process.exit(1);
+  }
+};
+
+start();

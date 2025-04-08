@@ -2,28 +2,35 @@
 import React, { useState, useEffect } from "react";
 import { Urbanist } from "next/font/google";
 import { deploymentService } from "@/services/deployment-service";
-import { Account, DeployedContract, DeploymentInput } from "@/types/deployment";
+import { Account, DeployedContract, DeploymentInput, Environment } from "@/types/deployment";
 import { ethers } from "ethers";
 import { useEditor } from "@/context/EditorContext";
-import { RightArrow, GreenTick } from "@/assets/index";
+import ContractInteraction from "./ContractInteraction";
 
+import { RightArrow, GreenTick } from "@/assets/index";
+import Tooltip from "@/components/Tooltip";
 const urbanist = Urbanist({
   subsets: ["latin"],
   weight: ["400", "600", "700"],
 });
 
-const DeployAndRun = () => {
+interface DeployAndRunProps {
+  onTransactionExecuted?: () => void;
+}
+
+const DeployAndRun: React.FC<DeployAndRunProps> = ({ onTransactionExecuted }) => {
   const { allFiles, compiledContracts, compileFile } = useEditor();
   const [isExpanded, setIsExpanded] = useState(true);
-  const [environment, setEnvironment] = useState("remixVM");
+  const [environment, setEnvironment] = useState("NULL");
   const [account, setAccount] = useState("");
   const [gasLimit, setGasLimit] = useState("3000000");
   const [value, setValue] = useState("0");
   const [valueUnit, setValueUnit] = useState("wei");
   const [selectedContract, setSelectedContract] = useState("");
-  const [deployedContracts, setDeployedContracts] = useState<
-    DeployedContract[]
-  >([]);
+  const [deployedContracts, setDeployedContracts] = useState<DeployedContract[]>(() => {
+    const savedContracts = sessionStorage.getItem('deployedContracts');
+    return savedContracts ? JSON.parse(savedContracts) : [];
+  });
   const [atAddressValue, setAtAddressValue] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [transactionsRecorded, setTransactionsRecorded] = useState(0);
@@ -31,9 +38,13 @@ const DeployAndRun = () => {
   const [constructorArgs, setConstructorArgs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  useEffect(() => {
+    sessionStorage.setItem('deployedContracts', JSON.stringify(deployedContracts));
+    setTransactionsRecorded(deployedContracts.length)
+  }, [deployedContracts]);
   const environments = [
-    { id: "remixVM", name: "Remix VM (Cancun)" },
+    { id: "NULL", name: "--Select Environment--" },
+    { id: "remixVM", name: "QRemix VM" },
     { id: "injected", name: "Injected Provider - MetaMask" },
     { id: "mainnetFork", name: "Remix VM - Mainnet fork" },
     { id: "sepoliaFork", name: "Remix VM - Sepolia fork" },
@@ -56,21 +67,38 @@ const DeployAndRun = () => {
   );
 
   useEffect(() => {
-    console.log("ToggleDeployAndRun - Solidity files:", solidityFiles);
-    console.log("ToggleDeployAndRun - Compiled contracts:", compiledContracts);
     if (solidityFiles.length > 0 && !selectedContract) {
       setSelectedContract(solidityFiles[0].name);
     }
   }, [allFiles, compiledContracts]);
 
+  const fetchHardhatAccounts = async () =>{
+    const hardhatAccounts = await deploymentService.getAccounts();
+    setAccounts(hardhatAccounts);
+  }
+
   const handleEnvironmentChange = async (newEnv: string) => {
-    setEnvironment(newEnv);
-    if (newEnv === "injected") {
-      setLoading(true);
-      try {
+    setEnvironment(newEnv as Environment);
+    setLoading(true);
+    try {
+      await deploymentService.setEnvironment(newEnv);
+      
+      if (newEnv === Environment.RemixVM) {
+      // Fetch Hardhat accounts
+        try {
+          const hardhatAccounts = await deploymentService.getAccounts();
+          setAccounts(hardhatAccounts);
+          if (hardhatAccounts.length > 0) {
+            setAccount(hardhatAccounts[0].address);
+          }
+        } catch (err: any) {
+          console.error("Failed to fetch Hardhat accounts:", err);
+          setError("Failed to connect to Hardhat node. Make sure it's running at http://127.0.0.1:8545");
+        }
+      } else if (newEnv === Environment.Injected) {
+        // Check if MetaMask is installed
         if (!window.ethereum) throw new Error("MetaMask is not installed");
         await window.ethereum.request({ method: "eth_requestAccounts" });
-        await deploymentService.setEnvironment("injected" as any);
         const fetchedAccounts = await deploymentService.getAccounts();
         setAccounts(fetchedAccounts);
         setAccount(fetchedAccounts[0]?.address || "");
@@ -82,40 +110,48 @@ const DeployAndRun = () => {
             setAccount(updatedAccounts[0]?.address || "");
           }
         });
-      } catch (err) {
-        setError(err.message || "Failed to connect to MetaMask");
-        setEnvironment("remixVM");
-      } finally {
-        setLoading(false);
+      } else {
+        setAccounts([]);
+        setAccount("");
       }
-    } else {
-      setAccounts([]);
-      setAccount("");
+    } catch (err: any) {
+      setError(err.message || "Failed to connect to provider");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAccountChange = async (address: string) => {
+    setAccount(address);
+    
+    // If using Hardhat, set the signer to the selected account
+    if (environment === Environment.RemixVM) {
+      try {
+        const selectedAccount = accounts.find(acc => acc.address === address);
+        if (selectedAccount) {
+          await deploymentService.setHardhatSigner(selectedAccount.index);
+        }
+      } catch (err: any) {
+        console.error("Failed to set Hardhat signer:", err);
+        setError(err.message);
+      }
     }
   };
 
   const deployContract = async () => {
-    if (environment !== "injected") {
-      setError("Please connect to MetaMask to deploy contracts");
+    if (environment !== Environment.Injected && environment !== Environment.RemixVM) {
+      setError("Please connect to MetaMask or select Remix VM (Cancun) to deploy contracts");
       return;
     }
     setLoading(true);
     try {
       const selectedFile = allFiles.find((f) => f.name === selectedContract);
-      console.log(
-        "Deploying - Selected contract file:",
-        selectedContract,
-        "Selected file:",
-        selectedFile
-      );
       if (!selectedFile)
         throw new Error("Selected contract file not found in file system");
 
       // If no compiled contracts, trigger compilation
       if (compiledContracts.length === 0) {
-        console.log(
-          "Deploying - No compiled contracts found, compiling now..."
-        );
+
         await compileFile(selectedFile);
       }
 
@@ -127,15 +163,19 @@ const DeployAndRun = () => {
             selectedContract.includes(c.contractName) ||
             c.contractName.includes(fileNameWithoutExt)
         ) || compiledContracts[0];
-      console.log("Deploying - Matching compiled contract:", compiledContract);
       if (!compiledContract) {
-        console.log(
-          "Deploying - Available compiled contracts:",
-          compiledContracts
-        );
         throw new Error(
           "No compiled data found for any contract. Please ensure compilation succeeded."
         );
+      }
+
+      // Set the signer to the selected account before deployment
+      if (environment === Environment.RemixVM) {
+        const selectedAccount = accounts.find(acc => acc.address === account);
+        if (selectedAccount) {
+          console.log("Setting Hardhat signer to account index:", selectedAccount.index);
+          await deploymentService.setHardhatSigner(selectedAccount.index);
+        }
       }
 
       const deploymentInput: DeploymentInput = {
@@ -152,7 +192,6 @@ const DeployAndRun = () => {
           value: ethers.parseUnits(value, valueUnit).toString(),
         }
       );
-      console.log("Deployed contract:", deployedContract);
 
       // Broadcast deployed contract to terminal
       const deploymentEvent = new CustomEvent("deploymentOutput", {
@@ -164,7 +203,7 @@ const DeployAndRun = () => {
       if (isRecording) {
         setTransactionsRecorded(transactionsRecorded + 1);
       }
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
       console.error("Deployment failed:", err);
     } finally {
@@ -181,9 +220,6 @@ const DeployAndRun = () => {
         throw new Error("Selected contract file not found in file system");
 
       if (compiledContracts.length === 0) {
-        console.log(
-          "AccessAtAddress - No compiled contracts found, compiling now..."
-        );
         await compileFile(selectedFile);
       }
 
@@ -216,7 +252,7 @@ const DeployAndRun = () => {
       };
       setDeployedContracts([...deployedContracts, newContract]);
       setAtAddressValue("");
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
       console.error("Failed to load contract at address:", err);
     } finally {
@@ -237,14 +273,14 @@ const DeployAndRun = () => {
   };
 
   return (
-    <div className="relative flex border-r border-[#DEDEDE] h-full">
-      <div
-        className={`${
-          isExpanded ? "w-80 px-4" : "w-0 px-0"
-        } bg-white flex flex-col  transition-all duration-300 overflow-hidden overflow-y-auto  h-full ${
-          urbanist.className
-        }`}
-      >
+    <div className="relative flex h-full">
+    <div
+      className={`${
+        isExpanded ? "w-80 px-4" : "w-0 px-0"
+      } bg-white flex flex-col transition-all duration-300 overflow-hidden overflow-y-auto h-full ${
+        urbanist.className
+      }custom-scroll`}
+    >
         <div className="mb-2 flex items-center justify-between sticky top-0 bg-white z-10  h-[3rem] bg-white flex-shrink-0">
           <span
             className={`${
@@ -288,29 +324,20 @@ const DeployAndRun = () => {
                   </option>
                 ))}
               </select>
-              {environment === "external" && (
-                <input
-                  type="text"
-                  placeholder="http://127.0.0.1:8545"
-                  className="border p-2 rounded text-sm mt-1"
-                  disabled={loading}
-                />
-              )}
             </div>
 
             <div className="flex flex-col gap-1 mt-3">
               <div className="text-gray-600 text-xs">ACCOUNT</div>
               <select
                 value={account}
-                onChange={(e) => setAccount(e.target.value)}
-                className="border p-2 rounded text-sm text-gray-500 "
+                onChange={(e) => handleAccountChange(e.target.value)}
+                className="border p-2 rounded text-sm"
                 disabled={loading || accounts.length === 0}
               >
                 {accounts.length > 0 ? (
                   accounts.map((acc, index) => (
-                    <option key={acc.address} value={acc.address}>
-                      Account {index} ({acc.address.slice(0, 6)}...
-                      {acc.address.slice(-4)}) - {acc.balance} ETH
+                    <option key={`account-${index}`} value={acc.address}>
+                      Account {index} ({acc.address.slice(0, 6)}...{acc.address.slice(-4)}) - {acc.balance} ETH
                     </option>
                   ))
                 ) : (
@@ -321,29 +348,33 @@ const DeployAndRun = () => {
 
             <div className="flex flex-col gap-1 mt-3">
               <div className="text-gray-600 text-xs">GAS LIMIT</div>
+              <Tooltip content="Enter Gas Limit.">
               <input
                 type="text"
                 value={gasLimit}
                 onChange={(e) => setGasLimit(e.target.value)}
-                className="border p-2 rounded text-sm text-gray-500 "
+                className="border p-2 rounded text-sm text-gray-500 w-full focus:outline-none "
                 disabled={loading}
               />
+              </Tooltip>
             </div>
 
             <div className="flex flex-col gap-1 mt-3">
               <div className="text-gray-600 text-xs">VALUE</div>
-              <div className="flex gap-2">
+              <div className="flex gap-3">
+                <Tooltip content="Enter an amount to be send with transaction and choose its unit">
                 <input
                   type="text"
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
-                  className="border p-2 rounded text-sm flex-1 text-gray-500 "
+                  className="border p-2 rounded text-sm flex-1 text-gray-500 w-full focus:outline-none "
                   disabled={loading}
                 />
+                </Tooltip>
                 <select
                   value={valueUnit}
                   onChange={(e) => setValueUnit(e.target.value)}
-                  className="border p-2 rounded text-sm text-gray-500 "
+                  className="border p-2  rounded text-sm text-gray-500 w-full"
                   disabled={loading}
                 >
                   {valueUnits.map((unit) => (
@@ -377,30 +408,37 @@ const DeployAndRun = () => {
             </div>
 
             <button
-              onClick={deployContract}
-              className="flex-1 bg-[#CE192D] text-white p-2 rounded text-sm hover:bg-[#CE192D]"
-              disabled={
-                loading || !selectedContract || environment !== "injected"
-              }
+              onClick={async () => {
+                await deployContract();
+                if (environment === Environment.RemixVM) {
+                  await fetchHardhatAccounts();
+                }
+              }}
+              className="flex-1 p-2 text-white rounded text-sm bg-[#CE192D]"
+              disabled={loading || !selectedContract || (environment !== Environment.Injected && environment !== Environment.RemixVM)}
             >
               {loading ? "Deploying..." : "Deploy"}
             </button>
             <div className="flex gap-2 mt-4">
-              <button
-                onClick={accessAtAddress}
-                className="bg-gray-200 p-2 rounded text-sm hover:bg-gray-300 whitespace-nowrap"
-                disabled={loading || !atAddressValue}
-              >
-                At Address
-              </button>
+              <Tooltip content="To interact with a deployed contract either enter its address and compile its source *.sol file (with the same compiler settings) or select its .abi file in the editor">
+                <button
+                  onClick={accessAtAddress}
+                  className="bg-gray-200 p-2 cursor-pointer rounded text-sm hover:bg-gray-300 whitespace-nowrap"
+                  disabled={loading || !atAddressValue}
+                >
+                  At Address
+                </button>
+              </Tooltip>
+              <Tooltip content="Address of contract">
               <input
                 type="text"
                 value={atAddressValue}
                 onChange={(e) => setAtAddressValue(e.target.value)}
                 placeholder="Contract Address"
-                className="flex-1 border p-2 rounded text-sm text-gray-500"
+                className="flex-1 border p-2 rounded text-sm text-gray-500 focus:outline-none"
                 disabled={loading}
               />
+              </Tooltip>
             </div>
 
             {/* Constructor Parameters */}
@@ -425,40 +463,25 @@ const DeployAndRun = () => {
                     if (!compiledContract)
                       return <div>No compiled data available</div>;
 
-                    const constructor = compiledContract.abi.find(
-                      (item) => item.type === "constructor"
-                    );
-                    return (
-                      constructor?.inputs.map((param, idx) => (
-                        <div key={idx} className="flex flex-col mt-1">
-                          <label className="text-xs text-gray-600">
-                            {param.name} ({param.type})
-                          </label>
-                          <input
-                            type="text"
-                            placeholder={
-                              param.type === "bytes32[]"
-                                ? '["0x1234", "0x5678"]'
-                                : param.type === "string"
-                                ? "My Token"
-                                : ""
-                            }
-                            className="border p-2 rounded text-sm mt-1 text-gray-500"
-                            onChange={(e) => {
-                              const newArgs = [...constructorArgs];
-                              newArgs[idx] = e.target.value; // Add parsing logic if needed
-                              setConstructorArgs(newArgs);
-                            }}
-                            disabled={loading}
-                          />
-                        </div>
-                      )) || <div>No constructor parameters</div>
-                    );
-                  } catch (err) {
-                    console.error(
-                      "Error rendering constructor parameters:",
-                      err
-                    );
+                    const constructor = compiledContract.abi.find(item => item.type === "constructor");
+                    return constructor?.inputs.map((param: any, idx: number) => (
+                      <div key={idx} className="flex flex-col mt-1">
+                        <label className="text-xs text-gray-600">{param.name} ({param.type})</label>
+                        <input
+                          type="text"
+                          placeholder={param.type === "bytes32[]" ? '["0x1234", "0x5678"]' : param.type === "string" ? "My Token" : ""}
+                          className="border p-2 rounded text-sm mt-1 focus:outline-none"
+                          onChange={(e) => {
+                            const newArgs = [...constructorArgs];
+                            newArgs[idx] = e.target.value; // Add parsing logic if needed
+                            setConstructorArgs(newArgs);
+                          }}
+                          disabled={loading}
+                        />
+                      </div>
+                    )) || <div>No constructor parameters</div>;
+                  } catch (err: any) {
+                    console.error("Error rendering constructor parameters:", err);
                     return <div>Error loading constructor parameters</div>;
                   }
                 })()}
@@ -468,7 +491,7 @@ const DeployAndRun = () => {
             <div className="mt-6 bg-gray-50 rounded">
               <div className="flex justify-between items-center">
                 <div className="text-sm font-medium">
-                  Transactions Recorded: {transactionsRecorded}
+                  Transactions Recorded : {transactionsRecorded}
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -528,40 +551,44 @@ const DeployAndRun = () => {
               </div>
             </div>
 
-            <div className="flex justify-between items-center">
-              <div className="text-sm font-medium">DEPLOYED CONTRACTS</div>
-              {deployedContracts.length > 0 && (
-                <button
-                  onClick={clearDeployedContracts}
-                  className="text-red-500 text-xs"
-                  disabled={loading}
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-            <div className="mt-2 max-h-60 overflow-auto">
-              {deployedContracts.map((contract, idx) => (
-                <div key={idx} className="border rounded p-2 mb-2">
-                  <div className="flex justify-between items-center">
-                    <div className="font-medium text-sm">
-                      {contract.contractName}
+            <div className="mt-4">
+              <div className="flex justify-between items-center">
+                <div className="text-sm font-medium">DEPLOYED CONTRACTS : {transactionsRecorded}</div>
+                {deployedContracts.length > 0 && (
+                  <button
+                    onClick={clearDeployedContracts}
+                    className="text-red-500 text-xs"
+                    disabled={loading}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="mt-2 max-h-60 overflow-auto">
+                {deployedContracts.map((contract, idx) => (
+                    <div key={idx} className="border rounded p-2 mb-2">
+                    <div className="flex justify-between items-center">
+                      <div className="font-medium text-sm">{contract.contractName}</div>
+                      <div className="text-xs text-gray-500 truncate max-w-[120px]" title={contract.address}>
+                      at {contract.address.slice(0, 6)}...{contract.address.slice(-4)}
+                      </div>
                     </div>
-                    <div
-                      className="text-xs text-gray-500 truncate max-w-[120px]"
-                      title={contract.address}
-                    >
-                      at {contract.address.slice(0, 6)}...
-                      {contract.address.slice(-4)}
+                    <ContractInteraction 
+                      contract={contract} 
+                      gasLimit={gasLimit} 
+                      onTransactionExecuted={async () => {
+                      onTransactionExecuted;
+                      if (environment === Environment.RemixVM) {
+                       await fetchHardhatAccounts();
+                      }
+                      }}
+                    />
                     </div>
-                  </div>
-                </div>
-              ))}
-              {deployedContracts.length === 0 && (
-                <div className="text-sm text-gray-500">
-                  No contracts deployed yet
-                </div>
-              )}
+                ))}
+                {deployedContracts.length === 0 && (
+                  <div className="text-sm text-gray-500">No contracts deployed yet</div>
+                )}
+              </div>
             </div>
             {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
           </div>

@@ -97,7 +97,7 @@ const Debugger = () => {
   };
 
   return (
-    <div className="relative flex border-r border-[#DEDEDE] h-full">
+    <div className="relative flex  h-full">
       {/*Sidebar*/}
       <div
         className={`${
@@ -152,7 +152,7 @@ const Debugger = () => {
                     value={txHash}
                     onChange={(e) => setTxHash(e.target.value)}
                     placeholder="Enter transaction hash..."
-                    className="flex-1 border p-2 rounded text-sm"
+                    className="flex-1 border p-2 rounded text-sm focus:outline-none"
                   />
                   <button
                     onClick={startDebugging}

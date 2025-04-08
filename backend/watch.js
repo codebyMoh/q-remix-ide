@@ -8,7 +8,6 @@ const watcher = chokidar.watch('./contracts', {
 });
 
 watcher.on('all', (event, path) => {
-  console.log(`File ${path} has been ${event}`);
   exec('npm run compile', (error, stdout, stderr) => {
     if (error) {
       console.error(`Error: ${error.message}`);
@@ -18,8 +17,5 @@ watcher.on('all', (event, path) => {
       console.error(`Stderr: ${stderr}`);
       return;
     }
-    console.log(`Stdout: ${stdout}`);
   });
 });
-
-console.log('Watching for changes in the contracts directory...');

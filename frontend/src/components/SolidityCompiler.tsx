@@ -4,7 +4,7 @@ import { GreenTick, RightArrow, DownArrow } from "@/assets/index";
 import { Urbanist } from "next/font/google";
 import { useEditor } from "../context/EditorContext";
 import { getAllNodes, createNode, updateNode } from "../utils/IndexDB";
-
+import Tooltip from "@/components/Tooltip"
 const urbanist = Urbanist({
   subsets: ["latin"],
   weight: ["400", "600", "700"],
@@ -23,12 +23,12 @@ const SolidityCompiler = () => {
     files,
     setCompiledContracts,
     compileFile,
-    compiledContracts,
+    allNodes,
+    setAllNodes,
+    selectedWorkspace, // Added
   } = useEditor();
   const [availableFiles, setAvailableFiles] = useState<any[]>([]);
-  const [selectedVersion, setSelectedVersion] = useState(
-    "0.8.26+commit.8a97fa7a"
-  );
+  const [selectedVersion, setSelectedVersion] = useState("0.8.26+commit.8a97fa7a");
   const [isExpanded, setIsExpanded] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [results, setResults] = useState<ContractData[]>([]);
@@ -95,17 +95,19 @@ const SolidityCompiler = () => {
   useEffect(() => {
     async function loadSolFiles() {
       try {
-        const nodes = await getAllNodes();
-        const solFiles = nodes.filter(
-          (node: any) => node.type === "file" && node.name.endsWith(".sol")
-        );
-        setAvailableFiles(solFiles);
+        if (selectedWorkspace) {
+          const nodes = await getAllNodes(selectedWorkspace.id);
+          const solFiles = nodes.filter(
+            (node: any) => node.type === "file" && node.name.endsWith(".sol")
+          );
+          setAvailableFiles(solFiles);
+        }
       } catch (error) {
         console.error("Error loading Solidity files:", error);
       }
     }
     loadSolFiles();
-  }, []);
+  }, [selectedWorkspace]);
 
   useEffect(() => {
     if (
@@ -116,6 +118,78 @@ const SolidityCompiler = () => {
       handleCompile();
     }
   }, [activeFile, autoCompile]);
+
+  useEffect(() => {
+    if (results.length > 0 && selectedWorkspace) {
+      const generateArtifacts = async () => {
+        try {
+          const currentNodes = await getAllNodes(selectedWorkspace.id);
+          let artifactFolder = currentNodes.find(
+            (f) => f.type === "folder" && f.name === "artifacts" && f.parentId === null
+          );
+
+          if (!artifactFolder) {
+            artifactFolder = {
+              id: crypto.randomUUID(),
+              name: "artifacts",
+              type: "folder",
+              parentId: null,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+              workspaceId: selectedWorkspace.id, // Assign to current workspace
+            };
+            await createNode(artifactFolder);
+            setAllNodes((prev) => [...prev, artifactFolder]);
+          }
+
+          for (const contract of results) {
+            const artifactFileName = `${contract.contractName}.json`;
+            const artifactContent = JSON.stringify(
+              { abi: contract.abi, byteCode: contract.byteCode },
+              null,
+              2
+            );
+
+            let artifactFile = currentNodes.find(
+              (f) =>
+                f.type === "file" &&
+                f.name === artifactFileName &&
+                f.parentId === artifactFolder.id
+            );
+
+            if (artifactFile) {
+              artifactFile = {
+                ...artifactFile,
+                content: artifactContent,
+                updatedAt: Date.now(),
+              };
+              await updateNode(artifactFile);
+              setAllNodes((prev) =>
+                prev.map((n) => (n.id === artifactFile!.id ? artifactFile : n))
+              );
+            } else {
+              const newArtifactFile = {
+                id: crypto.randomUUID(),
+                name: artifactFileName,
+                type: "file",
+                content: artifactContent,
+                parentId: artifactFolder.id,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                workspaceId: selectedWorkspace.id, // Assign to current workspace
+              };
+              await createNode(newArtifactFile);
+              setAllNodes((prev) => [...prev, newArtifactFile]);
+            }
+          }
+        } catch (artifactError) {
+          console.error("Error updating artifacts:", artifactError);
+        }
+      };
+
+      generateArtifacts();
+    }
+  }, [results, selectedWorkspace, setAllNodes]);
 
   const handleFileSelection = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const fileId = e.target.value;
@@ -138,93 +212,27 @@ const SolidityCompiler = () => {
     setResults([]);
 
     try {
-      console.log("SolidityCompiler - Compiling file:", activeFile.name);
-      await compileFile(activeFile, selectedVersion);
-      setResults(compiledContracts); // Use compiledContracts from context
+      const compiledContracts = await compileFile(activeFile, selectedVersion);
+      setResults(compiledContracts);
+      setCompiledContracts(compiledContracts);
     } catch (err) {
-      setError(err.message || "Compilation failed");
+      setError((err as Error).message || "Compilation failed");
       console.error("SolidityCompiler - Compilation error:", err);
     } finally {
       setIsCompiling(false);
     }
-
-    // Generate artifacts folder and JSON files
-    if (compiledContracts.length > 0) {
-      try {
-        // Load all nodes to ensure we have the latest state
-        const allNodes = await getAllNodes();
-
-        // Find or create a single artifacts folder at the root (parentId: null)
-        let artifactFolder = allNodes.find(
-          (f) =>
-            f.type === "folder" && f.name === "artifacts" && f.parentId === null
-        );
-        if (!artifactFolder) {
-          artifactFolder = {
-            id: crypto.randomUUID(),
-            name: "artifacts",
-            type: "folder",
-            parentId: null,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          };
-          await createNode(artifactFolder);
-          console.log("Created artifacts folder:", artifactFolder.id);
-        } else {
-          console.log("Using existing artifacts folder:", artifactFolder.id);
-        }
-
-        // For each contract, create or update a JSON artifact file within the folder
-        for (const contract of compiledContracts) {
-          const artifactFileName = `${contract.contractName}.json`;
-          const artifactContent = JSON.stringify(
-            { abi: contract.abi, byteCode: contract.byteCode },
-            null,
-            2
-          );
-          let artifactFile = allNodes.find(
-            (f) =>
-              f.type === "file" &&
-              f.name === artifactFileName &&
-              f.parentId === artifactFolder.id
-          );
-          if (artifactFile) {
-            artifactFile = {
-              ...artifactFile,
-              content: artifactContent,
-              updatedAt: Date.now(),
-            };
-            await updateNode(artifactFile);
-          } else {
-            const newArtifactFile = {
-              id: crypto.randomUUID(),
-              name: artifactFileName,
-              type: "file",
-              content: artifactContent,
-              parentId: artifactFolder.id,
-              createdAt: Date.now(),
-              updatedAt: Date.now(),
-            };
-            await createNode(newArtifactFile);
-          }
-        }
-      } catch (artifactError) {
-        console.error("Error updating artifacts:", artifactError);
-      }
-    }
   };
 
-  return (
-    <div className="relative flex border-r border-[#DEDEDE] h-full  ">
+  const restOfTheComponent = (
+    <div className="relative flex h-full">
       <div
         className={`${
           isExpanded ? "w-80 px-4" : "w-0 px-0"
-        } bg-white flex flex-col transition-all duration-300 overflow-hidden overflow-y-auto  h-full${
+        } bg-white flex flex-col transition-all duration-300 overflow-hidden overflow-y-auto h-full ${
           urbanist.className
-        }`}
+        }custom-scroll`}
       >
-        {/* <div className="mb-2 flex items-center justify-between"> */}
-        <div className="mb-2 flex items-center justify-between sticky top-0 bg-white z-10  h-[3rem] bg-white flex-shrink-0">
+        <div className="mb-2 flex items-center justify-between sticky top-0 bg-white z-10 h-[3rem] bg-white flex-shrink-0">
           <span className={`${isExpanded ? "opacity-100" : "opacity-0"}`}>
             Solidity Compiler
           </span>
@@ -239,7 +247,7 @@ const SolidityCompiler = () => {
               className="transition-all"
             >
               <RightArrow
-                className={`w-5 h-5 text-gray-500 mb-[2px] transition-transform  ${
+                className={`w-5 h-5 text-gray-500 mb-[2px] transition-transform ${
                   isExpanded ? "rotate-180" : "rotate-0"
                 }`}
               />
@@ -276,10 +284,10 @@ const SolidityCompiler = () => {
               <select
                 onChange={handleFileSelection}
                 value={activeFile ? activeFile.id : ""}
-                className="border p-2 rounded w-full text-gray-500 text-[15px]"
+                className="border p-2 rounded w-full text-gray-500 text-[14px]"
               >
-                <option value="" className="text-gray-500 text-[14px] ">
-                  -- Select a Solidity file --
+                <option value="" className="text-gray-500 text-[14px]">
+                  Select a Solidity file
                 </option>
                 {availableFiles.map((file) => (
                   <option
@@ -295,10 +303,10 @@ const SolidityCompiler = () => {
 
             <div className="flex flex-col gap-2 mt-3">
               {checkboxOptions.map((checkbox, index) => (
-                <label key={index} className="flex items-center text-[13px]">
+                <label key={index} className="flex items-center text-[13px] cursor-pointer ">
                   <input
-                    type="checkbox"
-                    className="accent-black"
+                    type="checkbox" 
+                    className="accent-black cursor-pointer "
                     checked={checkbox.checked || false}
                     onChange={checkbox.onChange || (() => {})}
                   />
@@ -336,19 +344,21 @@ const SolidityCompiler = () => {
                     </label>
                     <div className="flex flex-col mt-2">
                       <label className="text-[13px]">LANGUAGE</label>
-                      <select className="border p-2 rounded text-[15px] text-gray-500">
-                        <option className="text-[14px]">Solidity</option>
-                        <option className="text-[14px]">Yul</option>
+                      <Tooltip content="Language specification available from Compiler >= v0.5.7">
+                      <select className="border p-2 rounded text-[14px] text-gray-500 w-full">
+                        <option >Solidity</option>
+                        <option >Yul</option>
                       </select>
+                      </Tooltip>
                     </div>
                     <div className="flex flex-col mt-2">
                       <label className="text-[13px] text-gray-500">
                         EVM VERSION
                       </label>
                       <select className="border p-2 rounded text-gray-500">
-                        <option className="text-[13px] ">berlin</option>
+                        <option className="text-[13px]">berlin</option>
                         {evmVersions.map((data, index) => (
-                          <option key={index} className="text-[15px] ">
+                          <option key={index} className="text-[15px]">
                             {data.label}
                           </option>
                         ))}
@@ -361,16 +371,20 @@ const SolidityCompiler = () => {
                           id="optimization"
                           className="accent-black"
                         />
+                        <Tooltip content="Enable opcode-based optimizer for the qenerated bytecode and the Yul optimizer for the Yul code">
                         <label htmlFor="optimization" className="text-sm">
                           Optimization
                         </label>
+                        </Tooltip>
                       </div>
                       <div>
+                        <Tooltip content="Estimated number of times each opcode of the deployed code will be executed across the life-time of the contract.">
                         <input
                           type="number"
                           defaultValue={200}
                           className="w-[80px] p-1 border rounded text-[14px] text-gray-500"
                         />
+                        </Tooltip>
                       </div>
                     </div>
                   </div>
@@ -539,6 +553,8 @@ const SolidityCompiler = () => {
       )}
     </div>
   );
+
+  return restOfTheComponent;
 };
 
 export default SolidityCompiler;

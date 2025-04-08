@@ -23,9 +23,6 @@ export const compile = (
     
     const filename = `contract_${Date.now()}.sol`;
 
-    console.log("Compiler.ts: Received contractCode:", contractCode);
-    console.log("Compiler.ts: Received compilerVersion:", compilerVersion);
-
     worker.onmessage = (e) => {
       try {
         if (e.data.error) {
@@ -70,8 +67,6 @@ export const compile = (
           reject(new Error("No contracts found in the source code"));
           return;
         }
-
-        console.log("Compilation successful");
         resolve(result);
       } catch (error) {
         reject(error instanceof Error ? error : new Error(String(error)));
