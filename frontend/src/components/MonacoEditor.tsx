@@ -428,7 +428,7 @@ acceptBtn.title = 'Accept (Tab)';
 acceptBtn.style.cssText = `
   padding: 2px 6px;
   margin-right: 4px;
-  background-color: #0d6efd;
+  background-color: #CE192D;
   color: white;
   border: none;
   border-radius: 3px;
@@ -450,7 +450,7 @@ rejectBtn.innerHTML = '✗';
 rejectBtn.title = 'Reject (Esc)';
 rejectBtn.style.cssText = `
   padding: 2px 6px;
-  background-color: #6c757d;
+  background-color: gray;
   color: white;
   border: none;
   border-radius: 3px;
@@ -774,8 +774,8 @@ rejectBtn.onclick = (e) => {
         {/* AI Prompt Input Modal */}
         {showPromptInput && (
           <div className="absolute left-1/2 top-8 transform -translate-x-1/2 z-10 bg-white rounded-lg shadow-lg border border-gray-200 w-96">
-            <div className="p-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-              <h3 className="text-sm font-medium">AI Code Assistant</h3>
+            <div className="p-3 border-b border-gray-100 rounded-t-lg">
+              <h3 className="text-sm text-[#94969C]  font-medium">AI Code Assistant</h3>
             </div>
             <form onSubmit={handleFetchSuggestion} className="p-3">
               <input
@@ -784,7 +784,7 @@ rejectBtn.onclick = (e) => {
                 value={aiPrompt}
                 onChange={(e) => setAiPrompt(e.target.value)}
                 placeholder="Ask for code, explanations, or fixes..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300   text-sm text-gray-600 rounded-md focus:outline-none"
                 autoFocus
               />
               <div className="flex justify-end gap-2 mt-3">
@@ -797,7 +797,7 @@ rejectBtn.onclick = (e) => {
                 </button>
                 <button
                   type="submit"
-                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  className="px-3 py-1 text-sm bg-red-500 rounded-md hover:bg-red-600 text-white rounded-md cursor-pointer"
                   disabled={!aiPrompt.trim() || isFetchingSuggestion}
                 >
                   {isFetchingSuggestion ? 'Fetching...' : 'Get Suggestion'}
