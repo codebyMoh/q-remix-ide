@@ -38,6 +38,7 @@ interface MonacoEditorProps {
   error?: string;
   compilationResult?: any;
   code?: string;
+  code?: string;
 }
 
 const MonacoEditor: React.FC<MonacoEditorProps> = ({
@@ -536,6 +537,42 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
           }}
           loading={<div className="p-4">Loading editor...</div>}
         />
+        
+        {/* AI Prompt Input Modal */}
+        {showPromptInput && (
+          <div className="absolute left-1/2 top-8 transform -translate-x-1/2 z-10 bg-white rounded-lg shadow-lg border border-gray-200 w-96">
+            <div className="p-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+              <h3 className="text-sm font-medium">AI Code Assistant</h3>
+            </div>
+            <form onSubmit={handleFetchSuggestion} className="p-3">
+              <input
+                ref={promptInputRef}
+                type="text"
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder="Ask for code, explanations, or fixes..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
+              />
+              <div className="flex justify-end gap-2 mt-3">
+                <button
+                  type="button"
+                  className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-md"
+                  onClick={handleHidePromptInput}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  disabled={!aiPrompt.trim() || isFetchingSuggestion}
+                >
+                  {isFetchingSuggestion ? 'Fetching...' : 'Get Suggestion'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
 
       {/* Error Display */}
