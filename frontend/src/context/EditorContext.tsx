@@ -1,7 +1,7 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect } from "react";
 import type { FileSystemNode } from "../types";
-import { getAllNodes } from "../utils/IndexDB";
+import { getAllNodes, getNodesByParentId } from "../utils/IndexDB";
 export interface ContractData {
   contractName: string;
   abi: any[];
@@ -32,28 +32,24 @@ const EditorContext = createContext<EditorContextProps | undefined>(undefined);
 
 export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
   const [openFiles, setOpenFiles] = useState<FileSystemNode[]>([]);
-
-    const [allNodes, setAllNodes] = useState<FileSystemNode[]>([]);
-    const [allWorkspace, setAllWorkspace] = useState<FileSystemNode[]>([]);
+  const [allNodes, setAllNodes] = useState<FileSystemNode[]>([]);
+  const [allWorkspace, setAllWorkspace] = useState<FileSystemNode[]>([]);
   // State for tracking the active file ID
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const [showHome, setShowHome] = useState(true);
   // Handler for selecting/opening a file
   const [allFiles, setAllFiles] = useState<FileSystemNode[]>([]);
   const [compiledContracts, setCompiledContracts] = useState<ContractData[]>([]);
-  const [showHome, setShowHome] = useState(true);
-  const [allNodes, setAllNodes] = useState<FileSystemNode[]>([]);
-  const [allWorkspace, setAllWorkspace] = useState<FileSystemNode[]>([]);
   const [selectedWorkspace, setSelectedWorkspace] = useState<FileSystemNode | null>(null);
 
- const handleFileSelect = (file: FileSystemNode | null) => {
-  if (!file || file.type !== "file") return;
-  if (!openFiles.find((f) => f.id === file.id)) {
-    setOpenFiles((prev) => [...prev, file]);
-  }
-  setActiveFileId(file.id);
-  setShowHome(false); // Add this line
-};
+  const onFileSelect = (file: FileSystemNode | null) => {
+    if (!file || file.type !== "file") return;
+    if (!openFiles.find((f) => f.id === file.id)) {
+      setOpenFiles((prev) => [...prev, file]);
+    }
+    setActiveFileId(file.id);
+    setShowHome(false);
+  };
 
   const onCloseFile = (fileId: string) => {
     setOpenFiles((prev) => prev.filter((f) => f.id !== fileId));
@@ -79,7 +75,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
       if (!selectedWorkspace) {
         return { error: 'No workspace selected' };
       }
-      const currentNodes = await getAllNodes(selectedWorkspace.id);
+      const currentNodes = await getNodesByParentId(null, selectedWorkspace.id);
       if (importPath.startsWith('../')) {
         const pathParts = importPath.split('/');
         pathParts.shift(); 
@@ -112,7 +108,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
         const importedFile = currentNodes.find(
           node => node.type === 'file' && 
                  node.name === cleanPath &&
-                 node.workspaceId === selectedWorkspace.id 
+                 node.parentId === selectedWorkspace.id 
         );
         
         if (!importedFile || !importedFile.content) {
@@ -125,7 +121,7 @@ export const EditorProvider = ({ children }: { children: React.ReactNode }) => {
       return { error: `File ${importPath} not found in workspace "${selectedWorkspace.name}"` };
     } catch (error) {
       console.error('Error in findImports:', error);
-      return { error: `Error importing ${importPath} in workspace "${selectedWorkspace.name}"` };
+      return { error: `Error importing ${importPath} in workspace "${selectedWorkspace?.name || 'unknown'}"` };
     }
   };
 
