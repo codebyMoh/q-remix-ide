@@ -38,7 +38,6 @@ interface MonacoEditorProps {
   error?: string;
   compilationResult?: any;
   code?: string;
-  code?: string;
 }
 
 const MonacoEditor: React.FC<MonacoEditorProps> = ({
@@ -51,6 +50,10 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   const [content, setContent] = useState(file?.content || code || "");
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showPromptInput, setShowPromptInput] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [isFetchingSuggestion, setIsFetchingSuggestion] = useState(false);
+  const promptInputRef = useRef<HTMLInputElement>(null);
 
   // Refs
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -507,6 +510,35 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
     document.addEventListener("keydown", handleGlobalKeyDown);
     return () => document.removeEventListener("keydown", handleGlobalKeyDown);
   }, [isDirty, isSaving, handleSave]);
+
+  const handleFetchSuggestion = async () => {
+    if (!aiPrompt.trim()) return;
+    setIsFetchingSuggestion(true);
+    try {
+      const response = await fetch("http://localhost:8000/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt: aiPrompt }),
+      });
+      const data = await response.json();
+      if (data.suggestion) {
+        setContent((prev) => prev + "\n" + data.suggestion);
+      }
+    } catch (error) {
+      console.error("Error fetching suggestion:", error);
+    } finally {
+      setIsFetchingSuggestion(false);
+      setShowPromptInput(false);
+      setAiPrompt("");
+    }
+  };
+
+  const handleHidePromptInput = () => {
+    setShowPromptInput(false);
+    setAiPrompt("");
+  };
 
   return (
     <div className="flex flex-col h-full">
