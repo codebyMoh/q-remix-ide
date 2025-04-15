@@ -790,14 +790,14 @@ rejectBtn.onclick = (e) => {
               <div className="flex justify-end gap-2 mt-3">
                 <button
                   type="button"
-                  className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-md"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                   onClick={handleHidePromptInput}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-3 py-1 text-sm bg-red-500 rounded-md hover:bg-red-600 text-white rounded-md cursor-pointer"
+                  className="px-[26px] py-2 text-sm font-medium text-white bg-red-500 rounded-md hover:bg-red-600"
                   disabled={!aiPrompt.trim() || isFetchingSuggestion}
                 >
                   {isFetchingSuggestion ? 'Fetching...' : 'Get Suggestion'}
