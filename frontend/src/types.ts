@@ -7,6 +7,7 @@ export interface FileSystemNode {
     parentId: string | null;
     createdAt: number;
     updatedAt: number;
+    workspaceId?: string;
   }
   export interface Workspace {
     id: string;

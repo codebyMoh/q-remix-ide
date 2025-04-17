@@ -291,9 +291,13 @@ export const createNode = async (node: FileSystemNode) => {
   await db.put(FILESYSTEM_STORE, node);
 };
 
-export const getAllNodes = async (): Promise<FileSystemNode[]> => {
+export const getAllNodes = async (workspaceId?: string): Promise<FileSystemNode[]> => {
   const db = await initDB();
-  return db.getAll(FILESYSTEM_STORE);
+  const allNodes = await db.getAll(FILESYSTEM_STORE);
+  if (workspaceId) {
+    return allNodes.filter(node => node.workspaceId === workspaceId);
+  }
+  return allNodes;
 };
 
 export const getNodesByParentId = async (parentId: string | null, workspaceId: string) => {

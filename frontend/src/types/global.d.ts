@@ -10,9 +10,16 @@ interface Window {
   };
 }
 
+declare module 'xterm/css/xterm.css';
+
 interface CustomEventMap {
-  "deploymentOutput": CustomEvent<any>;
-  "transactionOutput": CustomEvent<any>;
+  "deploymentOutput": CustomEvent<DeployedContract>;
+  "transactionOutput": CustomEvent<{
+    transactionHash: string;
+    contract: DeployedContract;
+    functionName: string;
+  }>;
+  "compilationOutput": CustomEvent<any>;
 }
 
 declare global {

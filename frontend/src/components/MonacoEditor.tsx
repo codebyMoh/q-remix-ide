@@ -207,17 +207,12 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
         background: rgba(0, 112, 243, 0.08);
         border-radius: 3px;
         margin-left: 2px;
-        border-left: 2px solid #0070f3;
-        display: inline-block;
-        pointer-events: none;
       }
       .multiline-ghost {
         border-left: 2px solid #0070f3;
         padding-left: 8px;
         margin-top: 4px;
         background: rgba(0, 112, 243, 0.08);
-        display: block;
-        pointer-events: none;
       }
     `;
     document.head.appendChild(style);
@@ -251,524 +246,715 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
           endColumn: position.column
         });
         
-        return `Here's the relevant code around my cursor: ${beforeText}`;
-      }
-    }
-    
-    // Fallback to first 500 chars
-    return `Here's the file context: ${fullContent.substring(0, 500)}${fullContent.length > 500 ? '...' : ''}`;
-  };
-  
-  const extractCodeFromResponse = (response: string) => {
-    // Extract code blocks from markdown response
-    const codeBlockRegex = /```(?:\w+)?\s*([\s\S]*?)```/g;
-    const matches = [...response.matchAll(codeBlockRegex)];
-    
-    if (matches.length > 0) {
-      return matches[0][1].trim();
-    }
-    
-    // If no code blocks, return the whole response
-    return response;
-  };
-  
-  // Insert the suggestion directly into the editor
-  const insertSuggestion = (suggestion: string) => {
-    if (!editorRef.current || !monacoRef.current || !cursorPosition) return;
-    
-    const editor = editorRef.current;
-    const monaco = monacoRef.current;
-    const model = editor.getModel();
-    
-    if (!model) return;
-    
-    // Insert the suggestion at cursor
-    const suggestionId = 'ai-suggestion-' + Date.now();
-    
-    // Step 1: Insert the suggestion at the cursor position
-    editor.executeEdits('ai-suggestion', [{
-      range: {
-        startLineNumber: cursorPosition.lineNumber,
-        startColumn: cursorPosition.column,
-        endLineNumber: cursorPosition.lineNumber,
-        endColumn: cursorPosition.column
-      },
-      text: suggestion,
-      forceMoveMarkers: true
-    }]);
-    
-    // Step 2: Calculate the range where we inserted the suggestion
-    const endPosition = model.getPositionAt(
-      model.getOffsetAt(cursorPosition) + suggestion.length
-    );
-    
-    const suggestionRange = new monaco.Range(
-      cursorPosition.lineNumber,
-      cursorPosition.column,
-      endPosition.lineNumber,
-      endPosition.column
-    );
-    
-    // Step 3: Add decoration to highlight the suggestion
-    // const decorations = editor.deltaDecorations([], [
-    //   {
-    //     range: suggestionRange,
-    //     options: {
-    //       inlineClassName: 'ai-suggestion-highlight',
-    //       stickiness: monaco.editor.TrackedRangeStickiness.AlwaysGrowsWhenTypingAtEdges,
-    //       className: 'ai-suggestion-highlight',
-    //       isWholeLine: false,
-    //       afterContentClassName: 'ai-suggestion-controls'
-    //     }
-    //   }
-    // ]);
-    const decorationIds = editor.deltaDecorations([], [
-      {
-        range: suggestionRange,
-        options: {
-          inlineClassName: 'ai-suggestion-highlight',
-          stickiness: monaco.editor.TrackedRangeStickiness.AlwaysGrowsWhenTypingAtEdges,
-          className: 'ai-suggestion-highlight',
-          isWholeLine: false,
-          afterContentClassName: 'ai-suggestion-controls'
-        }
-      }
-    ]);
-    
-    editor._aiDecorationIds = decorationIds;    
-    
-    
-    // // Store the decoration ID to remove it later
-    // editor._aiDecorationId = decorations[0];
-    
-    // Step 4: Add inline controls after the suggestion
-    const lineAfter = endPosition.lineNumber;
-    const columnAfter = endPosition.column;
-    
-    // Add a content widget for the accept/reject controls
-    const controlsWidget = {
-      getId: function() {
-        return 'ai-suggestion-controls';
-      },
-      getDomNode: function() {
-        const containerEl = document.createElement('span');
-        containerEl.className = 'ai-controls-container';
-        containerEl.style.cssText = `
-          display: inline-flex;
-          align-items: center;
-          margin-left: 8px;
-          vertical-align: middle;
-        `;
+        // Check if we're inside a contract
+        const isInsideContract = context.includes("contract") && context.includes("{") && 
+                                context.lastIndexOf("contract") < context.lastIndexOf("{");
         
-        // Update the part where you define the controls widget in the insertSuggestion function
-// Look for the part where you create acceptBtn and rejectBtn and update their onclick handlers
-
-// Store the current values that will be needed for accept/reject
-const capturedSuggestion = suggestion;
-const capturedCursorPosition = cursorPosition;
-
-
-// Add these new functions for use with the button click handlers
-const acceptSuggestionWithCapture = (editor: any, suggestion: string, position: monaco.Position) => {
-  try {
-    // Keep the suggestion in the editor
-    const currentContent = editor.getValue();
-    
-    // Move cursor to the end of the suggestion
-    const model = editor.getModel();
-    if (model && position) {
-      const endPosition = model.getPositionAt(
-        model.getOffsetAt(position) + suggestion.length
-      );
-      editor.setPosition(endPosition);
-      editor.focus();
-    }
-
-    // Clean up UI elements
-    if (editor._aiDecorationIds) {
-      editor.deltaDecorations(editor._aiDecorationIds, []);
-      editor._aiDecorationIds = [];
-    }
-    
-    if (editor._aiControlsWidget) {
-      editor.removeContentWidget(editor._aiControlsWidget);
-      editor._aiControlsWidget = undefined;
-    }
-    
-    if (editor._aiSuggestionDisposable) {
-      editor._aiSuggestionDisposable.dispose();
-      editor._aiSuggestionDisposable = undefined;
-    }
-    
-    if (editor._aiStyleElement && editor._aiStyleElement.parentNode) {
-      editor._aiStyleElement.parentNode.removeChild(editor._aiStyleElement);
-      editor._aiStyleElement = undefined;
-    }
-    
-    // Update React state
-    setContent(currentContent);
-    setIsDirty(true);
-    updateActiveFileContent(currentContent);
-    setAiSuggestion(null);
-    setCursorPosition(null);
-    
-  } catch (error) {
-    console.error("Error accepting suggestion:", error);
-  }
-};
-
-const rejectSuggestionWithCapture = (editor: any, suggestion: string, position: monaco.Position) => {
-  try {
-    const model = editor.getModel();
-    if (!model) {
-      console.error("Monaco model is missing during rejection.");
-      return;
-    }
-
-    let editApplied = false;
-
-    // Remove the suggestion text using decoration range if available
-    const decorationIds = editor._aiDecorationIds;
-    if (decorationIds?.length) {
-      const decorationRange = model.getDecorationRange(decorationIds[0]);
-      if (decorationRange) {
-        editor.executeEdits("reject-suggestion", [
-          { range: decorationRange, text: "" },
-        ]);
-        editApplied = true;
-      }
-    }
-
-    // Fallback: calculate the range from position and suggestion length
-    if (!editApplied && position) {
-      const endPosition = model.getPositionAt(
-        model.getOffsetAt(position) + suggestion.length
-      );
-      editor.executeEdits("reject-suggestion", [
-        {
-          range: {
-            startLineNumber: position.lineNumber,
-            startColumn: position.column,
-            endLineNumber: endPosition.lineNumber,
-            endColumn: endPosition.column,
+        // Check if we're inside a function
+        const isInsideFunction = context.includes("function") && context.includes("{") && 
+                                context.lastIndexOf("function") < context.lastIndexOf("{");
+        
+        // Check if we're at the beginning of a line
+        const isBeginningOfLine = position.column <= 2 || 
+                                 lineContent.substring(0, position.column - 1).trim() === "";
+        
+        // Check if we're typing an import
+        const isImporting = lineContent.trim().startsWith("import") || 
+                           (isBeginningOfLine && wordBeforeCursor === "");
+        
+        // Check if we're typing a pragma
+        const isPragma = lineContent.trim().startsWith("pragma") || 
+                         (isBeginningOfLine && wordBeforeCursor === "");
+        
+        // Check if we're typing a contract
+        const isContract = lineContent.trim().startsWith("contract") || 
+                          (isBeginningOfLine && wordBeforeCursor === "");
+        
+        // Check if we're typing a function
+        const isFunction = lineContent.trim().startsWith("function") || 
+                          (isBeginningOfLine && wordBeforeCursor === "");
+        
+        // Check if we're typing an event
+        const isEvent = lineContent.trim().startsWith("event") || 
+                       (isBeginningOfLine && wordBeforeCursor === "");
+        
+        // Check if we're typing a modifier
+        const isModifier = lineContent.trim().startsWith("modifier") || 
+                          (isBeginningOfLine && wordBeforeCursor === "");
+        
+        // Check if we're typing a mapping
+        const isMapping = lineContent.trim().startsWith("mapping") || 
+                         (isBeginningOfLine && wordBeforeCursor === "");
+        
+        // Check if we're typing a require
+        const isRequire = lineContent.trim().startsWith("require") || 
+                         (isBeginningOfLine && wordBeforeCursor === "");
+        
+        // Check if we're typing an OpenZeppelin import
+        const isOpenZeppelin = lineContent.includes("@openzeppelin") || 
+                              (isImporting && wordBeforeCursor === "@");
+        
+        // Define common Solidity snippets
+        const suggestions = [
+          {
+            label: "pragma solidity",
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: "pragma solidity ^0.8.0;",
+            detail: "Specify Solidity version",
+            documentation: "Declares the Solidity compiler version",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
           },
-          text: "",
-        },
-      ]);
-    }
+          {
+            label: "contract",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: [
+              "contract ${1:ContractName} {",
+              "\t// State variables",
+              "\taddress public owner;",
+              "\t",
+              "\t// Constructor",
+              "\tconstructor() {",
+              "\t\towner = msg.sender;",
+              "\t}",
+              "\t",
+              "\t$0",
+              "}"
+            ].join('\n'),
+            detail: "Create a new contract",
+            documentation: "Creates a new Solidity contract with basic structure",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "function",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: [
+              "function ${1:functionName}(${2:parameters}) ${3:public} ${4:returns (${5:returnType})} {",
+              "\t$0",
+              "}"
+            ].join('\n'),
+            detail: "Create a new function",
+            documentation: "Declares a new function with customizable visibility and return type",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "event",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "event ${1:EventName}(${2:address indexed sender}, ${3:uint256 value});",
+            detail: "Declare an event",
+            documentation: "Creates a new event declaration",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "modifier",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: [
+              "modifier ${1:modifierName}() {",
+              "\t${2:require(msg.sender == owner, \"Not authorized\");}",
+              "\t_;",
+              "}"
+            ].join('\n'),
+            detail: "Create a modifier",
+            documentation: "Creates a new modifier for function access control",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          // Data types
+          { label: "uint256", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "uint256", range },
+          { label: "address", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "address", range },
+          { label: "bool", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bool", range },
+          { label: "string", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "string", range },
+          { label: "bytes32", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes32", range },
+          { label: "uint8", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "uint8", range },
+          { label: "uint16", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "uint16", range },
+          { label: "uint32", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "uint32", range },
+          { label: "uint64", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "uint64", range },
+          { label: "uint128", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "uint128", range },
+          { label: "int256", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "int256", range },
+          { label: "int8", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "int8", range },
+          { label: "int16", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "int16", range },
+          { label: "int32", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "int32", range },
+          { label: "int64", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "int64", range },
+          { label: "int128", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "int128", range },
+          { label: "bytes", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes", range },
+          { label: "bytes1", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes1", range },
+          { label: "bytes2", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes2", range },
+          { label: "bytes3", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes3", range },
+          { label: "bytes4", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes4", range },
+          { label: "bytes5", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes5", range },
+          { label: "bytes6", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes6", range },
+          { label: "bytes7", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes7", range },
+          { label: "bytes8", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes8", range },
+          { label: "bytes9", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes9", range },
+          { label: "bytes10", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes10", range },
+          { label: "bytes11", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes11", range },
+          { label: "bytes12", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes12", range },
+          { label: "bytes13", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes13", range },
+          { label: "bytes14", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes14", range },
+          { label: "bytes15", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes15", range },
+          { label: "bytes16", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes16", range },
+          { label: "bytes17", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes17", range },
+          { label: "bytes18", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes18", range },
+          { label: "bytes19", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes19", range },
+          { label: "bytes20", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes20", range },
+          { label: "bytes21", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes21", range },
+          { label: "bytes22", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes22", range },
+          { label: "bytes23", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes23", range },
+          { label: "bytes24", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes24", range },
+          { label: "bytes25", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes25", range },
+          { label: "bytes26", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes26", range },
+          { label: "bytes27", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes27", range },
+          { label: "bytes28", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes28", range },
+          { label: "bytes29", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes29", range },
+          { label: "bytes30", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes30", range },
+          { label: "bytes31", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes31", range },
+          { label: "bytes32", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "bytes32", range },
+          
+          // Common statements
+          {
+            label: "require",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: 'require(${1:condition}, "${2:error message}");',
+            detail: "Add a require statement",
+            documentation: "Adds a condition check that reverts if false",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "mapping",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "mapping(${1:keyType} => ${2:valueType})",
+            detail: "Create a mapping",
+            documentation: "Declares a new mapping type",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "struct",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: [
+              "struct ${1:StructName} {",
+              "\t${2:type} ${3:name};",
+              "\t$0",
+              "}"
+            ].join('\n'),
+            detail: "Create a struct",
+            documentation: "Declares a new struct type",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "enum",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: [
+              "enum ${1:EnumName} {",
+              "\t${2:Option1},",
+              "\t${3:Option2}",
+              "\t$0",
+              "}"
+            ].join('\n'),
+            detail: "Create an enum",
+            documentation: "Declares a new enum type",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "interface",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: [
+              "interface ${1:InterfaceName} {",
+              "\t$0",
+              "}"
+            ].join('\n'),
+            detail: "Create an interface",
+            documentation: "Declares a new interface",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "library",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: [
+              "library ${1:LibraryName} {",
+              "\t$0",
+              "}"
+            ].join('\n'),
+            detail: "Create a library",
+            documentation: "Declares a new library",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "using",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "using ${1:LibraryName} for ${2:type};",
+            detail: "Use a library",
+            documentation: "Uses a library for a specific type",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "assembly",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: [
+              "assembly {",
+              "\t$0",
+              "}"
+            ].join('\n'),
+            detail: "Inline assembly",
+            documentation: "Uses inline assembly for low-level operations",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "try",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: [
+              "try ${1:contract}.${2:function}(${3:args}) {",
+              "\t$0",
+              "} catch Error(string memory reason) {",
+              "\t",
+              "} catch (bytes memory lowLevelData) {",
+              "\t",
+              "}"
+            ].join('\n'),
+            detail: "Try-catch block",
+            documentation: "Handles external call errors",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "revert",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: 'revert("${1:error message}");',
+            detail: "Revert with message",
+            documentation: "Reverts the transaction with an error message",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "selfdestruct",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "selfdestruct(${1:address payable recipient});",
+            detail: "Self-destruct contract",
+            documentation: "Destroys the contract and sends remaining ETH to recipient",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "delegatecall",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "(bool success, ) = ${1:target}.delegatecall(abi.encodeWithSignature(\"${2:functionSignature}\", ${3:args}));",
+            detail: "Delegate call",
+            documentation: "Executes a delegate call to another contract",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "staticcall",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "(bool success, ) = ${1:target}.staticcall(abi.encodeWithSignature(\"${2:functionSignature}\", ${3:args}));",
+            detail: "Static call",
+            documentation: "Executes a static call to another contract",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "call",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "(bool success, ) = ${1:target}.call{value: ${2:amount}}(abi.encodeWithSignature(\"${3:functionSignature}\", ${4:args}));",
+            detail: "Call with value",
+            documentation: "Executes a call to another contract with ETH value",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "transfer",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "${1:recipient}.transfer(${2:amount});",
+            detail: "Transfer ETH",
+            documentation: "Transfers ETH to a recipient",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "send",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "${1:recipient}.send(${2:amount});",
+            detail: "Send ETH",
+            documentation: "Sends ETH to a recipient",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "balance",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "${1:address}.balance",
+            detail: "Get balance",
+            documentation: "Gets the ETH balance of an address",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "gas",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "gasleft()",
+            detail: "Get gas left",
+            documentation: "Gets the remaining gas",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "block",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "block.${1|number,timestamp,hash,difficulty,gaslimit,basefee,coinbase|}",
+            detail: "Block properties",
+            documentation: "Accesses block properties",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "msg",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "msg.${1|sender,value,data,sig|}",
+            detail: "Message properties",
+            documentation: "Accesses message properties",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "tx",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "tx.${1|origin,gasprice|}",
+            detail: "Transaction properties",
+            documentation: "Accesses transaction properties",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "now",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "block.timestamp",
+            detail: "Current timestamp",
+            documentation: "Gets the current block timestamp",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "this",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "this",
+            detail: "Current contract",
+            documentation: "References the current contract",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "super",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "super.${1:functionName}(${2:args})",
+            detail: "Call parent function",
+            documentation: "Calls a function from the parent contract",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "virtual",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "virtual",
+            detail: "Virtual function",
+            documentation: "Marks a function as virtual (can be overridden)",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "override",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "override",
+            detail: "Override function",
+            documentation: "Marks a function as overriding a parent function",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "abstract",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "abstract",
+            detail: "Abstract contract",
+            documentation: "Marks a contract as abstract",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "immutable",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "immutable",
+            detail: "Immutable variable",
+            documentation: "Marks a state variable as immutable",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "constant",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "constant",
+            detail: "Constant variable",
+            documentation: "Marks a state variable as constant",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          },
+          {
+            label: "indexed",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: "indexed",
+            detail: "Indexed event parameter",
+            documentation: "Marks an event parameter as indexed",
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range
+          }
+        ];
 
-    // Update state with content after rejection
-    const newContent = editor.getValue();
-    
-    // Restore cursor to original position
-    if (position) {
-      editor.setPosition(position);
-      editor.focus();
-    }
+        // Add visibility modifiers if after a function declaration
+        if (wordBeforeCursor === "function") {
+          return {
+            suggestions: [
+              { label: "public", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "public", range },
+              { label: "private", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "private", range },
+              { label: "internal", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "internal", range },
+              { label: "external", kind: monaco.languages.CompletionItemKind.Keyword, insertText: "external", range }
+            ]
+          };
+        }
 
-    // Clean up UI elements
-    if (editor._aiDecorationIds) {
-      editor.deltaDecorations(editor._aiDecorationIds, []);
-      editor._aiDecorationIds = [];
-    }
-    
-    if (editor._aiControlsWidget) {
-      editor.removeContentWidget(editor._aiControlsWidget);
-      editor._aiControlsWidget = undefined;
-    }
-    
-    if (editor._aiSuggestionDisposable) {
-      editor._aiSuggestionDisposable.dispose();
-      editor._aiSuggestionDisposable = undefined;
-    }
-    
-    if (editor._aiStyleElement && editor._aiStyleElement.parentNode) {
-      editor._aiStyleElement.parentNode.removeChild(editor._aiStyleElement);
-      editor._aiStyleElement = undefined;
-    }
-    
-    // Update React state
-    setContent(newContent);
-    setIsDirty(true);
-    updateActiveFileContent(newContent);
-    setAiSuggestion(null);
-    setCursorPosition(null);
-    
-  } catch (error) {
-    console.error("Error rejecting suggestion:", error);
-  }
-};
-
-// Use the existing capturedCursorPosition or rename if necessary
-const capturedCursorPositionCopy = { ...cursorPosition }; // Clone to ensure we keep a stable copy
-
-// Accept button
-const acceptBtn = document.createElement('button');
-acceptBtn.innerHTML = '✓';
-acceptBtn.title = 'Accept (Tab)';
-acceptBtn.style.cssText = `
-  padding: 2px 6px;
-  margin-right: 4px;
-  background-color: #CE192D;
-  color: white;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 11px;
-  line-height: 1;
-`;
-acceptBtn.onclick = (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  if (editor && capturedSuggestion) {
-    acceptSuggestionWithCapture(editor, capturedSuggestion, capturedCursorPosition);
-  }
-};
-
-// Reject button
-const rejectBtn = document.createElement('button');
-rejectBtn.innerHTML = '✗';
-rejectBtn.title = 'Reject (Esc)';
-rejectBtn.style.cssText = `
-  padding: 2px 6px;
-  background-color: gray;
-  color: white;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 11px;
-  line-height: 1;
-`;
-rejectBtn.onclick = (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  if (editor && capturedSuggestion && capturedCursorPosition) {
-    rejectSuggestionWithCapture(editor, capturedSuggestion, capturedCursorPosition);
-  }
-};
-        
-        containerEl.appendChild(acceptBtn);
-        containerEl.appendChild(rejectBtn);
-        return containerEl;
-      },
-      getPosition: function() {
-        return {
-          position: endPosition,
-          preference: [monaco.editor.ContentWidgetPositionPreference.AFTER]
-        };
-      }
-    };
-    
-    // Add the widget to the editor
-    editor.addContentWidget(controlsWidget);
-    editor._aiControlsWidget = controlsWidget;
-    
-    // Add keyboard handlers for Tab and Esc
-    const disposable = editor.onKeyDown((e) => {
-      if (e.keyCode === monaco.KeyCode.Tab && aiSuggestion) {
-        // Tab key - accept suggestion
-        e.preventDefault();
-        e.stopPropagation();
-        acceptSuggestion();
-      } else if (e.keyCode === monaco.KeyCode.Escape && aiSuggestion) {
-        // Esc key - reject suggestion
-        e.preventDefault();
-        e.stopPropagation();
-        rejectSuggestion();
+        return { suggestions };
       }
     });
-    
-    // Store disposable to clean up later
-    editor._aiSuggestionDisposable = disposable;
-    
-    // Add some CSS for the highlight
-    const styleEl = document.createElement('style');
-    styleEl.innerHTML = `
-      .ai-suggestion-highlight {
-        background-color: rgba(86, 182, 255, 0.1);
-        border-bottom: 1px dashed #56b6ff;
-      }
-    `;
-    document.head.appendChild(styleEl);
-    editor._aiStyleElement = styleEl;
-  };
-  
-  const acceptSuggestion = () => {
-    if (!editorRef.current || !aiSuggestion) {
-      console.warn("Cannot accept suggestion: Missing editor or suggestion.");
-      return;
-    }
-  
-    try {
-      const editor = editorRef.current;
-      const currentContent = editor.getValue();
-      
-      setContent(currentContent);
-      setIsDirty(true);
-      updateActiveFileContent(currentContent);
-  
-      if (cursorPosition) {
-        const model = editor.getModel();
-        if (model) {
-          const endPosition = model.getPositionAt(
-            model.getOffsetAt(cursorPosition) + aiSuggestion.length
-          );
-          editor.setPosition(endPosition);
-          editor.focus();
-          console.log("Cursor moved to end of accepted suggestion at:", endPosition);
+
+    // Register AI completion provider separately
+    const aiProvider = monaco.languages.registerCompletionItemProvider("solidity", {
+      triggerCharacters: TRIGGER_CHARS,
+      provideCompletionItems: async (model: monaco.editor.ITextModel, position: monaco.Position) => {
+        try {
+          // Get current line and position info
+          const lineContent = model.getLineContent(position.lineNumber);
+          
+          // Get context from previous lines
+          const context = model.getValueInRange({
+            startLineNumber: Math.max(1, position.lineNumber - 10),
+            startColumn: 1,
+            endLineNumber: position.lineNumber,
+            endColumn: position.column
+          });
+
+          // Get the current word being typed
+          const word = model.getWordUntilPosition(position);
+          const currentWord = word.word;
+          
+          // Get the word before the cursor
+          const wordBeforeCursor = lineContent.substring(0, position.column - 1).trim().split(/\s+/).pop() || "";
+          
+          // Check if we're at the beginning of a line
+          const isBeginningOfLine = position.column <= 2 || 
+                                   lineContent.substring(0, position.column - 1).trim() === "";
+          
+          // Check if we're typing an import
+          const isImporting = lineContent.trim().startsWith("import") || 
+                             (isBeginningOfLine && wordBeforeCursor === "");
+          
+          // Check if we're typing a pragma
+          const isPragma = lineContent.trim().startsWith("pragma") || 
+                           (isBeginningOfLine && wordBeforeCursor === "");
+          
+          // Check if we're typing a contract
+          const isContract = lineContent.trim().startsWith("contract") || 
+                            (isBeginningOfLine && wordBeforeCursor === "");
+          
+          // Check if we're typing a function
+          const isFunction = lineContent.trim().startsWith("function") || 
+                            (isBeginningOfLine && wordBeforeCursor === "");
+          
+          // Check if we're typing an event
+          const isEvent = lineContent.trim().startsWith("event") || 
+                         (isBeginningOfLine && wordBeforeCursor === "");
+          
+          // Check if we're typing a modifier
+          const isModifier = lineContent.trim().startsWith("modifier") || 
+                            (isBeginningOfLine && wordBeforeCursor === "");
+          
+          // Check if we're typing a mapping
+          const isMapping = lineContent.trim().startsWith("mapping") || 
+                           (isBeginningOfLine && wordBeforeCursor === "");
+          
+          // Check if we're typing a require
+          const isRequire = lineContent.trim().startsWith("require") || 
+                           (isBeginningOfLine && wordBeforeCursor === "");
+          
+          // Check if we're typing an OpenZeppelin import
+          const isOpenZeppelin = lineContent.includes("@openzeppelin") || 
+                                (isImporting && wordBeforeCursor === "@");
+          
+          // Don't make API call if context is too short
+          if (context.trim().length < 2) {
+            return { suggestions: [] };
+          }
+
+          // Cancel previous request if any
+          if (currentAIRequest) {
+            currentAIRequest.abort();
+          }
+
+          const controller = new AbortController();
+          currentAIRequest = controller;
+
+          // Make API request with proper error handling
+          try {
+            // Prepare the prompt data
+            const promptData = {
+              code: context,
+              currentLine: lineContent,
+              cursorPosition: position.column,
+              currentWord: currentWord,
+              wordBeforeCursor: wordBeforeCursor,
+              isBeginningOfLine: isBeginningOfLine,
+              isImporting: isImporting,
+              isPragma: isPragma,
+              isContract: isContract,
+              isFunction: isFunction,
+              isEvent: isEvent,
+              isModifier: isModifier,
+              isMapping: isMapping,
+              isRequire: isRequire,
+              isOpenZeppelin: isOpenZeppelin
+            };
+            
+            console.log('Making AI request with context:', context);
+            const response = await axiosInstance.post('/generate', 
+              { prompt: context, promptData: promptData },
+              { 
+                signal: controller.signal,
+                timeout: 10000
+              }
+            );
+
+            console.log('AI response:', response.data);
+
+            if (!response?.data?.suggestion) {
+              console.log('No suggestion in response');
+              return { suggestions: [] };
+            }
+
+            const suggestion = response.data.suggestion.trim();
+            if (!suggestion) {
+              console.log('Empty suggestion after trim');
+              return { suggestions: [] };
+            }
+
+            // Clear existing decorations
+            if (currentGhostTextDecoration) {
+              currentGhostTextDecoration.clear();
+              currentGhostTextDecoration = null;
+            }
+            if (currentTabHandler) {
+              currentTabHandler.dispose();
+              currentTabHandler = null;
+            }
+
+            // Store suggestion and create decoration
+            currentSuggestion = suggestion;
+            const isMultiline = suggestion.includes("\n");
+
+            // Create ghost text decoration with better visibility
+            currentGhostTextDecoration = editor.createDecorationsCollection([{
+              range: {
+                startLineNumber: position.lineNumber,
+                startColumn: position.column,
+                endLineNumber: position.lineNumber,
+                endColumn: position.column
+              },
+              options: {
+                isWholeLine: false,
+                after: {
+                  content: suggestion,
+                  inlineClassName: 'ghost-text'
+                },
+                className: isMultiline ? 'multiline-ghost' : ''
+              }
+            }]);
+
+            // Handle Tab key press
+            currentTabHandler = editor.onKeyDown((e: monaco.IKeyboardEvent) => {
+              if (e.keyCode === monaco.KeyCode.Tab && currentSuggestion) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const insertText = currentSuggestion;
+                const insertPosition = editor.getPosition();
+                if (!insertPosition) return;
+
+                editor.executeEdits('ai-suggestion', [{
+                  range: {
+                    startLineNumber: insertPosition.lineNumber,
+                    startColumn: insertPosition.column,
+                    endLineNumber: insertPosition.lineNumber,
+                    endColumn: insertPosition.column
+                  },
+                  text: insertText
+                }]);
+
+                // Clear ghost text
+                if (currentGhostTextDecoration) {
+                  currentGhostTextDecoration.clear();
+                  currentGhostTextDecoration = null;
+                }
+
+                // Move cursor to end of inserted text
+                const lines = insertText.split('\n');
+                const lastLineLength = lines[lines.length - 1].length;
+                const newPosition = {
+                  lineNumber: insertPosition.lineNumber + lines.length - 1,
+                  column: lines.length === 1 
+                    ? insertPosition.column + lastLineLength 
+                    : lastLineLength + 1
+                };
+                editor.setPosition(newPosition);
+
+                currentSuggestion = null;
+                if (currentTabHandler) {
+                  currentTabHandler.dispose();
+                  currentTabHandler = null;
+                }
+              }
+            });
+
+            return { suggestions: [] };
+          } catch (error: any) {
+            if (axios.isCancel(error)) {
+              console.log('Request was cancelled');
+            } else {
+              console.error('AI suggestion error:', error?.message || error);
+            }
+            return { suggestions: [] };
+          }
+        } catch (error) {
+          console.error('Provider error:', error);
+          return { suggestions: [] };
         }
       }
-  
-      console.log("Suggestion accepted. Cleaning up UI.");
-      cleanupSuggestionUI();
-    } catch (error) {
-      console.error("Error accepting suggestion:", error);
-    }
-  };
-  
-  
-  const rejectSuggestion = () => {
-    if (!editorRef.current || !aiSuggestion || !cursorPosition) {
-      console.warn("Cannot reject suggestion: Missing editor, suggestion, or cursor position.");
-      return;
-    }
-  
-    try {
-      const editor = editorRef.current;
-      const model = editor.getModel();
-      if (!model) {
-        console.error("Monaco model is missing during rejection.");
-        return;
+    });
+
+    // Clean up providers on unmount
+    return () => {
+      aiProvider.dispose();
+      if (currentGhostTextDecoration) {
+        currentGhostTextDecoration.clear();
       }
-  
-      let editApplied = false;
-  
-      const decorationIds = editor._aiDecorationIds;
-      if (decorationIds?.length) {
-        const decorationRange = model.getDecorationRange(decorationIds[0]);
-        if (decorationRange) {
-          editor.executeEdits("reject-suggestion", [
-            { range: decorationRange, text: "" },
-          ]);
-          console.log("Suggestion rejected using decoration range:", decorationRange);
-          editApplied = true;
-        }
+      if (currentTabHandler) {
+        currentTabHandler.dispose();
       }
-  
-      if (!editApplied) {
-        const endPosition = model.getPositionAt(
-          model.getOffsetAt(cursorPosition) + aiSuggestion.length
-        );
-        editor.executeEdits("reject-suggestion", [
-          {
-            range: {
-              startLineNumber: cursorPosition.lineNumber,
-              startColumn: cursorPosition.column,
-              endLineNumber: endPosition.lineNumber,
-              endColumn: endPosition.column,
-            },
-            text: "",
-          },
-        ]);
-        console.log("Suggestion rejected using fallback position range.");
-      }
-  
-      const newContent = editor.getValue();
-      setContent(newContent);
-      setIsDirty(true);
-      updateActiveFileContent(newContent);
-  
-      editor.setPosition(cursorPosition);
-      editor.focus();
-  
-      console.log("Editor updated and focused back after rejecting suggestion.");
-      cleanupSuggestionUI();
-    } catch (error) {
-      console.error("Error rejecting suggestion:", error);
-    }
-  };
-  
-  const cleanupSuggestionUI = () => {
-    try {
-      if (!editorRef.current) {
-        console.debug("Editor reference not available for cleanup.");
-        return false;
-      }
-  
-      const editor = editorRef.current;
-      const cleanupOperations = {
-        decorations: false,
-        widget: false,
-        listener: false,
-        style: false,
-        state: false
-      };
-  
-      if (Array.isArray(editor._aiDecorationIds) && editor._aiDecorationIds.length) {
-        editor.deltaDecorations(editor._aiDecorationIds, []);
-        editor._aiDecorationIds = [];
-        cleanupOperations.decorations = true;
-        console.log("AI decorations removed.");
-      }
-  
-      if (editor._aiControlsWidget) {
-        editor.removeContentWidget(editor._aiControlsWidget);
-        editor._aiControlsWidget = undefined;
-        cleanupOperations.widget = true;
-        console.log("AI control widget removed.");
-      }
-  
-      if (editor._aiSuggestionDisposable) {
-        editor._aiSuggestionDisposable.dispose();
-        editor._aiSuggestionDisposable = undefined;
-        cleanupOperations.listener = true;
-        console.log("AI suggestion listener disposed.");
-      }
-  
-      if (editor._aiStyleElement && editor._aiStyleElement.parentNode) {
-        editor._aiStyleElement.parentNode.removeChild(editor._aiStyleElement);
-        editor._aiStyleElement = undefined;
-        cleanupOperations.style = true;
-        console.log("AI style element removed.");
-      }
-  
-      setAiSuggestion(null);
-      setCursorPosition(null);
-      cleanupOperations.state = true;
-      console.log("AI state reset (suggestion & cursor).");
-  
-      editor._lastCleanupReason = "manual";
-  
-      console.debug("Copilot suggestion UI cleanup complete:", cleanupOperations);
-      return true;
-    } catch (error) {
-      console.error("Error during copilot suggestion cleanup:", error);
-  
-      try {
-        if (editorRef.current) {
-          setAiSuggestion(null);
-          setCursorPosition(null);
-          console.warn("Emergency fallback: AI state forcibly cleared.");
-        }
-      } catch (recoveryError) {
-        console.error("Failed recovery attempt during cleanup:", recoveryError);
-      }
-  
-      return false;
-    }
-  };
-  
-  
-  // Capture editor instance on mount
-  const handleEditorDidMount = (editor: any, monaco: any) => {
-    editorRef.current = editor;
-    monacoRef.current = monaco;
-    
-    // Add keyboard shortcut for AI prompt (Ctrl+I)
-    editor.addCommand(
-      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI,
-      handleShowPromptInput
-    );
+    };
   };
 
   // Editor Change Handler
@@ -871,8 +1057,8 @@ rejectBtn.onclick = (e) => {
         {/* AI Prompt Input Modal */}
         {showPromptInput && (
           <div className="absolute left-1/2 top-8 transform -translate-x-1/2 z-10 bg-white rounded-lg shadow-lg border border-gray-200 w-96">
-            <div className="p-3 border-b border-gray-100 rounded-t-lg">
-              <h3 className="text-sm text-[#94969C]  font-medium">AI Code Assistant</h3>
+            <div className="p-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+              <h3 className="text-sm font-medium">AI Code Assistant</h3>
             </div>
             <form onSubmit={handleFetchSuggestion} className="p-3">
               <input
@@ -881,20 +1067,20 @@ rejectBtn.onclick = (e) => {
                 value={aiPrompt}
                 onChange={(e) => setAiPrompt(e.target.value)}
                 placeholder="Ask for code, explanations, or fixes..."
-                className="w-full px-3 py-2 border border-gray-300   text-sm text-gray-600 rounded-md focus:outline-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 autoFocus
               />
               <div className="flex justify-end gap-2 mt-3">
                 <button
                   type="button"
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                  className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-md"
                   onClick={handleHidePromptInput}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-[26px] py-2 text-sm font-medium text-white bg-red-500 rounded-md hover:bg-red-600"
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
                   disabled={!aiPrompt.trim() || isFetchingSuggestion}
                 >
                   {isFetchingSuggestion ? 'Fetching...' : 'Get Suggestion'}
