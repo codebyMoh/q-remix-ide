@@ -139,10 +139,10 @@ const Popup = (props) => {
         return (
           <>
             <h3 className="font-medium text-lg mb-2">Create Blank Workspace</h3>
-            <label className="text-sm text-gray-600 mb-4">Workspace name</label>
+            <label className="text-sm text-gray-600 mb-5">Workspace name</label>
             <input
               onChange={(e) => Inputworkspace(e.target.value)}
-              className="border border-gray-300 bg-gray-100 rounded w-full p-2 focus:outline-none pt-1"
+              className="border border-gray-300  rounded w-full p-2 focus:outline-none pt-1"
             />
             <div className="flex justify-end gap-3 mt-4">
               <button
