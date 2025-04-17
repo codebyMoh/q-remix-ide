@@ -4,6 +4,9 @@ import * as monaco from 'monaco-editor';
 import { getNodeById, updateNode } from "../utils/IndexDB";
 import type { FileSystemNode } from "../types";
 import { useEditor } from "../context/EditorContext";
+import { solidityKeywords, solidityTypes, soliditySnippets } from "../config/solidity";
+import SuggestionBox from "./SuggestionBox";
+import axios from 'axios';
 
 interface MonacoEditorProps {
   file: FileSystemNode;
@@ -33,6 +36,15 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   const [cursorPosition, setCursorPosition] = useState<monaco.Position | null>(null);
   const [isFetchingSuggestion, setIsFetchingSuggestion] = useState(false);
   const promptInputRef = useRef<HTMLInputElement | null>(null);
+  
+  const [showSuggestionBox, setShowSuggestionBox] = useState(false);
+  const [ghostText, setGhostText] = useState<string | null>(null);
+  const [isLoadingGhostText, setIsLoadingGhostText] = useState(false);
+  const ghostTextTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  
+  const [capturedSuggestion, setCapturedSuggestion] = useState<string | null>(null);
+  const [capturedCursorPosition, setCapturedCursorPosition] = useState<monaco.IPosition | null>(null);
   
   useEffect(() => {
     const loadContent = async () => {
@@ -97,55 +109,95 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   };
   
   // Fetch AI suggestion when user submits prompt
-  const handleFetchSuggestion = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!aiPrompt.trim() || !cursorPosition || isFetchingSuggestion) {
-      return;
-    }
-    
-    setIsFetchingSuggestion(true);
-    
+  const handleFetchSuggestion = async () => {
+    if (!editorRef.current || !cursorPosition) return;
+
     try {
-      // Get file context for better AI responses
-      const fileContext = getFileContext();
-      const language = getLanguage(file?.name);
-      
-      // Prepare the prompt with context
-      const fullPrompt = `I'm working on a ${language} file. ${fileContext} 
-Please help with: ${aiPrompt}`;
-      
-      // Call the API
-      const response = await fetch('http://localhost:5000/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ message: fullPrompt })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      // Extract code from the response
-      const suggestion = extractCodeFromResponse(data.response);
-      
-      // Hide prompt input and show suggestion
-      setShowPromptInput(false);
-      setAiPrompt("");
-      setAiSuggestion(suggestion);
-      
-      // Insert the suggestion directly into the editor with decorations
-      insertSuggestion(suggestion);
-      
+        const model = editorRef.current.getModel();
+        if (!model) return;
+
+        const currentLine = model.getLineContent(cursorPosition.lineNumber);
+        const wordBeforeCursor = currentLine.substring(0, cursorPosition.column - 1);
+        const currentWord = model.getWordAtPosition(cursorPosition)?.word || '';
+
+        // Check if we should trigger completion
+        const shouldTrigger = wordBeforeCursor.endsWith(' ') || 
+                            /[\w]/.test(currentWord);
+
+        if (!shouldTrigger) {
+            setAiSuggestion('');
+            return;
+        }
+
+        console.log('Fetching suggestion for:', {
+            currentLine,
+            wordBeforeCursor,
+            currentWord
+        });
+
+        const response = await axios.post<{ suggestion: string }>(
+            'http://localhost:8000/generate',
+            {
+                prompt: model.getValue(),
+                promptData: {
+                    currentLine,
+                    cursorPosition: cursorPosition.column,
+                    currentWord,
+                    wordBeforeCursor,
+                    isBeginningOfLine: cursorPosition.column === 1,
+                    isImporting: currentLine.includes('import'),
+                    isPragma: currentLine.includes('pragma'),
+                    isContract: currentLine.includes('contract'),
+                    isFunction: currentLine.includes('function'),
+                    isEvent: currentLine.includes('event'),
+                    isModifier: currentLine.includes('modifier'),
+                    isMapping: currentLine.includes('mapping'),
+                    isRequire: currentLine.includes('require'),
+                    isOpenZeppelin: currentLine.includes('@openzeppelin')
+                }
+            },
+            {
+                timeout: 3000
+            }
+        );
+
+        if (response.data.suggestion) {
+            console.log('Received suggestion:', response.data.suggestion);
+            setAiSuggestion(response.data.suggestion);
+            
+            // Get current editor position
+            const position = editorRef.current.getPosition();
+            console.debug('Current editor position:', position);
+            
+            // Add ghost text decoration
+            const decorations = editorRef.current.createDecorationsCollection([
+                {
+                    range: new monaco.Range(
+                        cursorPosition.lineNumber,
+                        cursorPosition.column,
+                        cursorPosition.lineNumber,
+                        cursorPosition.column + response.data.suggestion.length
+                    ),
+                    options: {
+                        inlineClassName: 'ghost-text',
+                        afterContentClassName: 'ghost-text-after',
+                        before: {
+                          content: response.data.suggestion,
+                          inlineClassName: 'ghost-text'
+                        },
+                        stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges
+                    }
+                }
+            ]);
+            
+            console.debug('Added ghost text decoration with ID:', decorations);
+            editorRef.current._ghostTextDecorations = decorations;
+        } else {
+            console.debug('No suggestion received from API');
+        }
     } catch (error) {
-      console.error('Error fetching AI suggestion:', error);
-      alert(`Failed to get AI suggestion: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsFetchingSuggestion(false);
+        console.error('Error fetching suggestion:', error);
+        setAiSuggestion('');
     }
   };
   
@@ -423,48 +475,15 @@ const capturedCursorPositionCopy = { ...cursorPosition }; // Clone to ensure we 
 
 // Accept button
 const acceptBtn = document.createElement('button');
-acceptBtn.innerHTML = '✓';
-acceptBtn.title = 'Accept (Tab)';
-acceptBtn.style.cssText = `
-  padding: 2px 6px;
-  margin-right: 4px;
-  background-color: #CE192D;
-  color: white;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 11px;
-  line-height: 1;
-`;
-acceptBtn.onclick = (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  if (editor && capturedSuggestion) {
-    acceptSuggestionWithCapture(editor, capturedSuggestion, capturedCursorPosition);
-  }
-};
+acceptBtn.textContent = 'Accept';
+acceptBtn.className = 'ghost-text-accept-btn';
+acceptBtn.onclick = (e) => handleAcceptSuggestion(e as unknown as React.MouseEvent<HTMLButtonElement>);
 
 // Reject button
 const rejectBtn = document.createElement('button');
-rejectBtn.innerHTML = '✗';
-rejectBtn.title = 'Reject (Esc)';
-rejectBtn.style.cssText = `
-  padding: 2px 6px;
-  background-color: gray;
-  color: white;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 11px;
-  line-height: 1;
-`;
-rejectBtn.onclick = (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  if (editor && capturedSuggestion && capturedCursorPosition) {
-    rejectSuggestionWithCapture(editor, capturedSuggestion, capturedCursorPosition);
-  }
-};
+rejectBtn.textContent = 'Reject';
+rejectBtn.className = 'ghost-text-reject-btn';
+rejectBtn.onclick = (e) => handleRejectSuggestion(e as unknown as React.MouseEvent<HTMLButtonElement>);
         
         containerEl.appendChild(acceptBtn);
         containerEl.appendChild(rejectBtn);
@@ -483,7 +502,7 @@ rejectBtn.onclick = (e) => {
     editor._aiControlsWidget = controlsWidget;
     
     // Add keyboard handlers for Tab and Esc
-    const disposable = editor.onKeyDown((e) => {
+    const disposable = editor.onKeyDown((e: monaco.IKeyboardEvent) => {
       if (e.keyCode === monaco.KeyCode.Tab && aiSuggestion) {
         // Tab key - accept suggestion
         e.preventDefault();
@@ -683,11 +702,293 @@ rejectBtn.onclick = (e) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
     
+    // Configure Solidity language
+    configureSolidityLanguage(monaco);
+
+    // Register completion provider
+    monaco.languages.registerCompletionItemProvider('solidity', {
+      triggerCharacters: ['.', ':', '(', '{', '=', '\n', '@', ';', ',', '+', '-', '*', '/', '&', '|', '!', '?', '<', '>', ' '],
+      async provideCompletionItems(model: any, position: any) {
+        try {
+          const lineContent = model.getLineContent(position.lineNumber);
+          const wordUntilPosition = model.getWordUntilPosition(position);
+          
+          console.debug('Triggering completion at position:', position);
+          console.debug('Current line content:', lineContent);
+          
+          const requestData = {
+            prompt: model.getValue(),
+            promptData: {
+              currentLine: lineContent,
+              cursorPosition: position.column,
+              currentWord: wordUntilPosition.word,
+              wordBeforeCursor: lineContent.substring(0, position.column),
+              isBeginningOfLine: position.column === 1,
+              isImporting: lineContent.includes('import'),
+              isPragma: lineContent.includes('pragma'),
+              isContract: model.getValue().includes('contract'),
+              isFunction: lineContent.includes('function'),
+              isEvent: lineContent.includes('event'),
+              isModifier: lineContent.includes('modifier'),
+              isMapping: lineContent.includes('mapping'),
+              isRequire: lineContent.includes('require'),
+              isOpenZeppelin: lineContent.includes('@openzeppelin')
+            }
+          };
+
+          console.debug('Sending request with data:', requestData);
+          
+          const response = await axios.post('http://localhost:8000/generate', requestData);
+          
+          console.debug('Received response:', response.data);
+          
+          if (response.data.suggestion) {
+            const range = {
+              startLineNumber: position.lineNumber,
+              endLineNumber: position.lineNumber,
+              startColumn: wordUntilPosition.startColumn,
+              endColumn: wordUntilPosition.endColumn
+            };
+
+            // Create a more detailed suggestion with proper formatting
+            const suggestion = response.data.suggestion;
+            const isMultiLine = suggestion.includes('\n');
+            
+            // Determine the kind of suggestion based on content
+            let kind = monaco.languages.CompletionItemKind.Text;
+            if (suggestion.includes('function')) {
+              kind = monaco.languages.CompletionItemKind.Function;
+            } else if (suggestion.includes('contract')) {
+              kind = monaco.languages.CompletionItemKind.Class;
+            } else if (suggestion.includes('event')) {
+              kind = monaco.languages.CompletionItemKind.Event;
+            } else if (suggestion.includes('mapping')) {
+              kind = monaco.languages.CompletionItemKind.Variable;
+            } else if (suggestion.includes('import')) {
+              kind = monaco.languages.CompletionItemKind.Module;
+            } else if (suggestion.includes('pragma')) {
+              kind = monaco.languages.CompletionItemKind.Keyword;
+            }
+            
+            return {
+              suggestions: [{
+                label: isMultiLine ? suggestion.split('\n')[0] + '...' : suggestion,
+                kind: kind,
+                insertText: suggestion,
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                range: range,
+                detail: 'AI Suggestion',
+                documentation: {
+                  value: [
+                    '```solidity',
+                    suggestion,
+                    '```',
+                    '',
+                    'Press Tab to accept this suggestion'
+                  ].join('\n')
+                },
+                sortText: '0',
+                preselect: true,
+                command: {
+                  id: 'editor.action.triggerSuggest',
+                  title: 'Show more suggestions'
+                }
+              }]
+            };
+          }
+          
+          return { suggestions: [] };
+        } catch (error) {
+          console.error('Error in completion provider:', error);
+          return { suggestions: [] };
+        }
+      }
+    });
+
     // Add keyboard shortcut for AI prompt (Ctrl+I)
     editor.addCommand(
       monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI,
       handleShowPromptInput
     );
+
+    // Add keyboard shortcut for suggestion box (Ctrl+Shift+S)
+    editor.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyS,
+      () => setShowSuggestionBox(true)
+    );
+    
+    // Configure editor options for suggestions
+    editor.updateOptions({
+      suggest: {
+        preview: true,
+        showInlineDetails: true,
+        showMethods: true,
+        showFunctions: true,
+        showConstructors: true,
+        showFields: true,
+        showVariables: true,
+        showClasses: true,
+        showStructs: true,
+        showInterfaces: true,
+        showModules: true,
+        showProperties: true,
+        showEvents: true,
+        showOperators: true,
+        showUnits: true,
+        showValues: true,
+        showConstants: true,
+        showEnums: true,
+        showEnumMembers: true,
+        showKeywords: true,
+        showWords: true,
+        showColors: true,
+        showFiles: true,
+        showReferences: true,
+        showFolders: true,
+        showTypeParameters: true,
+        showSnippets: true,
+        maxVisibleSuggestions: 12,
+        filterGraceful: true,
+        localityBonus: true,
+        shareSuggestSelections: true,
+        showIcons: true,
+        showStatusBar: true,
+        previewMode: 'prefix',
+        insertMode: 'insert',
+        selectionMode: 'whenQuickSuggestion'
+      },
+      quickSuggestions: {
+        other: true,
+        comments: true,
+        strings: true
+      },
+      acceptSuggestionOnEnter: 'on',
+      tabCompletion: 'on',
+      wordBasedSuggestions: 'matchingDocuments',
+      parameterHints: {
+        enabled: true
+      }
+    });
+
+    // Add ghost text provider
+    editor.onDidChangeModelContent(() => {
+      if (ghostTextTimeoutRef.current) {
+        clearTimeout(ghostTextTimeoutRef.current);
+      }
+
+      const position = editor.getPosition();
+      const model = editor.getModel();
+      const word = model?.getWordUntilPosition(position);
+      const lineContent = model?.getLineContent(position.lineNumber);
+      const beforeCursor = lineContent?.substring(0, position.column - 1);
+
+      // Check if we should trigger AI completion
+      if (word && beforeCursor && (beforeCursor.endsWith(' ') || /[\w\d]$/.test(beforeCursor))) {
+        setIsLoadingGhostText(true);
+        abortControllerRef.current = new AbortController();
+
+        ghostTextTimeoutRef.current = setTimeout(async () => {
+          try {
+            const requestData = {
+              prompt: model?.getValue() || '',
+              promptData: {
+                currentLine: lineContent || '',
+                cursorPosition: position.column,
+                currentWord: word?.word || '',
+                wordBeforeCursor: beforeCursor || '',
+                isBeginningOfLine: position.column === 1,
+                isImporting: /import\s+/.test(beforeCursor || ''),
+                isPragma: /pragma\s+/.test(beforeCursor || ''),
+                isContract: /contract\s+\w+\s*{/.test(model?.getValue() || ''),
+                isFunction: /function\s+\w+\s*\(/.test(beforeCursor || ''),
+                isEvent: /event\s+\w+\s*\(/.test(beforeCursor || ''),
+                isModifier: /modifier\s+\w+\s*\(/.test(beforeCursor || ''),
+                isMapping: /mapping\s*\(/.test(beforeCursor || ''),
+                isRequire: /require\s*\(/.test(beforeCursor || ''),
+                isOpenZeppelin: /@openzeppelin/.test(beforeCursor || '')
+              }
+            };
+
+            // Fix for linter error: Check if abortControllerRef.current is not null
+            if (abortControllerRef.current) {
+              const response = await axios.post('http://localhost:8000/generate', requestData, {
+                signal: abortControllerRef.current.signal,
+                timeout: 3000
+              });
+
+              if (response.data.suggestion) {
+                setGhostText(response.data.suggestion);
+                
+                // Add ghost text decoration with improved styling
+                const decorations = editor.deltaDecorations([], [{
+                  range: new monaco.Range(
+                    position.lineNumber,
+                    position.column,
+                    position.lineNumber,
+                    position.column + response.data.suggestion.length
+                  ),
+                  options: {
+                    inlineClassName: 'ghost-text',
+                    afterContentClassName: 'ghost-text-after',
+                    before: {
+                      content: response.data.suggestion,
+                      inlineClassName: 'ghost-text'
+                    },
+                    stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges
+                  }
+                }]);
+                
+                editor._ghostTextDecorations = decorations;
+              }
+            }
+          } catch (error: unknown) {
+            // Fix for linter error: Type check for error
+            if (error instanceof Error && error.name !== 'AbortError' && error.name !== 'CanceledError') {
+              console.error('Error fetching ghost text:', error);
+            }
+          } finally {
+            setIsLoadingGhostText(false);
+            if (abortControllerRef.current) {
+              abortControllerRef.current = null;
+            }
+          }
+        }, 300);
+      } else {
+        setGhostText(null);
+        if (editor._ghostTextDecorations) {
+          editor.deltaDecorations(editor._ghostTextDecorations, []);
+          editor._ghostTextDecorations = [];
+        }
+      }
+    });
+
+    // Handle Tab key for ghost text
+    editor.onKeyDown((e: monaco.IKeyboardEvent) => {
+      if (e.keyCode === monaco.KeyCode.Tab && ghostText) {
+        e.preventDefault();
+        const position = editor.getPosition();
+        const model = editor.getModel();
+        if (model && position) {
+          const word = model.getWordUntilPosition(position);
+          const range = new monaco.Range(
+            position.lineNumber,
+            word.startColumn,
+            position.lineNumber,
+            word.endColumn
+          );
+          model.pushEditOperations(
+            [],
+            [{ range, text: ghostText }],
+            () => null
+          );
+          setGhostText(null);
+          if (editor._ghostTextDecorations) {
+            editor.deltaDecorations(editor._ghostTextDecorations, []);
+            editor._ghostTextDecorations = [];
+          }
+        }
+      }
+    });
   };
 
   // When the editor changes, update local state and context
@@ -736,88 +1037,387 @@ rejectBtn.onclick = (e) => {
     }
   };
 
+  // Add Solidity language configuration
+  const configureSolidityLanguage = (monaco: any) => {
+    // Register Solidity language
+    monaco.languages.register({ id: 'solidity' });
+
+    // Define Solidity syntax highlighting rules
+    monaco.languages.setMonarchTokensProvider('solidity', {
+      defaultToken: '',
+      tokenizer: {
+        root: [
+          // Keywords
+          [/[a-zA-Z_$][\w$]*/, {
+            cases: {
+              '@keywords': 'keyword',
+              '@default': 'identifier'
+            }
+          }],
+          // Whitespace
+          { include: '@whitespace' },
+          // Delimiters and operators
+          [/[{}()\[\]]/, '@brackets'],
+          [/[<>](?!@symbols)/, '@brackets'],
+          [/@symbols/, {
+            cases: {
+              '@operators': 'operator',
+              '@default': ''
+            }
+          }],
+          // Numbers
+          [/\d*\.\d+([eE][\-+]?\d+)?/, 'number.float'],
+          [/0[xX][0-9a-fA-F]+/, 'number.hex'],
+          [/\d+/, 'number'],
+          // Strings
+          [/"([^"\\]|\\.)*$/, 'string.invalid'],
+          [/'([^'\\]|\\.)*$/, 'string.invalid'],
+          [/"/, 'string', '@string_double'],
+          [/'/, 'string', '@string_single'],
+          // Comments
+          [/\/\*/, 'comment', '@comment'],
+          [/\/\/.*$/, 'comment']
+        ],
+        whitespace: [
+          [/[ \t\r\n]+/, ''],
+          [/\/\*/, 'comment', '@comment'],
+          [/\/\/.*$/, 'comment']
+        ],
+        comment: [
+          [/[^/*]+/, 'comment'],
+          [/\*\//, 'comment', '@pop'],
+          [/[/*]/, 'comment']
+        ],
+        string_double: [
+          [/[^\\"]+/, 'string'],
+          [/\\./, 'string.escape'],
+          [/"/, 'string', '@pop']
+        ],
+        string_single: [
+          [/[^\\']+/, 'string'],
+          [/\\./, 'string.escape'],
+          [/'/, 'string', '@pop']
+        ]
+      },
+      keywords: [
+        'abstract', 'after', 'anonymous', 'as', 'assembly', 'auto', 'before',
+        'break', 'calldata', 'case', 'catch', 'constant', 'continue', 'contract',
+        'copyof', 'default', 'delete', 'do', 'else', 'emit', 'enum', 'event',
+        'external', 'false', 'final', 'for', 'function', 'hex', 'if', 'immutable',
+        'import', 'indexed', 'interface', 'internal', 'is', 'library', 'mapping',
+        'memory', 'modifier', 'new', 'null', 'of', 'override', 'payable', 'pragma',
+        'private', 'public', 'pure', 'return', 'returns', 'storage', 'string',
+        'struct', 'super', 'support', 'switch', 'this', 'throw', 'true', 'try',
+        'type', 'typeof', 'unchecked', 'using', 'var', 'view', 'virtual', 'while'
+      ],
+      operators: [
+        '=', '>', '<', '!', '~', '?', ':', '==', '<=', '>=', '!=',
+        '&&', '||', '++', '--', '+', '-', '*', '/', '&', '|', '^', '%',
+        '<<', '>>', '>>>', '+=', '-=', '*=', '/=', '&=', '|=', '^=',
+        '%=', '<<=', '>>=', '>>>='
+      ],
+      symbols: /[=><!~?:&|+\-*\/\^%]+/
+    });
+
+    // Register Solidity completion provider
+    monaco.languages.registerCompletionItemProvider('solidity', {
+      triggerCharacters: ['.', ':', '(', '{', '=', '\n', '@', ';', ',', '+', '-', '*', '/', '&', '|', '!', '?', '<', '>'],
+      provideCompletionItems: (model: any, position: any) => {
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn
+        };
+
+        // Static completions
+        const suggestions = [
+          ...solidityKeywords.map(keyword => ({
+            label: keyword,
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: keyword,
+            range
+          })),
+          ...solidityTypes.map(type => ({
+            label: type,
+            kind: monaco.languages.CompletionItemKind.TypeParameter,
+            insertText: type,
+            range
+          })),
+          ...soliditySnippets.map(snippet => ({
+            label: snippet.label,
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: snippet.insertText,
+            documentation: snippet.documentation,
+            range
+          }))
+        ];
+
+        return { suggestions };
+      }
+    });
+  };
+
+  // Add CSS for ghost text and suggestions
+  const style = document.createElement('style');
+  style.textContent = `
+    .monaco-editor .suggest-widget {
+      background-color: #2d2d2d !important;
+      border: 1px solid #454545 !important;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.24) !important;
+      border-radius: 3px !important;
+      margin-left: -1px !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list {
+      background-color: #2d2d2d !important;
+      color: #d4d4d4 !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row {
+      padding: 0 8px !important;
+      line-height: 24px !important;
+      min-height: 24px !important;
+      font-size: 13px !important;
+      font-family: 'Consolas', 'Monaco', monospace !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row.focused {
+      background-color: #094771 !important;
+      color: #ffffff !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row:hover {
+      background-color: #094771 !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .icon {
+      margin-right: 8px !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .contents {
+      padding: 0 !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .details {
+      display: none !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row.focused .details {
+      display: block !important;
+      color: #d4d4d4 !important;
+      font-size: 12px !important;
+      padding: 2px 0 !important;
+      opacity: 0.8 !important;
+    }
+    
+    .monaco-editor .ghost-text {
+      color: #858585 !important;
+      opacity: 0.8 !important;
+      font-style: italic !important;
+      font-family: 'Consolas', 'Monaco', monospace !important;
+      font-size: inherit !important;
+      background: transparent !important;
+      border: none !important;
+      pointer-events: none !important;
+    }
+    
+    .monaco-editor .ghost-text-decoration {
+      color: #858585 !important;
+      opacity: 0.8 !important;
+      font-style: italic !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .suggest-icon {
+      background-image: none !important;
+      display: inline-block !important;
+      height: 16px !important;
+      width: 16px !important;
+      min-width: 16px !important;
+      margin-right: 4px !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .suggest-icon::before {
+      font-family: codicon !important;
+      font-size: 16px !important;
+      line-height: 16px !important;
+      color: #d4d4d4 !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .suggest-icon.Function::before {
+      content: "\\ea8c" !important;
+      color: #b180d7 !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .suggest-icon.Variable::before {
+      content: "\\ea88" !important;
+      color: #75beff !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .suggest-icon.Keyword::before {
+      content: "\\ea83" !important;
+      color: #ff8080 !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .suggest-icon.Constructor::before {
+      content: "\\ea8f" !important;
+      color: #b180d7 !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .suggest-icon.Field::before {
+      content: "\\ea8e" !important;
+      color: #75beff !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .suggest-icon.Interface::before {
+      content: "\\ea89" !important;
+      color: #75beff !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .suggest-icon.Module::before {
+      content: "\\ea8b" !important;
+      color: #75beff !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .suggest-icon.Property::before {
+      content: "\\ea8a" !important;
+      color: #75beff !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .suggest-icon.Event::before {
+      content: "\\ea86" !important;
+      color: #ff8080 !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .suggest-icon.Enum::before {
+      content: "\\ea85" !important;
+      color: #75beff !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .suggest-icon.Constant::before {
+      content: "\\ea84" !important;
+      color: #4fc1ff !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .monaco-icon-label {
+      color: #d4d4d4 !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row.focused .monaco-icon-label {
+      color: #ffffff !important;
+    }
+    
+    .monaco-editor .suggest-widget .monaco-list .monaco-list-row .monaco-icon-label-description {
+      opacity: 0.7 !important;
+    }
+  `;
+  document.head.appendChild(style);
+
+  const handleAcceptSuggestion = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (editorRef.current && capturedSuggestion && capturedCursorPosition) {
+      const position = new monaco.Position(
+        capturedCursorPosition.lineNumber,
+        capturedCursorPosition.column
+      );
+      editorRef.current.executeEdits('', [{
+        range: new monaco.Range(
+          position.lineNumber,
+          position.column,
+          position.lineNumber,
+          position.column
+        ),
+        text: capturedSuggestion
+      }]);
+      setCapturedSuggestion(null);
+      setCapturedCursorPosition(null);
+    }
+  };
+
+  const handleRejectSuggestion = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (editorRef.current && capturedSuggestion && capturedCursorPosition) {
+      setCapturedSuggestion(null);
+      setCapturedCursorPosition(null);
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full">
-      <div className="bg-gray-50 flex justify-between items-center p-2">
-        <div className="flex items-center gap-2">
-          {isDirty && (
-            <span className="text-sm text-gray-500">(unsaved changes)</span>
-          )}
-          {isFetchingSuggestion && (
-            <span className="text-sm text-blue-500 font-medium">Fetching AI suggestion...</span>
-          )}
-        </div>
-        <div className="text-xs text-gray-500">
-          Press Ctrl+I for AI assistance
-        </div>
-      </div>
-      <div className="flex-1 relative" style={{ minHeight: "200px" }}>
-        <Editor
-          height="100%"
-          defaultLanguage={getLanguage(file?.name)}
-          value={content}
-          theme="vs-light"
-          onChange={handleEditorChange}
-          onMount={handleEditorDidMount}
-          options={{
-            fontSize: 14,
-            minimap: { enabled: false },
-            automaticLayout: true,
-            lineNumbers: "on",
-            roundedSelection: false,
-            readOnly: false,
-            cursorStyle: "line",
-          }}
-          loading={<div className="p-4">Loading editor...</div>}
-        />
-        
-        {/* AI Prompt Input Modal */}
-        {showPromptInput && (
-          <div className="absolute left-1/2 top-8 transform -translate-x-1/2 z-10 bg-white rounded-lg shadow-lg border border-gray-200 w-96">
-            <div className="p-3 border-b border-gray-100 rounded-t-lg">
-              <h3 className="text-sm text-[#94969C]  font-medium">AI Code Assistant</h3>
-            </div>
-            <form onSubmit={handleFetchSuggestion} className="p-3">
-              <input
-                ref={promptInputRef}
-                type="text"
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder="Ask for code, explanations, or fixes..."
-                className="w-full px-3 py-2 border border-gray-300   text-sm text-gray-600 rounded-md focus:outline-none"
-                autoFocus
-              />
-              <div className="flex justify-end gap-2 mt-3">
-                <button
-                  type="button"
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                  onClick={handleHidePromptInput}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-[26px] py-2 text-sm font-medium text-white bg-red-500 rounded-md hover:bg-red-600"
-                  disabled={!aiPrompt.trim() || isFetchingSuggestion}
-                >
-                  {isFetchingSuggestion ? 'Fetching...' : 'Get Suggestion'}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-      </div>
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2">
-          Error: {error}
-        </div>
-      )}
-      {compilationResult && (
-        <div className="bg-gray-100 border border-gray-400 text-gray-700 px-4 py-2">
-          <h2 className="font-bold">Compilation Result</h2>
-          <pre>{JSON.stringify(compilationResult, null, 2)}</pre>
-        </div>
-      )}
+    <div className="relative w-full h-full">
+      <Editor
+        height="100%"
+        defaultLanguage="solidity"
+        value={content}
+        onChange={handleEditorChange}
+        onMount={handleEditorDidMount}
+        theme="vs-light"
+        options={{
+          minimap: { enabled: false },
+          fontSize: 14,
+          lineNumbers: 'on',
+          roundedSelection: false,
+          scrollBeyondLastLine: false,
+          readOnly: false,
+          theme: 'vs-light',
+          automaticLayout: true,
+          wordWrap: 'on',
+          formatOnPaste: true,
+          formatOnType: true,
+          glyphMargin: true,
+          folding: true,
+          renderLineHighlight: 'all',
+          scrollbar: {
+            vertical: 'visible',
+            horizontal: 'visible',
+            handleMouseWheel: true
+          },
+          // Solidity-specific settings
+          suggestOnTriggerCharacters: true,
+          quickSuggestions: {
+            other: true,
+            comments: true,
+            strings: true
+          },
+          acceptSuggestionOnEnter: 'on',
+          tabCompletion: 'on',
+          wordBasedSuggestions: 'matchingDocuments',
+          parameterHints: {
+            enabled: true
+          }
+        }}
+      />
+      
+      <SuggestionBox
+        isOpen={showSuggestionBox}
+        onClose={() => setShowSuggestionBox(false)}
+        onSuggestionReceived={(suggestion) => {
+          if (editorRef.current) {
+            const position = editorRef.current.getPosition();
+            const model = editorRef.current.getModel();
+            if (model && position) {
+              model.pushEditOperations(
+                [],
+                [{ range: new monaco.Range(
+                  position.lineNumber,
+                  position.column,
+                  position.lineNumber,
+                  position.column
+                ), text: suggestion }],
+                () => null
+              );
+            }
+          }
+        }}
+        code={content || ''}
+        cursorPosition={editorRef.current?.getPosition() || { lineNumber: 1, column: 1 }}
+        context={{
+          isContract: /contract\s+\w+\s*{/.test(content || ''),
+          isFunction: /function\s+\w+\s*\(/.test(content || '')
+        }}
+      />
     </div>
   );
 };
